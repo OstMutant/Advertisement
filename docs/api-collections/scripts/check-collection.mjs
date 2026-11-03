@@ -1,29 +1,36 @@
 /* ── Header ───────────────────────────────────────────────────────────────
- * Description: Checks the Postman collection against the running API's OpenAPI document. Every
- *   request must name an existing operationId with a matching method and path and carry a valid
- *   step/label/kind header (and an optional `when` key, when present, valid); every operation must
- *   be in the collection or on the allow-list, and the allow-list must hold no covered or unknown
- *   operation. Prints every finding, not only the first one. With `"source": "mcp"` in the config,
- *   the operations are the MCP server's tool names (listed through its own session) and only the
- *   requests that POST a `tools/call` to `mcpPath` count as tool calls, named after the tool they
- *   call; every other request is checked for its step header only.
+ * Description: Checks the Postman collection against the API's OpenAPI document (REST, the default) or
+ *   against the MCP server's tool list (MCP, selected by `"source": "mcp"` in the config). Requests are
+ *   matched to operations or tools, and every operation must be in the collection or on the allow-list.
+ *   In MCP mode only the matching of request names to tools is limited to tools/call requests; every
+ *   request gets the step-header and role checks. In MCP mode with referenceCollectionFile set, every tool also
+ *   present in the reference collection must be exercised at least at the same role.
  * Usage: node docs/api-collections/scripts/check-collection.mjs [baseUrl] [--config <file>] [--help]
+ *   (no flags)  check the collection named in check-collection.config.json against <API_BASE_URL or the config's baseUrl><openApiPath> (<mcpPath> in MCP mode)
  *   The config defaults to check-collection.config.json next to this script.
- * Uses: node:fs, node:path, node:url, global fetch (Node >= 18), flow-runner/page/js/mcp-client.js
- *   (MCP mode only). No dependencies.
+ * Uses: node:fs, node:path, node:url, global fetch (Node >= 18), flow-runner/page/js/collection.js,
+ *   flow-runner/page/js/mcp-client.js (MCP mode only), flow-runner/page/js/roles.js. No dependencies.
  * Env: API_BASE_URL -- base URL used when no positional argument is given.
  * Input: the OpenAPI document at <baseUrl><openApiPath> (MCP mode: the tool list of the MCP server
  *   at <baseUrl><mcpPath>), the Postman collection file and the allow-list file named in the config
  *   (relative paths resolve against the config's directory).
- * Outputs: one "- <finding>" line per finding on stdout, then a summary line with the operation
+ * Outputs: one "- <finding>" line per finding on stdout, all of them, covering: a request that names no
+ *   operation (MCP mode: tool) or whose method and path differ from it (MCP mode: whose tools/call calls another
+ *   tool); a missing step, label or kind header; a `when` key or flow `when` not in <variable>=<value> form; a
+ *   `helper` value other than yes; a step used by more than one request; a non-helper request using the
+ *   administrator or moderator key in a flow with no `when` condition; an operation or tool neither covered nor
+ *   allow-listed; an allow-list entry that is covered or names nothing; in MCP mode with referenceCollectionFile, a tool
+ *   exercised at a lower role than in the reference collection. Then a summary line with the operation
  *   (MCP mode: tool), collection (called) and allow-list counts. Errors are printed on stderr.
  * Returns: exit code -- 0 when there are no findings, 1 when there is at least one finding,
- *   2 when the spec, the tool list, the config or a listed file cannot be read.
+ *   2 on a usage error, or when the spec, the tool list, the config or a listed file cannot be read.
  * ───────────────────────────────────────────────────────────────────────── */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createMcpClient } from '../flow-runner/page/js/mcp-client.js';
+import { parseCollection } from '../flow-runner/page/js/collection.js';
+import { roleOfToken, roleGaps, KEY_OF_ROLE, ADMIN_RIGHTS } from '../flow-runner/page/js/roles.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONFIG = resolve(SCRIPT_DIR, 'check-collection.config.json');
@@ -44,12 +51,13 @@ Options:
 
 Config fields:
   source (openapi, the default, or mcp), baseUrl, openApiPath (openapi only), mcpPath (mcp only),
-  collectionFile, allowListFile, hostPlaceholder, stepMetadata.maxLabelLength, stepMetadata.kinds
+  collectionFile, allowListFile, hostPlaceholder, stepMetadata.maxLabelLength, stepMetadata.kinds,
+  referenceCollectionFile (mcp only, optional)
 
 Exit codes:
   0  no findings
   1  at least one finding
-  2  cannot read the spec or the config`;
+  2  usage error, or cannot read the spec or the config`;
 
 function parseArgs(argv) {
   const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, help: false };
@@ -104,12 +112,16 @@ function loadConfig(file) {
   if (!Array.isArray(config.stepMetadata?.kinds) || config.stepMetadata.kinds.length === 0) {
     throw new Error('config: stepMetadata.kinds is missing');
   }
+  if (config.referenceCollectionFile !== undefined && (typeof config.referenceCollectionFile !== 'string' || config.referenceCollectionFile === '')) {
+    throw new Error('config: referenceCollectionFile must be a text');
+  }
   const dir = dirname(file);
   return {
     ...config,
     source,
     collectionFile: resolve(dir, config.collectionFile),
     allowListFile: resolve(dir, config.allowListFile),
+    referenceCollectionFile: config.referenceCollectionFile === undefined ? undefined : resolve(dir, config.referenceCollectionFile),
   };
 }
 
@@ -174,7 +186,13 @@ function parseHeader(description) {
   return header;
 }
 
-function collectRequests(items, hostPlaceholder) {
+function flowWhen(description) {
+  const firstLine = descriptionText(description).split(/\r?\n/)[0].trim();
+  const match = /^when:\s*(.+)$/.exec(firstLine);
+  return match ? match[1].trim() : undefined;
+}
+
+function collectRequests(items, hostPlaceholder, flow = { name: '', when: undefined }) {
   return items.flatMap((item) => [
     ...(item.request
       ? [{
@@ -183,9 +201,14 @@ function collectRequests(items, hostPlaceholder) {
           path: normalise(requestPath(item.request.url, hostPlaceholder)),
           header: parseHeader(item.request.description),
           body: item.request.body?.raw ?? '',
+          flow: flow.name,
+          flowWhen: flow.when,
+          token: item.request.auth?.bearer?.find((entry) => entry.key === 'token')?.value ?? '',
         }]
       : []),
-    ...(item.item ? collectRequests(item.item, hostPlaceholder) : []),
+    ...(item.item
+      ? collectRequests(item.item, hostPlaceholder, flow.name === '' ? { name: item.name, when: flowWhen(item.description) } : flow)
+      : []),
   ]);
 }
 
@@ -231,9 +254,10 @@ function check({ operations, requests, allowList, stepMetadata, mcpPath }) {
   const findings = [];
   const covered = new Set();
   const stepUsers = new Map();
+  const checkedFlows = new Set();
   const kind = mcpPath === undefined ? 'operation' : 'tool';
   for (const request of requests) {
-    const { name, header } = request;
+    const { name, header, flow, flowWhen: condition, token } = request;
     if (mcpPath === undefined) {
       checkRestRequest(request, operations, covered, findings);
     } else {
@@ -252,6 +276,17 @@ function check({ operations, requests, allowList, stepMetadata, mcpPath }) {
     }
     if (Object.hasOwn(header, 'when') && !WHEN_PATTERN.test(header.when)) {
       findings.push(`request '${name}': when must be <variable>=<value>`);
+    }
+    if (Object.hasOwn(header, 'helper') && header.helper !== 'yes') {
+      findings.push(`request '${name}': helper must be yes`);
+    }
+    if (condition !== undefined && !checkedFlows.has(flow)) {
+      checkedFlows.add(flow);
+      if (!WHEN_PATTERN.test(condition)) findings.push(`flow '${flow}': when must be <variable>=<value>`);
+    }
+    const role = roleOfToken(token);
+    if (header.helper !== 'yes' && condition === undefined && role !== 'user') {
+      findings.push(`request '${name}': uses {{${KEY_OF_ROLE[role]}}} but its flow '${flow}' has no flow condition (when: ${ADMIN_RIGHTS}=yes)`);
     }
   }
   for (const [step, count] of stepUsers) {
@@ -294,6 +329,10 @@ async function main() {
     stepMetadata: config.stepMetadata,
     mcpPath: isMcp ? config.mcpPath : undefined,
   });
+  if (isMcp && config.referenceCollectionFile !== undefined) {
+    const gaps = roleGaps(parseCollection(readJson(config.referenceCollectionFile)), parseCollection(readJson(config.collectionFile)));
+    gaps.forEach(({ operation, expected, actual }) => findings.push(`tool '${operation}': the reference collection exercises it as ${expected}, this collection only as ${actual}`));
+  }
   findings.forEach((finding) => console.log(`- ${finding}`));
   console.log(isMcp
     ? `${operations.size} tools on the server, ${coveredCount} called in the collection, ${allowedCount} allow-listed`

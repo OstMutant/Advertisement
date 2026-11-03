@@ -5,8 +5,7 @@
  * Uses: ./main.js (startRunnerPage); ./page-tabs.js (setupSectionTabs); global document.
  * Env: None.
  * Input: None.
- * Outputs: Calls setupSectionTabs on the section tablist, then startRunnerPage with the REST collection URL, required flow, storage key and the
- *   Minimal template definition.
+ * Outputs: Calls setupSectionTabs on the section tablist, then startRunnerPage with the REST collection URL, required flow and storage key.
  * Returns: N/A
  * ────────────────────────────────────────────────────────────────────────── */
 
@@ -17,21 +16,6 @@ const PROFILE = {
   collectionUrl: "postman/marketplace-rest-api.postman_collection.json",
   requiredFlow: "Authentication",
   storageKey: "api-flow-runner.templates",
-  minimalFlows: ["Authentication", "Advertisements"],
-  minimalStepsOff: [
-    "auth.second",
-    "auth.keys",
-    "auth.revoke",
-    "auth.revoked",
-    "auth.again",
-    "ads.list",
-    "ads.get",
-    "ads.update",
-    "ads.history",
-    "ads.snapshot",
-    "ads.revert",
-    "ads.gone",
-  ],
 };
 
 function start() {

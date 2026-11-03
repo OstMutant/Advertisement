@@ -532,3 +532,23 @@ is made on how that should look. Entries 6 and 7 are the same kind of duplicatio
 `FeedbackEditPolicy.MAX_EDIT_AGE` (48 hours) has passed. A REST scenario cannot move the clock. Options:
 a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
 with a record whose `created_at` is older than the window. It needs a design decision before sizing.
+
+### 33. `marketplace-mcp` declares `org.jetbrains:annotations`, which nothing in the module uses (found during improvement-232, 2026-11-03)
+
+`marketplace-mcp/pom.xml` lists the dependency but no class in the module imports from
+`org.jetbrains.annotations`. It may still arrive through another dependency, so removing it needs a
+build of the reactor and a check of what else breaks; low risk, no behavior change expected.
+
+### 34. The MCP endpoint path `/mcp` is written in `McpSecurityConfig` and again in `application.yml` (found during improvement-232, 2026-11-03)
+
+`McpSecurityConfig` matches the literal `/mcp` for its stateless security chain, while the path of the
+endpoint itself is set by the `spring.ai.mcp.server` settings in `marketplace-app`'s
+`application.yml`. Changing one without the other would leave the endpoint under the wrong chain.
+It needs a decision: read the configured path in the security config, or document the coupling.
+
+### 35. The architecture-map generator writes `ADR-NNN` ids into the generated pointer `DECISIONS.md` files, which the markdown rule forbids (found during improvement-232, 2026-11-03)
+
+`.claude/rules.md` says markdown files never cite a specific ADR number, but the generated
+pointer-only `DECISIONS.md` of the modules without their own decisions lists `ADR-NNN` rows by design
+(they are generated, never hand-edited). Either the generator changes what it prints or the rule names
+an exception for generated pointer files; the owner has to decide which.

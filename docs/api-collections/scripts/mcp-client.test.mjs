@@ -3,13 +3,14 @@
  *   its session header, JSON and event-stream answers, tools/list pagination, the Authorization header
  *   on callTool, one session restart after a 404, and a JSON-RPC error. No API is needed.
  * Usage: bash docs/api-collections/scripts/run-node.sh mcp-client.test.mjs
- * Uses: flow-runner/page/js/mcp-client.js (the page's own module). No dependencies.
+ * Uses: flow-runner/page/js/mcp-client.js (the page's own module), ./test-runner.mjs. No dependencies.
  * Env: None.
  * Input: None.
  * Outputs: one PASS or FAIL line per case, then a summary line; failures name the error.
  * Returns: exit code -- 0 when all cases pass, 1 otherwise.
  * ───────────────────────────────────────────────────────────────────────── */
 import { createMcpClient } from '../flow-runner/page/js/mcp-client.js';
+import { runCases } from './test-runner.mjs';
 
 const ENDPOINT = 'http://stub/mcp';
 
@@ -119,17 +120,4 @@ const CASES = [
   },
 ];
 
-let failures = 0;
-for (const testCase of CASES) {
-  let ok = false;
-  let detail = '';
-  try {
-    ok = await testCase.run();
-  } catch (error) {
-    detail = ` (${error.message})`;
-  }
-  failures += ok ? 0 : 1;
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${testCase.name}${ok ? '' : detail}`);
-}
-console.log(`${CASES.length - failures}/${CASES.length} passed`);
-process.exit(failures === 0 ? 0 : 1);
+await runCases(CASES, async (testCase) => ({ ok: await testCase.run() }));

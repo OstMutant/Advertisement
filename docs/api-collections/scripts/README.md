@@ -1,7 +1,6 @@
 # docs/api-collections/scripts
 
-Node.js scripts that check the REST API's Postman collection against the OpenAPI document of a
-running app, and run the collection's flows step by step without a browser. The scripts run inside a
+Node.js scripts that check the Postman collections of the REST API and of the MCP server against the OpenAPI document or the live MCP tool list of a running app, and run the collection's flows step by step without a browser. The scripts run inside a
 disposable Node container, so the host needs only Docker. The `.sh` and `.bat` files in this folder
 are the entry points; the `.mjs` files hold the logic.
 
@@ -9,8 +8,7 @@ are the entry points; the `.mjs` files hold the logic.
 
 The entry points are the `check-collection` and `run-flows` pairs. Each `.bat` forwards to its
 `.sh` file through WSL. Both `.sh` files hand off to [`run-node.sh`](run-node.sh), which starts the
-Node container, and the container runs one `.mjs` file. Each entry point's own usage is in its header. `run-flows` takes `--role <name>`, which runs the flows
-listed under `roles.<name>` in [`check-collection.config.json`](check-collection.config.json) (`user`: the flows that need no administrator).
+Node container, and the container runs one `.mjs` file. Each entry point's own usage is in its header.
 
 ```bash
 bash docs/api-collections/scripts/check-collection.sh
@@ -47,12 +45,13 @@ flowchart TD
     NODE --> FR[flow-runner/page/js<br/>run-flows.mjs only]
     NODE --> MCPC[mcp-client.js<br/>check-collection.mjs in MCP mode]
     NODE --> MCPCFG[mcp-collection.config.json<br/>MCP mode only]
+    NODE --> MCPAL[mcp-coverage-allowlist.txt<br/>MCP mode only]
     NODE --> EXIT[exit code of node]
 ```
 
 ## Configuration
 
-`check-collection.config.json` is the only configuration file of these scripts. It is JSON and cannot
+[`check-collection.config.json`](check-collection.config.json) is the default configuration file of these scripts and [`mcp-collection.config.json`](mcp-collection.config.json) the one of the MCP collection. It is JSON and cannot
 carry comments, so each field is described here:
 
 | Field | Meaning |
@@ -66,12 +65,13 @@ carry comments, so each field is described here:
 | `stepMetadata.kinds` | Allowed values of a request's `kind` header. Read by `check-collection.mjs`. |
 
 `mcp-collection.config.json` is the configuration of the MCP collection. It has the same fields as
-`check-collection.config.json` and two differences:
+`check-collection.config.json` and three differences:
 
 | Field | Meaning |
 |---|---|
 | `source` | `mcp` makes `check-collection.mjs` treat the MCP server's tool names as the operations (listed through its own session) and count only the requests that POST a `tools/call` to `mcpPath` as tool calls. Absent or `openapi` is the REST behavior. Read by `check-collection.mjs`. |
 | `mcpPath` | Path of the MCP endpoint, appended to the base URL. Required when `source` is `mcp`, which replaces `openApiPath`. Read by `check-collection.mjs`. |
+| `referenceCollectionFile` | Path of the reference collection (the REST collection), optional. In MCP mode every tool whose operation is also in the reference collection must be exercised at least at the same role, otherwise `check-collection.mjs` reports it. Read by `check-collection.mjs`. |
 
 Its allow-list is [`mcp-coverage-allowlist.txt`](mcp-coverage-allowlist.txt). Run both tests against the MCP
 collection with the config path relative to `docs/api-collections`:
@@ -84,4 +84,4 @@ Options, precedence between the base URL sources, and exit codes of each script 
 header: [`check-collection.sh`](check-collection.sh), [`run-flows.sh`](run-flows.sh),
 [`check-collection.mjs`](check-collection.mjs) and [`run-flows.mjs`](run-flows.mjs).
 
-[`runner-429.test.mjs`](runner-429.test.mjs) is a self-contained test of the flow runner's 429 handling; run it with `bash docs/api-collections/scripts/run-node.sh runner-429.test.mjs`. [`pm-shim.test.mjs`](pm-shim.test.mjs) is a self-contained test of the pm shim's response headers and text; run it with `bash docs/api-collections/scripts/run-node.sh pm-shim.test.mjs`. [`mcp-client.test.mjs`](mcp-client.test.mjs) is a self-contained test of the MCP client's handshake, answer parsing, pagination, authorization header, session restart and error handling; run it with `bash docs/api-collections/scripts/run-node.sh mcp-client.test.mjs`.
+The `*.test.mjs` files are tests built on the shared runner [`test-runner.mjs`](test-runner.mjs); each one's header says what it covers, and `bash docs/api-collections/scripts/run-node.sh <file>` runs it.

@@ -4,6 +4,5 @@
   "collectionFile": "../postman/marketplace-rest-api.postman_collection.json",
   "allowListFile": "coverage-allowlist.txt",
   "hostPlaceholder": "{{host}}",
-  "stepMetadata": { "maxLabelLength": 24, "kinds": ["required", "optional"] },
-  "roles": { "user": ["Authentication", "Infrastructure", "Account"] }
+  "stepMetadata": { "maxLabelLength": 24, "kinds": ["required", "optional"] }
 }

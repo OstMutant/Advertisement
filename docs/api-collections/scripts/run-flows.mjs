@@ -4,31 +4,38 @@
  *   skips every later step. Creates data in the app (users, API keys), so run it against a dev
  *   database.
  * Usage: node docs/api-collections/scripts/run-flows.mjs [baseUrl] [--config <file>] [--flow <name>]...
- *     [--role <name>] [--variable key=value]... [--json] [--help]
+ *     [--role <name>] [--each-role] [--variable key=value]... [--json] [--help]
+ *   (no flags)         run all flows against API_BASE_URL or the config's baseUrl
  *   [baseUrl]          API base URL; takes precedence over API_BASE_URL and the config's baseUrl
  *   --config <file>    config file (default: check-collection.config.json next to this script)
  *   --flow <name>      run only the named flow; repeat to run several; a dependent flow needs the
  *                      flow it depends on too
- *   --role <name>      run only the flows listed under roles.<name> in the config, as if each had
- *                      been passed with --flow; not combinable with --flow
+ *   --role <name>      run only the flows that role can run: user, moderator or administrator
+ *                      (a role also runs the flows of the roles below it); not combinable with --flow
+ *   --each-role        run the flows of every role in turn (user, moderator, administrator); not
+ *                      combinable with --role, --flow or --json
  *   --variable k=v     override a collection variable; repeatable
  *   --json             print only a JSON array of step results
  *   --help             print the usage text and exit
- * Uses: node:fs, node:path, node:url, flow-runner/page/js/collection.js and runner.js (the page's
- *   own modules, reused unchanged). No dependencies.
+ * Uses: node:fs, node:path, node:url, flow-runner/page/js/collection.js, roles.js and runner.js (the
+ *   page's own modules, reused unchanged). No dependencies.
  * Env: API_BASE_URL -- base URL used when no positional argument is given.
  * Input: the config file (collectionFile and baseUrl; relative paths resolve against the config's
  *   directory) and the Postman collection it names.
  * Outputs: one line per step with its id, name, status and HTTP code, the error and failed test
  *   lines for failed steps, then a summary line; with --json, only the JSON step array on stdout.
+ *   With --each-role: a `== role <role> ==` line before each run and `role <role>: passed` or
+ *   `role <role>: failed (exit N)` lines after the runs. The `note:` lines are printed when adminRights is
+ *   no and administrator flows were selected (not with --json).
  *   Errors are printed on stderr.
  * Returns: exit code -- 0 when no step failed, 1 when at least one step failed, 2 for a usage,
- *   config or read error, or when no step is selected.
+ *   config or read error, or when no step is selected. With --each-role, the highest code of the role runs.
  * ───────────────────────────────────────────────────────────────────────── */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCollection } from '../flow-runner/page/js/collection.js';
+import { ADMIN_RIGHTS, ROLES, adminSkipMessage, flowsForRole, flowsNeedingAdministrator } from '../flow-runner/page/js/roles.js';
 import { runFlow } from '../flow-runner/page/js/runner.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -36,7 +43,7 @@ const DEFAULT_CONFIG = resolve(SCRIPT_DIR, 'check-collection.config.json');
 const REQUIRED_FIELDS = ['baseUrl', 'collectionFile'];
 
 const USAGE = `Usage: node docs/api-collections/scripts/run-flows.mjs [baseUrl] [--config <file>] [--flow <name>]...
-                                              [--role <name>] [--variable key=value]... [--json] [--help]
+                                              [--role <name>] [--each-role] [--variable key=value]... [--json] [--help]
 
 Runs the Postman collection's flows against the running API.
 
@@ -45,14 +52,16 @@ Options:
   --config <file>    config file (default: check-collection.config.json next to this script)
   --flow <name>      run only this flow; repeat for several (a dependent flow needs its
                      prerequisite flow too, e.g. --flow Authentication --flow <other>)
-  --role <name>      run only the flows listed under roles.<name> in the config (e.g. user: the
-                     flows that need no administrator); not combinable with --flow
+  --role <name>      run only the flows that role can run: user, moderator or administrator (a role
+                     also runs the flows of the roles below it); not combinable with --flow
+  --each-role        run the flows of every role in turn (user, moderator, administrator); not
+                     combinable with --role, --flow or --json
   --variable k=v     override a collection variable; repeat for several
   --json             print only the step results as JSON
   --help             print this text and exit
 
 Config fields:
-  baseUrl, collectionFile, roles (other fields are read by check-collection.mjs)
+  baseUrl, collectionFile (other fields are read by check-collection.mjs)
 
 Note: runs create users and API keys in the app; use a dev database.
 
@@ -62,13 +71,15 @@ Exit codes:
   2  usage, config or read error, or no steps selected`;
 
 function parseArgs(argv) {
-  const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, flows: [], role: undefined, variables: {}, json: false, help: false };
+  const options = { baseUrl: undefined, configFile: DEFAULT_CONFIG, flows: [], role: undefined, eachRole: false, variables: {}, json: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help') {
       options.help = true;
     } else if (arg === '--json') {
       options.json = true;
+    } else if (arg === '--each-role') {
+      options.eachRole = true;
     } else if (arg === '--config') {
       if (argv[i + 1] === undefined) throw new UsageError('--config needs a file name');
       options.configFile = resolve(argv[++i]);
@@ -91,6 +102,9 @@ function parseArgs(argv) {
     }
   }
   if (options.role !== undefined && options.flows.length > 0) throw new UsageError('use either --role or --flow');
+  if (options.eachRole && (options.role !== undefined || options.flows.length > 0 || options.json)) {
+    throw new UsageError('--each-role cannot be combined with --role, --flow or --json');
+  }
   return options;
 }
 
@@ -118,14 +132,6 @@ function loadConfig(file) {
     }
   }
   return { ...config, collectionFile: resolve(dirname(file), config.collectionFile) };
-}
-
-function roleFlows(config, role) {
-  const roles = config.roles ?? {};
-  if (!Object.hasOwn(roles, role)) {
-    throw new UsageError(`unknown role '${role}', available: ${Object.keys(roles).join(', ') || 'none'}`);
-  }
-  return roles[role];
 }
 
 function selectFlows(collection, names) {
@@ -171,24 +177,25 @@ function jsonRows(steps) {
   }));
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
-  if (options.help) {
-    console.log(USAGE);
-    return 0;
+async function runOnce(options, baseUrl, fullCollection) {
+  let flowNames = options.flows;
+  if (options.role !== undefined) {
+    try {
+      flowNames = flowsForRole(fullCollection, options.role);
+    } catch (error) {
+      throw new UsageError(error.message);
+    }
+    if (flowNames.length === 0) {
+      console.error(`no flows for role '${options.role}'`);
+      return 2;
+    }
   }
-  const config = loadConfig(options.configFile);
-  const baseUrl = (options.baseUrl ?? process.env.API_BASE_URL ?? config.baseUrl).replace(/\/+$/, '');
-  const fullCollection = parseCollection(readJson(config.collectionFile));
-  const collection = selectFlows(
-    fullCollection,
-    options.role === undefined ? options.flows : roleFlows(config, options.role),
-  );
+  const collection = selectFlows(fullCollection, flowNames);
   if (collection.items.length === 0) {
     console.error('no steps to run');
     return 2;
   }
-  const { steps } = await runFlow(collection, { host: baseUrl, variables: options.variables });
+  const { steps, variables } = await runFlow(collection, { host: baseUrl, variables: options.variables });
 
   if (options.json) {
     console.log(JSON.stringify(jsonRows(steps), null, 2));
@@ -198,8 +205,37 @@ async function main() {
       if (step.status === 'failed') failureLines(step).forEach((line) => console.log(line));
     });
     console.log(summaryLine(steps));
+    const names = flowsNeedingAdministrator(fullCollection).filter((name) => collection.flows.some((flow) => flow.name === name));
+    if (variables[ADMIN_RIGHTS] === 'no' && names.length > 0) {
+      console.log(`note: ${adminSkipMessage(variables.email, names)}`);
+      console.log('      To run them pass an administrator: --variable email=<e-mail> --variable password=<password>');
+    }
   }
   return steps.some((step) => step.status === 'failed') ? 1 : 0;
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(USAGE);
+    return 0;
+  }
+  const config = loadConfig(options.configFile);
+  const baseUrl = (options.baseUrl ?? process.env.API_BASE_URL ?? config.baseUrl).replace(/\/+$/, '');
+  const fullCollection = parseCollection(readJson(config.collectionFile));
+  if (!options.eachRole) return runOnce(options, baseUrl, fullCollection);
+
+  const codes = [];
+  for (const role of ROLES) {
+    console.log(`== role ${role} ==`);
+    const code = await runOnce({ ...options, role, eachRole: false }, baseUrl, fullCollection);
+    codes.push([role, code]);
+  }
+  console.log('');
+  for (const [role, code] of codes) {
+    console.log(code === 0 ? `role ${role}: passed` : `role ${role}: failed (exit ${code})`);
+  }
+  return Math.max(...codes.map(([, code]) => code));
 }
 
 main().then(

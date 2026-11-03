@@ -148,7 +148,7 @@ public class ProviderProfileApiController {
         return activityHistorySupport.snapshot(actorId, EntityType.PROVIDER_PROFILE, id, snapshotId, ProviderProfileSnapshotDto.class);
     }
 
-    @Operation(operationId = "updateProviderProfile", summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile. Full replace, same as the other fields -- omitting phone/telegram/viber clears them.")
+    @Operation(operationId = "updateProviderProfile", summary = "Update a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the owner of the profile, an administrator or a moderator may call it, with their API key. Full replace, same as the other fields -- omitting phone/telegram/viber clears them.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "kind": "MASTER",
@@ -169,7 +169,7 @@ public class ProviderProfileApiController {
     }
 
     @Operation(operationId = "patchProviderProfile", summary = "Partially update a provider profile",
-            description = "JSON Merge Patch (RFC 7396): send only the fields to change. A field left out keeps its value; null clears about, categoryIds, cityTaxonId, phone, telegram or viber; null on kind is 400. categoryIds is replaced as a whole. An unknown field is 400. kind=SUPPORT still requires a privileged caller. Contacts are never returned by this call. If-Match must carry the version from the last GET response's ETag (412 when stale); the caller must own the profile.")
+            description = "JSON Merge Patch (RFC 7396): send only the fields to change. A field left out keeps its value; null clears about, categoryIds, cityTaxonId, phone, telegram or viber; null on kind is 400. categoryIds is replaced as a whole. An unknown field is 400. kind=SUPPORT still requires a privileged caller. Contacts are never returned by this call. If-Match must carry the version from the last GET response's ETag (412 when stale); the owner of the profile, an administrator or a moderator may call it, with their API key.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = {
             @Content(mediaType = "application/merge-patch+json", schema = @Schema(implementation = ProviderProfileWriteRequest.class),
                     examples = @ExampleObject(value = "{\"telegram\": \"plumber_master\"}")),
@@ -211,7 +211,7 @@ public class ProviderProfileApiController {
         return enrichmentService.enrichWithActor(profile);
     }
 
-    @Operation(operationId = "deleteProviderProfile", summary = "Delete a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the profile.")
+    @Operation(operationId = "deleteProviderProfile", summary = "Delete a provider profile", description = "If-Match must carry the version from the last GET response's ETag; the owner of the profile, an administrator or a moderator may call it, with their API key.")
     @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

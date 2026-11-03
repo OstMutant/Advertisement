@@ -3,7 +3,7 @@
  *   429 passes, while a 429 that no passing test expected fails the step with the Retry-After
  *   message. Replaces global fetch with a stub, so no API is needed.
  * Usage: bash docs/api-collections/scripts/run-node.sh runner-429.test.mjs
- * Uses: flow-runner/page/js/collection.js and runner.js (the page's own modules). No dependencies.
+ * Uses: flow-runner/page/js/collection.js and runner.js (the page's own modules), ./test-runner.mjs. No dependencies.
  * Env: None.
  * Input: None.
  * Outputs: one PASS or FAIL line per case, then a summary line; failures name the actual step state.
@@ -11,6 +11,7 @@
  * ───────────────────────────────────────────────────────────────────────── */
 import { parseCollection } from '../flow-runner/page/js/collection.js';
 import { runFlow } from '../flow-runner/page/js/runner.js';
+import { runCases } from './test-runner.mjs';
 
 function collectionWith(testLines) {
   return parseCollection({
@@ -45,13 +46,8 @@ const CASES = [
 
 globalThis.fetch = async () => new Response('slow down', { status: 429, headers: { 'Retry-After': '30' } });
 
-let failures = 0;
-for (const testCase of CASES) {
+await runCases(CASES, async (testCase) => {
   const { steps } = await runFlow(collectionWith(testCase.tests), { host: 'http://stub' });
   const step = steps[0];
-  const ok = testCase.check(step);
-  failures += ok ? 0 : 1;
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${testCase.name}${ok ? '' : ` (status=${step.status}, error=${step.error})`}`);
-}
-console.log(`${CASES.length - failures}/${CASES.length} passed`);
-process.exit(failures === 0 ? 0 : 1);
+  return { ok: testCase.check(step), detail: ` (status=${step.status}, error=${step.error})` };
+});

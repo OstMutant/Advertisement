@@ -6,7 +6,7 @@
   "item": [
     {
       "name": "Authentication",
-      "description": "Register the administrator and a user, issue API keys for both, list, revoke and re-check a second key.",
+      "description": "Make sure the default administrator exists, register a user, issue its API key, list, revoke and re-check a second key of that user.",
       "item": [
         {
           "name": "issueApiKey",
@@ -179,6 +179,49 @@
           }
         },
         {
+          "name": "getMe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"default account answered\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"adminRights\", pm.response.json().role === \"ADMIN\" ? \"yes\" : \"no\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/me",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: auth.rights\nlabel: Check admin rights\nkind: required\nhelper: yes\n\nReads the default account with its key: the role ADMIN sets adminRights to yes, any other role sets it to no and the flows that need an administrator are skipped."
+          }
+        },
+        {
           "name": "registerUser",
           "event": [
             {
@@ -336,17 +379,17 @@
               "basic": [
                 {
                   "key": "username",
-                  "value": "{{email}}",
+                  "value": "{{userEmail}}",
                   "type": "string"
                 },
                 {
                   "key": "password",
-                  "value": "{{password}}",
+                  "value": "{{userPassword}}",
                   "type": "string"
                 }
               ]
             },
-            "description": "step: auth.second\nlabel: Issue second API key\nkind: optional\n\nIssues a second key for the administrator so that it can be listed, revoked and then rejected."
+            "description": "step: auth.second\nlabel: Issue second API key\nkind: optional\n\nIssues a second key for the flow user so that it can be listed, revoked and then rejected."
           }
         },
         {
@@ -384,12 +427,12 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{userKey}}",
                   "type": "string"
                 }
               ]
             },
-            "description": "step: auth.keys\nlabel: List API keys\nkind: optional\n\nLists the administrator's keys and stores the id of the second key for the revoke step."
+            "description": "step: auth.keys\nlabel: List API keys\nkind: optional\n\nLists the flow user's keys and stores the id of the second key for the revoke step."
           }
         },
         {
@@ -424,12 +467,12 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{userKey}}",
                   "type": "string"
                 }
               ]
             },
-            "description": "step: auth.revoke\nlabel: Revoke second API key\nkind: optional\n\nRevokes the second key using the administrator's key; it must answer 204."
+            "description": "step: auth.revoke\nlabel: Revoke second API key\nkind: optional\n\nRevokes the second key using the flow user's key; it must answer 204."
           }
         },
         {
@@ -503,7 +546,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{userKey}}",
                   "type": "string"
                 }
               ]
@@ -515,26 +558,32 @@
     },
     {
       "name": "Taxons",
-      "description": "Creates a category and a city with unique names, reads, updates, reverts through the history, deletes and restores the category, then deletes what it created.",
+      "description": "when: adminRights=yes\n\nCreates a category and a city with unique names, reads, updates, reverts through the history, deletes and restores the category, then deletes what it created.",
       "item": [
         {
-          "name": "listUsers",
+          "name": "registerUser",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"default account is an administrator\", function () {",
-                  "  if (pm.response.code !== 200) { throw new Error(\"Account \" + pm.collectionVariables.get(\"email\") + \" is not an administrator (HTTP \" + pm.response.code + \"). Enter the e-mail and password of an existing administrator in the variables email and password, or run only the user flows: Authentication, Infrastructure, Account.\"); }",
-                  "});"
+                  "pm.test(\"moderator registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"moderatorId\", pm.response.json().id);"
                 ]
               }
             }
           ],
           "request": {
-            "method": "GET",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{host}}/api/users",
               "host": [
@@ -543,6 +592,51 @@
               "path": [
                 "api",
                 "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Moderator\",\n  \"email\": \"flow.moderator.{{runId}}.taxons@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: taxons.modreg\nlabel: Register moderator\nkind: required\nhelper: yes\n\nRegisters the moderator of this flow under a unique e-mail."
+          }
+        },
+        {
+          "name": "getUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"moderatorVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{moderatorId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{moderatorId}}"
               ]
             },
             "auth": {
@@ -555,7 +649,128 @@
                 }
               ]
             },
-            "description": "step: taxons.probe\nlabel: Check administrator\nkind: required\n\nStops the run with a clear message when the default account cannot list users, i.e. it is not an administrator."
+            "description": "step: taxons.modget\nlabel: Read moderator\nkind: required\nhelper: yes\n\nReads the moderator and stores its current version."
+          }
+        },
+        {
+          "name": "updateUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator promoted\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{moderatorVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/{{moderatorId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{moderatorId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Moderator\",\n  \"role\": \"MODERATOR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.modrole\nlabel: Promote moderator\nkind: required\nhelper: yes\n\nPromotes the registered user to moderator with the administrator's key."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"moderatorKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "flow.moderator.{{runId}}.taxons@example.com",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.modkey\nlabel: Issue moderator key\nkind: required\nhelper: yes\n\nIssues the API key of the moderator."
           }
         },
         {
@@ -607,7 +822,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -664,7 +879,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -705,7 +920,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -748,7 +963,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -809,7 +1024,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -853,7 +1068,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -897,7 +1112,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -948,7 +1163,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -995,7 +1210,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -1039,7 +1254,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -1086,7 +1301,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -1133,12 +1348,54 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
             },
             "description": "step: taxons.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow city created by this run."
+          }
+        },
+        {
+          "name": "deleteUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{moderatorId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{moderatorId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: taxons.modclean\nlabel: Delete moderator\nkind: optional\nhelper: yes\n\nDeletes the moderator of this flow with the administrator's key."
           }
         }
       ]
@@ -1211,7 +1468,7 @@
     },
     {
       "name": "Profile",
-      "description": "Creates its own category and city, then creates, lists, reads, updates, reverts through the history and deletes a provider profile of the flow user, confirms it is gone and deletes the category and city.",
+      "description": "when: adminRights=yes\n\nCreates its own category and city, then creates, lists, reads, updates, reverts through the history and deletes a provider profile of the flow user, confirms it is gone and deletes the category and city.",
       "item": [
         {
           "name": "createTaxon",
@@ -1267,7 +1524,7 @@
                 }
               ]
             },
-            "description": "step: profile.category\nlabel: Create category\nkind: optional\n\nCreates the flow profile category with English and Ukrainian translations and stores its id and version."
+            "description": "step: profile.category\nlabel: Create category\nkind: optional\nhelper: yes\n\nCreates the flow profile category with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -1324,7 +1581,7 @@
                 }
               ]
             },
-            "description": "step: profile.city\nlabel: Create city\nkind: optional\n\nCreates the flow profile city with English and Ukrainian translations and stores its id and version."
+            "description": "step: profile.city\nlabel: Create city\nkind: optional\nhelper: yes\n\nCreates the flow profile city with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -1854,7 +2111,7 @@
                 }
               ]
             },
-            "description": "step: profile.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow profile category created for this folder."
+            "description": "step: profile.cleancat\nlabel: Delete category\nkind: optional\nhelper: yes\n\nDeletes the flow profile category created for this folder."
           }
         },
         {
@@ -1901,14 +2158,14 @@
                 }
               ]
             },
-            "description": "step: profile.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow profile city created for this folder."
+            "description": "step: profile.cleancity\nlabel: Delete city\nkind: optional\nhelper: yes\n\nDeletes the flow profile city created for this folder."
           }
         }
       ]
     },
     {
       "name": "Advertisements",
-      "description": "Creates its own category and city, then creates, lists, reads, updates, reverts through the history and deletes an advertisement of the flow user, confirms it is gone and deletes the category and city.",
+      "description": "when: adminRights=yes\n\nCreates its own category and city, then creates, lists, reads, updates, reverts through the history and deletes an advertisement of the flow user, confirms it is gone and deletes the category and city.",
       "item": [
         {
           "name": "createTaxon",
@@ -1964,7 +2221,7 @@
                 }
               ]
             },
-            "description": "step: ads.category\nlabel: Create category\nkind: optional\n\nCreates the flow advertisement category with English and Ukrainian translations and stores its id and version."
+            "description": "step: ads.category\nlabel: Create category\nkind: optional\nhelper: yes\n\nCreates the flow advertisement category with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -2021,7 +2278,7 @@
                 }
               ]
             },
-            "description": "step: ads.city\nlabel: Create city\nkind: optional\n\nCreates the flow advertisement city with English and Ukrainian translations and stores its id and version."
+            "description": "step: ads.city\nlabel: Create city\nkind: optional\nhelper: yes\n\nCreates the flow advertisement city with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -2551,7 +2808,7 @@
                 }
               ]
             },
-            "description": "step: ads.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow advertisement category created for this folder."
+            "description": "step: ads.cleancat\nlabel: Delete category\nkind: optional\nhelper: yes\n\nDeletes the flow advertisement category created for this folder."
           }
         },
         {
@@ -2598,7 +2855,7 @@
                 }
               ]
             },
-            "description": "step: ads.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow advertisement city created for this folder."
+            "description": "step: ads.cleancity\nlabel: Delete city\nkind: optional\nhelper: yes\n\nDeletes the flow advertisement city created for this folder."
           }
         }
       ]
@@ -3073,7 +3330,7 @@
     },
     {
       "name": "Media",
-      "description": "Creates its own category, city and advertisement, uploads a photo, adds a video link, lists the gallery, checks that another host and a text file are rejected, deletes the items and the advertisement and deletes the category and city.",
+      "description": "when: adminRights=yes\n\nCreates its own category, city and advertisement, uploads a photo, adds a video link, lists the gallery, checks that another host and a text file are rejected, deletes the items and the advertisement and deletes the category and city.",
       "item": [
         {
           "name": "createTaxon",
@@ -3129,7 +3386,7 @@
                 }
               ]
             },
-            "description": "step: media.category\nlabel: Create category\nkind: optional\n\nCreates the media category with English and Ukrainian translations and stores its id and version."
+            "description": "step: media.category\nlabel: Create category\nkind: optional\nhelper: yes\n\nCreates the media category with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -3186,7 +3443,7 @@
                 }
               ]
             },
-            "description": "step: media.city\nlabel: Create city\nkind: optional\n\nCreates the media city with English and Ukrainian translations and stores its id and version."
+            "description": "step: media.city\nlabel: Create city\nkind: optional\nhelper: yes\n\nCreates the media city with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -3728,7 +3985,7 @@
                 }
               ]
             },
-            "description": "step: media.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the media category created for this folder."
+            "description": "step: media.cleancat\nlabel: Delete category\nkind: optional\nhelper: yes\n\nDeletes the media category created for this folder."
           }
         },
         {
@@ -3775,14 +4032,14 @@
                 }
               ]
             },
-            "description": "step: media.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the media city created for this folder."
+            "description": "step: media.cleancity\nlabel: Delete city\nkind: optional\nhelper: yes\n\nDeletes the media city created for this folder."
           }
         }
       ]
     },
     {
       "name": "Contacts",
-      "description": "Creates its own category, city, provider profile with a phone and a Telegram contact and advertisement, lists the contact channels, reveals contacts, checks that a missing channel is rejected and that reveal counts need a key, then deletes everything it created.",
+      "description": "when: adminRights=yes\n\nCreates its own category, city, provider profile with a phone and a Telegram contact and advertisement, lists the contact channels, reveals contacts, checks that a missing channel is rejected and that reveal counts need a key, then deletes everything it created.",
       "item": [
         {
           "name": "createTaxon",
@@ -3838,7 +4095,7 @@
                 }
               ]
             },
-            "description": "step: contacts.category\nlabel: Create category\nkind: optional\n\nCreates the flow contacts category with English and Ukrainian translations and stores its id and version."
+            "description": "step: contacts.category\nlabel: Create category\nkind: optional\nhelper: yes\n\nCreates the flow contacts category with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -3895,7 +4152,7 @@
                 }
               ]
             },
-            "description": "step: contacts.city\nlabel: Create city\nkind: optional\n\nCreates the flow contacts city with English and Ukrainian translations and stores its id and version."
+            "description": "step: contacts.city\nlabel: Create city\nkind: optional\nhelper: yes\n\nCreates the flow contacts city with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -4462,7 +4719,7 @@
                 }
               ]
             },
-            "description": "step: contacts.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow contacts category created for this folder."
+            "description": "step: contacts.cleancat\nlabel: Delete category\nkind: optional\nhelper: yes\n\nDeletes the flow contacts category created for this folder."
           }
         },
         {
@@ -4509,14 +4766,14 @@
                 }
               ]
             },
-            "description": "step: contacts.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow contacts city created for this folder."
+            "description": "step: contacts.cleancity\nlabel: Delete city\nkind: optional\nhelper: yes\n\nDeletes the flow contacts city created for this folder."
           }
         }
       ]
     },
     {
       "name": "Feedback",
-      "description": "Creates its own category, city and provider profile, then writes, edits and lists a review of that profile, checks that a second review and a reply by a non-owner are rejected, replies to the review, edits, repeats and deletes the reply, and deletes the profile, category and city.",
+      "description": "when: adminRights=yes\n\nCreates its own category, city and provider profile, then writes, edits and lists a review of that profile, checks that a second review and a reply by a non-owner are rejected, replies to the review, edits, repeats and deletes the reply, and deletes the profile, category and city.",
       "item": [
         {
           "name": "createTaxon",
@@ -4572,7 +4829,7 @@
                 }
               ]
             },
-            "description": "step: feedback.category\nlabel: Create category\nkind: optional\n\nCreates the flow feedback category with English and Ukrainian translations and stores its id and version."
+            "description": "step: feedback.category\nlabel: Create category\nkind: optional\nhelper: yes\n\nCreates the flow feedback category with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -4629,7 +4886,7 @@
                 }
               ]
             },
-            "description": "step: feedback.city\nlabel: Create city\nkind: optional\n\nCreates the flow feedback city with English and Ukrainian translations and stores its id and version."
+            "description": "step: feedback.city\nlabel: Create city\nkind: optional\nhelper: yes\n\nCreates the flow feedback city with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -4934,6 +5191,116 @@
           }
         },
         {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"other user registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"otherId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Other\",\n  \"email\": \"flow.other.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: feedback.other\nlabel: Register other user\nkind: optional\n\nRegisters a second ordinary user, who does not own the flow provider profile."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"otherKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "flow.other.{{runId}}@example.com",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.otherkey\nlabel: Issue other key\nkind: optional\n\nIssues the API key of the second user."
+          }
+        },
+        {
           "name": "createFeedbackReply",
           "event": [
             {
@@ -4982,12 +5349,12 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{otherKey}}",
                   "type": "string"
                 }
               ]
             },
-            "description": "step: feedback.foreign\nlabel: Reject foreign reply\nkind: optional\n\nTries to reply to the flow review with the admin key, which does not own the profile, and expects the reply to be rejected."
+            "description": "step: feedback.foreign\nlabel: Reject foreign reply\nkind: optional\n\nTries to reply to the flow review as a second user, who does not own the profile, and expects the reply to be rejected."
           }
         },
         {
@@ -5257,6 +5624,48 @@
           }
         },
         {
+          "name": "deleteUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"other user deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{otherId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{otherId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.otherdelete\nlabel: Delete other user\nkind: optional\n\nDeletes the second user with its own key."
+          }
+        },
+        {
           "name": "deleteTaxon",
           "event": [
             {
@@ -5300,7 +5709,7 @@
                 }
               ]
             },
-            "description": "step: feedback.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow feedback category created for this folder."
+            "description": "step: feedback.cleancat\nlabel: Delete category\nkind: optional\nhelper: yes\n\nDeletes the flow feedback category created for this folder."
           }
         },
         {
@@ -5347,14 +5756,14 @@
                 }
               ]
             },
-            "description": "step: feedback.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow feedback city created for this folder."
+            "description": "step: feedback.cleancity\nlabel: Delete city\nkind: optional\nhelper: yes\n\nDeletes the flow feedback city created for this folder."
           }
         }
       ]
     },
     {
       "name": "Moderation",
-      "description": "Creates its own category, city, provider profile, review and reply, flags the review and the reply, checks who may see the moderation queue and who may moderate, approves the review, confirms and then restores the reply, and deletes the profile, category and city.",
+      "description": "when: adminRights=yes\n\nCreates its own category, city, provider profile, review and reply, flags the review and the reply, checks who may see the moderation queue and who may moderate, approves the review, confirms and then restores the reply, and deletes the profile, category and city.",
       "item": [
         {
           "name": "createTaxon",
@@ -5410,7 +5819,7 @@
                 }
               ]
             },
-            "description": "step: moderation.category\nlabel: Create category\nkind: optional\n\nCreates the flow moderation category with English and Ukrainian translations and stores its id and version."
+            "description": "step: moderation.category\nlabel: Create category\nkind: optional\nhelper: yes\n\nCreates the flow moderation category with English and Ukrainian translations and stores its id and version."
           }
         },
         {
@@ -5467,7 +5876,220 @@
                 }
               ]
             },
-            "description": "step: moderation.city\nlabel: Create city\nkind: optional\n\nCreates the flow moderation city with English and Ukrainian translations and stores its id and version."
+            "description": "step: moderation.city\nlabel: Create city\nkind: optional\nhelper: yes\n\nCreates the flow moderation city with English and Ukrainian translations and stores its id and version."
+          }
+        },
+        {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"moderatorId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Moderator\",\n  \"email\": \"flow.moderator.{{runId}}.moderation@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: moderation.modreg\nlabel: Register moderator\nkind: required\nhelper: yes\n\nRegisters the moderator of this flow under a unique e-mail."
+          }
+        },
+        {
+          "name": "getUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator read\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set(\"moderatorVersion\", pm.response.json().version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{moderatorId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{moderatorId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.modget\nlabel: Read moderator\nkind: required\nhelper: yes\n\nReads the moderator and stores its current version."
+          }
+        },
+        {
+          "name": "updateUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator promoted\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{moderatorVersion}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users/{{moderatorId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{moderatorId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Moderator\",\n  \"role\": \"MODERATOR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.modrole\nlabel: Promote moderator\nkind: required\nhelper: yes\n\nPromotes the registered user to moderator with the administrator's key."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"moderatorKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "flow.moderator.{{runId}}.moderation@example.com",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.modkey\nlabel: Issue moderator key\nkind: required\nhelper: yes\n\nIssues the API key of the moderator."
           }
         },
         {
@@ -5692,7 +6314,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -5750,7 +6372,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -5894,12 +6516,111 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
             },
             "description": "step: moderation.queue\nlabel: Moderation queue\nkind: optional\n\nReads the moderation queue as an administrator and checks that the flagged review is listed."
+          }
+        },
+        {
+          "name": "listUsers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator may list users\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users?email=flow.target.{{runId}}@example.com",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "flow.target.{{runId}}@example.com"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{moderatorKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.users\nlabel: Moderator lists users\nkind: optional\n\nLists the users as the moderator, which is allowed."
+          }
+        },
+        {
+          "name": "getAuditTimeline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator may read the audit timeline\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/audit/timeline?entityTypes=USER&actionTypes=UPDATED",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "audit",
+                "timeline"
+              ],
+              "query": [
+                {
+                  "key": "entityTypes",
+                  "value": "USER"
+                },
+                {
+                  "key": "actionTypes",
+                  "value": "UPDATED"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{moderatorKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.audit\nlabel: Moderator audit\nkind: optional\n\nReads the audit timeline as the moderator, which is allowed."
           }
         },
         {
@@ -5982,7 +6703,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -6026,7 +6747,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -6070,7 +6791,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -6114,7 +6835,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -6158,7 +6879,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminKey}}",
+                  "value": "{{moderatorKey}}",
                   "type": "string"
                 }
               ]
@@ -6214,6 +6935,48 @@
           }
         },
         {
+          "name": "deleteUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"moderator deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{moderatorId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{moderatorId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.modclean\nlabel: Delete moderator\nkind: optional\nhelper: yes\n\nDeletes the moderator of this flow with the administrator's key."
+          }
+        },
+        {
           "name": "deleteTaxon",
           "event": [
             {
@@ -6257,7 +7020,7 @@
                 }
               ]
             },
-            "description": "step: moderation.cleancat\nlabel: Delete category\nkind: optional\n\nDeletes the flow moderation category."
+            "description": "step: moderation.cleancat\nlabel: Delete category\nkind: optional\nhelper: yes\n\nDeletes the flow moderation category."
           }
         },
         {
@@ -6304,14 +7067,14 @@
                 }
               ]
             },
-            "description": "step: moderation.cleancity\nlabel: Delete city\nkind: optional\n\nDeletes the flow moderation city."
+            "description": "step: moderation.cleancity\nlabel: Delete city\nkind: optional\nhelper: yes\n\nDeletes the flow moderation city."
           }
         }
       ]
     },
     {
       "name": "Users",
-      "description": "Registers its own target user, finds it and the flow user, reads, renames and promotes the target, reverts it through the history, reads the audit timeline, deletes the target, confirms it is no longer listed and finally deletes the flow user created by the Authentication flow.",
+      "description": "when: adminRights=yes\n\nRegisters its own target user, finds it and the flow user, reads, renames and promotes the target, reverts it through the history, reads the audit timeline, deletes the target, confirms it is no longer listed and finally deletes the flow user created by the Authentication flow.",
       "item": [
         {
           "name": "registerUser",

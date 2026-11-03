@@ -12,11 +12,10 @@ that API: no persistence, no Vaadin, and no project dependency at all.
   the endpoint without extra wiring.
 - Its own stateless security chain for `/mcp`: no CSRF protection and every request permitted, because the
   endpoint is authenticated by the forwarded API key, which `marketplace-rest-api` checks, never by a cookie.
-- Eleven read-only tools in five classes, each named after the REST `operationId` it wraps:
-  `AccountTools` (`getMe`, `getMySettings`), `AdvertisementTools` (`listAdvertisements`,
-  `getAdvertisement`, `listAdvertisementMedia`), `FeedbackTools` (`listProviderProfileFeedback`,
-  `getProviderProfileFeedbackAggregate`), `ProviderProfileTools` (`listProviderProfiles`,
-  `getProviderProfile`) and `TaxonTools` (`listTaxons`, `getTaxon`).
+- One tool per operation of the REST API, reading and changing, each named after the REST `operationId` it wraps and
+  grouped in `*Tools` classes in the tools package. The set of names is guarded by
+  [`ToolNamesTest`](src/test/java/org/ost/mcp/tools/ToolNamesTest.java) and by the end-to-end test that compares it with
+  the live OpenAPI ([`McpEndToEndTest`](../integration-tests/src/test/java/org/ost/integrationtests/level3/mcp/McpEndToEndTest.java)).
 - A request check on the `Origin` header (`McpOriginFilter`): a request without `Origin` passes, one whose
   `Origin` is not in `marketplace.mcp.allowed-origins` is answered with 403 before a session opens. The
   allowed origins are never derived from the request's `Host`.
@@ -35,7 +34,8 @@ To use the tools from Claude Code, create an API key (`POST /api/api-keys`), put
 
 An AI agent connects to the MCP endpoint and sends its own API key in the `Authorization` header.
 When the agent calls a tool, a `*Tools` class asks `RestPath` for the REST path, and `RestApiClient`
-issues the GET to `marketplace.mcp.rest-base-url`, forwarding the header `CallerAuthorization` took
+issues the request to `marketplace.mcp.rest-base-url` (a GET, or a write with an optional body and `If-Match`,
+or a multipart upload), forwarding the header `CallerAuthorization` took
 from the current request unchanged, so authentication, permissions, validation and audit are decided by
 `marketplace-rest-api` exactly as for any direct REST caller. The REST response (or error) is wrapped
 in a `RestAnswer`, which `ToolResults` turns into the tool result returned to the agent — paging
@@ -45,8 +45,8 @@ The module holds no credentials of its own and never reaches the database or any
 ## Dependencies
 
 - No project module: no `platform-commons`, `marketplace-orchestrator`, `marketplace-rest-api`,
-  domain starter, `marketplace-app` or Vaadin. An ArchUnit test in this module fails the build if a
-  class here starts depending on any of them.
+  domain starter, `marketplace-app` or Vaadin. Classes of this module may depend on no other package of the
+  project, enforced by `ArchitectureTest`.
 - Spring AI (MCP server starter for Spring MVC) — the MCP protocol implementation and tool registry.
 - Spring Security — the filter chain that exempts `/mcp` from CSRF protection.
 - Spring Boot web — the HTTP server that hosts the MCP endpoint.

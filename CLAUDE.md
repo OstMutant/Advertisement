@@ -218,7 +218,8 @@ Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
 `marketplace-mcp`, and `feedback-spring-boot-starter`
 have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
-instead. Each of these seven modules has a generated, pointer-only `DECISIONS.md`
+instead, except `marketplace-mcp`, whose cross-listed decisions are recorded in `marketplace-app/DECISIONS.md`
+and `docs/api-collections/DECISIONS.md`. Each of these seven modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
 the home ADR's own `**Also affects:**` tag — never hand-edit these seven files directly.
 

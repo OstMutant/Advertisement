@@ -6,15 +6,15 @@
  *   parameters and for optional ones whose schema or description gives a default or a "for example" value, an "Optional:" hint listing the rest and a Call button that shows the
  *   result. A tool whose name appears in another tool's id description as "listed by <name>" gets
  *   one pick button per returned item; a click writes that id into those other tools' arguments.
- *   On start it creates one temporary user through the REST API (register, then issue an API key, as the collection's Setup flow does),
- *   puts the key into the key field and fills every tool's arguments with the first id of each list tool, so Call works at once.
+ *   On start it fills every tool's arguments with the first id of each public list tool; the key field stays empty until
+ *   mcp-page.js fills it after a flow run or the user types a key.
  * Usage: None -- a library module; mcp-page.js imports it and calls createCatalog.
- * Uses: ./mcp-client.js (createMcpClient); global document, window, fetch, location (REST endpoints /api/users and /api/api-keys).
+ * Uses: ./mcp-client.js (createMcpClient); global document and window.
  * Env: None.
  * Input: The container element and the MCP endpoint URL; the API key typed into the catalog, held
  *   only in a JS variable; the arguments JSON typed per tool; the tool input schemas from listTools.
  * Outputs: Builds DOM inside the container (.tool-card[data-tool] with a button.open, .tool-detail panel, per-tool body nodes that keep their textarea and result while another tool is open, textarea, .tool-optional, button,
- *   .tool-status, .tool-result, .tool-error, button[data-pick-id], .tool-list); calls MCP tools; closes the session on pagehide. Posts to /api/users and /api/api-keys once per page open. Never writes
+ *   .tool-status, .tool-result, .tool-error, button[data-pick-id], .tool-list); calls MCP tools; closes the session on pagehide. Never writes
  *   storage or the URL; the key lives only in memory and the key field.
  * Returns: createCatalog resolves to {fill({apiKey, ids})}: fill puts the key into the key field and, per list tool name in ids,
  *   the id into the stored arguments of the tools whose id description says "listed by" that name; exampleArguments and optionalHint are pure helpers; an optional parameter is prefilled from schema default, examples or enum, else "default <v>" or the first "for example <v>" token of its description, typed by the schema.
@@ -197,31 +197,6 @@ function setId(textarea, id) {
   textarea.value = JSON.stringify(current, null, 2);
 }
 
-const DEFAULT_PASSWORD = "password123";
-
-async function issueDefaultKey() {
-  const email = `mcp.page.${Math.random().toString(36).slice(2, 10)}@example.com`;
-  const post = (path, body, headers) =>
-    fetch(location.origin + path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify(body),
-    });
-  const registered = await post("/api/users", { name: "MCP Page User", email, password: DEFAULT_PASSWORD });
-  if (registered.status !== 201) {
-    throw new Error(`register answered HTTP ${registered.status}`);
-  }
-  const issued = await post("/api/api-keys", { label: "mcp-page" }, { Authorization: `Basic ${btoa(`${email}:${DEFAULT_PASSWORD}`)}` });
-  if (issued.status !== 201) {
-    throw new Error(`issue key answered HTTP ${issued.status}`);
-  }
-  const rawKey = (await issued.json()).rawKey;
-  if (typeof rawKey !== "string" || rawKey === "") {
-    throw new Error("no key in the answer");
-  }
-  return rawKey;
-}
-
 function showPicks(output, result, targetAreas) {
   const items = result.structuredContent?.items;
   if (result.isError || !Array.isArray(items)) {
@@ -287,10 +262,7 @@ export async function createCatalog(container, { endpoint }) {
   });
   keyLabel.appendChild(keyInput);
   container.appendChild(keyLabel);
-
-  const keyNote = el("p", undefined, "tool-error");
-  keyNote.hidden = true;
-  container.appendChild(keyNote);
+  container.appendChild(el("p", "The key field stays empty until the flows have run on the Flows tab, or paste your own key. Public reads work without a key.", "tool-optional"));
 
   const areas = new Map();
   let targets = new Map();
@@ -398,15 +370,6 @@ export async function createCatalog(container, { endpoint }) {
   }
 
   async function prepareDefaults() {
-    try {
-      const key = await issueDefaultKey();
-      if (!apiKey) {
-        fill({ apiKey: key });
-      }
-    } catch (error) {
-      keyNote.textContent = `No default API key: ${error.message}`;
-      keyNote.hidden = false;
-    }
     for (const listTool of targets.keys()) {
       try {
         const result = await client.callTool(listTool, {}, apiKey);

@@ -1,9 +1,12 @@
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: The "ci" DAG -- build (reactor compile+install, reused by every later stage) -> unit/integration/e2e/
-#   archunit_metrics/lint/shellcheck in parallel, sonar after unit+integration -> pipeline_metrics -> docs. Loaded by Dagu's
-#   server (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags scripts/ci/dagu`) and
-#   triggered either from Dagu's own web UI ("Start" button) or via `dagu start <this-file-path>`
-#   (a bare DAG name resolves against $DAGU_HOME/dags instead -- see DECISIONS.md).
+# Description: The "ci" DAG -- build (reactor compile+install, reused by every later stage) ->
+#   unit/integration/e2e/archunit_metrics/lint/shellcheck in parallel, sonar after unit+integration ->
+#   pipeline_metrics -> docs.
+#   The e2e stage first runs the API collection flows once per role for the REST and the MCP
+#   collection. Loaded by Dagu's server (scripts/ci/docker-entrypoint.sh's `dagu start-all --dags
+#   scripts/ci/dagu`) and triggered either from Dagu's own web UI ("Start" button) or via
+#   `dagu start <this-file-path>` (a bare DAG name resolves against $DAGU_HOME/dags instead -- see
+#   DECISIONS.md).
 # Usage: triggered via scripts/ci/run.sh, or the "Start" button on Dagu's web UI -- never edited
 #   to change a single run's behavior, use the params below instead.
 # Uses: bash, mvn (via build-and-test.sh), docker, python3 (pipeline-metrics.py), shellcheck.
@@ -29,7 +32,9 @@
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
 #   step, which has no precondition of its own -- not gated by the docs param, only by its five
 #   upstream dependencies finishing or skipping. Both files are synced onto the host by
-#   scripts/ci/run.sh, not by this DAG itself -- see DECISIONS.md for why.
+#   scripts/ci/run.sh, not by this DAG itself -- see DECISIONS.md for why. A failing role run of the
+#   e2e stage fails the step after Playwright has run; otherwise the step exits with Playwright's
+#   exit code.
 # Returns: N/A -- Dagu tracks each step's own exit status individually, not one process return code.
 # ────────────────────────────────────────────────────────────────────────────
 name: ci
@@ -136,9 +141,15 @@ steps:
         DB_PORT=15432 SEAWEEDFS_PORT=19000 SEAWEEDFS_CONSOLE_PORT=19333 APP_PORT=18081 \
         DB_VOLUME=ci_advertisement_postgres_data SEAWEEDFS_VOLUME=ci_advertisement_seaweedfs_data \
         bash scripts/deploy-and-run.sh "$RESET_FLAG" --dev-tools --reuse-jar
+      API_FLOWS_FAILED=0
+      bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:18081 --each-role || API_FLOWS_FAILED=1
+      bash docs/api-collections/api-collection-tests.sh --base-url http://localhost:18081 --config scripts/mcp-collection.config.json --each-role || API_FLOWS_FAILED=1
+      PW_EXIT=0
       APP_URL=http://localhost:18081 APP_CONTAINER=ci-marketplace-app \
         PW_CONTAINER=ci-pw-runner DB_PORT=15432 \
-        bash playwright/run.sh ${params.e2e_args}
+        bash playwright/run.sh ${params.e2e_args} || PW_EXIT=$?
+      [ "$API_FLOWS_FAILED" = "0" ] || exit 1
+      exit $PW_EXIT
     continue_on:
       failure: true
       skipped: true

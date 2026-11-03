@@ -3,11 +3,11 @@
  *   shows which one matches the current selection, applies a pasted configuration, and saves or
  *   deletes named templates in browser storage.
  * Usage: None -- a library module imported by main.js.
- * Uses: ./templates.js (builtIns, deleteTemplate, fromConfig, loadSaved, matchingName, saveTemplate,
+ * Uses: ./templates.js (builtIns, deleteTemplate, fromConfig, loadSaved, matchingNames, saveTemplate,
  *   toConfig, validateConfig); ./step-view.js (element); global navigator.clipboard.
  * Env: None.
  * Input: The container element, collection, selection object, storage object (or null) and
- *   {guard, requiredFlow, storageKey, minimalFlows, minimalStepsOff} passed to createTemplatesBar; text the user types or pastes into the bar.
+ *   {guard, requiredFlow, storageKey} passed to createTemplatesBar; text the user types or pastes into the bar.
  * Outputs: Appends its elements to the container and rebuilds the template buttons and configuration
  *   text on each refresh; writes saved templates to the storage object; applies configurations
  *   to the selection through guard.
@@ -19,16 +19,22 @@ import {
   deleteTemplate,
   fromConfig,
   loadSaved,
-  matchingName,
+  matchingNames,
   saveTemplate,
   toConfig,
   validateConfig,
 } from "./templates.js";
 import { element } from "./step-view.js";
 
-export function createTemplatesBar(container, collection, selection, storage, { guard, requiredFlow, storageKey, minimalFlows, minimalStepsOff }) {
+/**
+ * Builds the templates bar in the container and rewrites it on every selection change.
+ * Arguments: container -- element the bar is appended to; collection -- model from parseCollection; selection -- selection object; storage -- localStorage-like object or null when storage is unavailable; {guard, requiredFlow, storageKey} -- selection guard, the flow that cannot be switched off and the storage key for saved templates.
+ * Outputs: builds the bar and rewrites it on every selection change.
+ * Returns: undefined.
+ */
+export function createTemplatesBar(container, collection, selection, storage, { guard, requiredFlow, storageKey }) {
   const settings = { requiredFlow, storageKey };
-  const builtin = builtIns(collection, { minimalFlows, minimalStepsOff });
+  const builtin = builtIns(collection);
   const current = element("span");
   current.id = "template-label";
   const line = element("p", "template-line");
@@ -103,8 +109,8 @@ export function createTemplatesBar(container, collection, selection, storage, { 
   function refresh() {
     const saved = storage === null ? {} : loadSaved(storage, collection, settings);
     const config = toConfig(selection.state(), collection);
-    const name = matchingName(config, saved, collection, builtin);
-    current.textContent = name;
+    const names = matchingNames(config, saved, collection, builtin);
+    current.textContent = names.join(", ");
     buttons.replaceChildren();
     const all = { ...builtin, ...saved };
     for (const templateName of Object.keys(all)) {
@@ -114,7 +120,7 @@ export function createTemplatesBar(container, collection, selection, storage, { 
       button.type = "button";
       button.dataset.template = templateName;
       button.setAttribute("role", "tab");
-      button.setAttribute("aria-selected", String(templateName === name));
+      button.setAttribute("aria-selected", String(names.includes(templateName)));
       button.addEventListener("click", () => guard(() => selection.load(fromConfig(all[templateName], collection)), () => {}));
       group.append(button);
       if (Object.hasOwn(saved, templateName)) {

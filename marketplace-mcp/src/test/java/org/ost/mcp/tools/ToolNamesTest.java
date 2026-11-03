@@ -14,12 +14,32 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Guards that the tool names are exactly the stable REST operation ids this module exposes. */
+/** Guards that the @McpTool names equal the hard-coded EXPOSED set of REST operation ids. */
 class ToolNamesTest {
 
     private static final Set<String> EXPOSED = Set.of("listAdvertisements", "getAdvertisement", "listAdvertisementMedia",
             "listProviderProfiles", "getProviderProfile", "listProviderProfileFeedback", "getProviderProfileFeedbackAggregate",
-            "listTaxons", "getTaxon", "getMySettings", "getMe");
+            "listTaxons", "getTaxon", "getMySettings", "getMe",
+            "getTaxonHistory", "getTaxonHistorySnapshot", "createTaxon", "updateTaxon", "deleteTaxon", "restoreTaxon",
+            "restoreTaxonFromSnapshot",
+            "createAdvertisement", "updateAdvertisement", "patchAdvertisement", "deleteAdvertisement",
+            "getAdvertisementHistory", "getAdvertisementHistorySnapshot", "restoreAdvertisementFromSnapshot",
+            "createProviderProfile", "updateProviderProfile", "patchProviderProfile", "deleteProviderProfile",
+            "getProviderProfileHistory", "getProviderProfileHistorySnapshot", "restoreProviderProfileFromSnapshot",
+            "createProviderProfileFeedback", "updateFeedback", "createFeedbackReply", "updateFeedbackReply",
+            "deleteFeedbackReply", "flagFeedback", "flagFeedbackReply",
+            "getModerationQueue", "approveFeedback", "confirmFeedbackViolation", "approveFeedbackReply",
+            "confirmFeedbackReplyViolation",
+            "getAdvertisementContact", "getProviderProfileContact", "revealAdvertisementContact",
+            "revealProviderProfileContact", "getProviderProfileContactViews",
+            "uploadAdvertisementMedia", "addAdvertisementVideo", "deleteAdvertisementMedia",
+            "updateMySettings", "changeMyLocale", "getMySettingsHistory", "getMySettingsHistorySnapshot",
+            "restoreMySettingsFromSnapshot",
+            "registerUser", "listUsers", "getUser", "updateUser", "deleteUser", "getUserHistory",
+            "getUserHistorySnapshot", "restoreUserFromSnapshot",
+            "getAuditTimeline",
+            "issueApiKey", "listApiKeys", "revokeApiKey",
+            "getHealth", "getSitemap");
 
     @Test
     void toolNamesEqualTheExposedOperationIds() {

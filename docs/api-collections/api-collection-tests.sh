@@ -4,14 +4,16 @@
 #   collection against the OpenAPI document) and run-flows.sh (the collection's flows against the
 #   running app). A failing test does not stop the other one; a summary names each test's outcome.
 # Usage: bash docs/api-collections/api-collection-tests.sh [--no-check] [--no-flows]
-#     [--base-url <url>] [--config <file>] [--flow <name>]... [--role <name>] [--help]
+#     [--base-url <url>] [--config <file>] [--flow <name>]... [--role <name>] [--each-role] [--help]
+#   (no flags)          run check-collection, then run-flows, against http://localhost:8081
 #   --no-check          skip check-collection
 #   --no-flows          skip run-flows
 #   --base-url <url>    base URL passed to both tests (default: each test's own default)
 #   --config <file>     config file passed to both tests, relative to this folder (e.g.
 #                       scripts/mcp-collection.config.json for the MCP collection)
 #   --flow <name>       run only this flow in run-flows; repeat for several
-#   --role <name>       run only the flows of this role in run-flows (user: no administrator needed)
+#   --role <name>       run only the flows of this role in run-flows: user, moderator or administrator (a role also runs the flows of the roles below it)
+#   --each-role         run the flows of every role in turn (user, moderator, administrator)
 #   --help              print this text and exit
 # Uses: scripts/check-collection.sh, scripts/run-flows.sh (in this folder's scripts/ subfolder),
 #   docker (via run-node.sh).
@@ -28,13 +30,14 @@ RUN_FLOWS=true
 BASE_URL=""
 FLOWS=()
 ROLE=""
+EACH_ROLE=false
 CONFIG=""
 
 usage() {
   cat <<'EOF'
 Usage: bash docs/api-collections/api-collection-tests.sh [--no-check] [--no-flows]
                                                          [--base-url <url>] [--config <file>] [--flow <name>]...
-                                                         [--role <name>] [--help]
+                                                         [--role <name>] [--each-role] [--help]
 
 Runs check-collection and run-flows one after the other.
 
@@ -45,7 +48,8 @@ Options:
   --config <file>     config file passed to both tests, relative to this folder
                       (e.g. scripts/mcp-collection.config.json)
   --flow <name>       run only this flow in run-flows; repeat for several
-  --role <name>       run only the flows of this role in run-flows (user: no administrator needed)
+  --role <name>       run only the flows of this role in run-flows: user, moderator or administrator (a role also runs the flows of the roles below it)
+  --each-role         run the flows of every role in turn (user, moderator, administrator)
   --help              print this text and exit
 
 Exit codes:
@@ -79,6 +83,7 @@ while [ "$#" -gt 0 ]; do
       ROLE="$2"
       shift 2
       ;;
+    --each-role) EACH_ROLE=true; shift ;;
     --help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -105,6 +110,7 @@ done
 if [ -n "$ROLE" ]; then
   FLOW_ARGS+=(--role "$ROLE")
 fi
+if [ "$EACH_ROLE" = true ]; then FLOW_ARGS+=(--each-role); fi
 
 CHECK_RESULT="skipped"
 FLOWS_RESULT="skipped"

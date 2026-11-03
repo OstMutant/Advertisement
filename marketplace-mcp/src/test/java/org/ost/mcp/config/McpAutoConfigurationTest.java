@@ -8,7 +8,7 @@ import org.ost.mcptest.McpSecurityEnabler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Checks that the auto-configuration starts with its security chain and binds the REST base URL property. */
+/** Checks that the auto-configuration context starts and binds marketplace.mcp.rest-base-url, both its default and an override. */
 class McpAutoConfigurationTest {
 
     private final WebApplicationContextRunner runner = new WebApplicationContextRunner()

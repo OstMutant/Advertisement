@@ -83,6 +83,48 @@ class ToolResultsTest {
     }
 
     @Test
+    void writtenCarriesStatusItemLocationAndEtag() {
+        CallToolResult result = ToolResults.written(answer(201, "{\"id\":5}", "Location", "/api/x/5", "ETag", "\"1\""));
+
+        assertThat(result.isError()).isFalse();
+        assertThat(structured(result)).containsEntry("status", 201).containsEntry("item", Map.of("id", 5))
+                .containsEntry("location", "/api/x/5").containsEntry("etag", "\"1\"");
+    }
+
+    @Test
+    void writtenWithEmptyBodyHasNoItem() {
+        CallToolResult result = ToolResults.written(answer(204, ""));
+
+        assertThat(structured(result)).containsEntry("status", 204).containsEntry("item", null)
+                .containsEntry("location", null).containsEntry("etag", null);
+    }
+
+    @Test
+    void writtenNonSuccessBecomesAnError() {
+        CallToolResult result = ToolResults.written(answer(412, "{\"message\":\"stale\"}"));
+
+        assertThat(result.isError()).isTrue();
+        assertThat(text(result)).isEqualTo("HTTP 412: stale");
+        assertThat(ToolResults.written(answer(403, "")).isError()).isTrue();
+    }
+
+    @Test
+    void textCarriesStatusAndRawBody() {
+        CallToolResult result = ToolResults.text(answer(200, "ok", "Content-Type", "text/plain"));
+
+        assertThat(result.isError()).isFalse();
+        assertThat(structured(result)).containsEntry("status", 200).containsEntry("body", "ok");
+    }
+
+    @Test
+    void textNonSuccessBecomesAnError() {
+        CallToolResult result = ToolResults.text(answer(404, ""));
+
+        assertThat(result.isError()).isTrue();
+        assertThat(text(result)).isEqualTo("HTTP 404: no such resource.");
+    }
+
+    @Test
     void nonSuccessAnswersBecomeErrors() {
         assertThat(ToolResults.paged(answer(401, ""), 0).isError()).isTrue();
         assertThat(ToolResults.single("item", answer(404, "")).isError()).isTrue();

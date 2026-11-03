@@ -74,6 +74,28 @@ public class ToolResults {
         return success(parse(answer.body()));
     }
 
+    public CallToolResult written(@NonNull RestAnswer answer) {
+        if (!answer.isSuccess()) {
+            return error(answer);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("status", answer.status());
+        payload.put("item", answer.body().isBlank() ? null : parse(answer.body()));
+        payload.put("location", answer.headers().getFirst(HttpHeaders.LOCATION));
+        payload.put("etag", answer.headers().getETag());
+        return success(payload);
+    }
+
+    public CallToolResult text(@NonNull RestAnswer answer) {
+        if (!answer.isSuccess()) {
+            return error(answer);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("status", answer.status());
+        payload.put("body", answer.body());
+        return success(payload);
+    }
+
     public CallToolResult error(@NonNull RestAnswer answer) {
         return CallToolResult.builder()
                 .addTextContent(errorText(answer))

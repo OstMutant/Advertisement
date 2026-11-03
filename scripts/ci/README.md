@@ -91,7 +91,7 @@ the script's own header for the exact output/exit-code contract.
 ## Isolation
 
 The e2e stage runs its own `ci-advertisement-db`/`ci-advertisement-seaweedfs`/`ci-marketplace-app`
-containers on different host ports (15432/19000-19001/18081) and a separate Docker network
+containers on different host ports (15432/19000/19333/18081) and a separate Docker network
 (`ci-advertisement`) from the persistent dev stack — safe to run concurrently with normal dev work.
 They're left running after the run by default, for debugging (`--teardown-e2e-after` to tear them
 down instead). Since the containers (and their DB/SeaweedFS volumes) can persist across runs, the
@@ -99,7 +99,7 @@ stage's own deploy always applies `--reset-only-db` first (fast truncate — cle
 from a prior run without touching the schema/migration history) unless `--reset-e2e-stack` asks for a
 full `--reset` instead (only needed when the DB schema itself changed since the stack was last
 brought up). The stage deploys with `--dev-tools`, so the API flow runner page spec runs there instead of
-skipping itself. The
+skipping itself. Before Playwright the stage runs the API collection flows for every role; the header of [`dagu/ci.yaml`](dagu/ci.yaml) says how the step ends. The
 `integration` stage always applies the Testcontainers sandbox workaround internally (not a
 toggleable flag) — `ci-runner`'s own Docker-outside-of-Docker nature hits the same
 dynamically-assigned-port problem regardless of host machine.

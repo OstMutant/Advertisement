@@ -11,7 +11,8 @@
 # Input: the committed architecture-model.json + architecture-map.html, plus everything
 #   generate-architecture-model.sh itself reads.
 # Outputs: an ERROR line naming which file is stale, if any; the committed files are backed up
-#   before and restored after, so a successful run leaves them byte-identical to how it found them.
+#   before and restored after, so a successful run leaves them byte-identical to how it found them,
+#   with mode 644.
 # Returns: 0 = up to date, 1 = stale (or the files don't exist yet).
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -37,6 +38,7 @@ cp "$HTML" "$BACKUP_HTML"
 restore_committed() {
   if [ -s "$BACKUP_JSON" ]; then mv -f "$BACKUP_JSON" "$JSON"; else rm -f "$BACKUP_JSON"; fi
   if [ -s "$BACKUP_HTML" ]; then mv -f "$BACKUP_HTML" "$HTML"; else rm -f "$BACKUP_HTML"; fi
+  chmod 644 "$JSON" "$HTML"  # mktemp makes 0600; the restored files must stay world-readable for the working-tree sync
 }
 trap restore_committed EXIT
 

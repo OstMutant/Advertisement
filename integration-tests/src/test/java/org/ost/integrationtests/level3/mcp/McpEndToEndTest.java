@@ -56,7 +56,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Drives the MCP endpoint over real HTTP with JSON-RPC against a real embedded server, so each tool reaches the REST API through the real loopback call. */
+/** Drives the MCP endpoint over real HTTP with JSON-RPC against a real embedded server: compares tools/list by name with the live OpenAPI operation ids, invokes a subset of tools (identity, pagination, single read, create/patch/delete, taxon listing, moderator and user roles) through the real loopback REST call, and checks the Origin filter on initialize. */
 @SpringBootTest(
         classes = {
                 UserAutoConfiguration.class,
@@ -99,9 +99,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpEndToEndTest extends AbstractPostgresIntegrationTest {
 
     private static final String PROTOCOL_VERSION = "2025-11-25";
-    private static final Set<String> EXPECTED_TOOLS = Set.of("listAdvertisements", "getAdvertisement", "listAdvertisementMedia",
-            "listProviderProfiles", "getProviderProfile", "listProviderProfileFeedback", "getProviderProfileFeedbackAggregate",
-            "listTaxons", "getTaxon", "getMySettings", "getMe");
     private static final int PORT = freePort();
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
@@ -125,13 +122,9 @@ class McpEndToEndTest extends AbstractPostgresIntegrationTest {
     @BeforeEach
     void registerUserAndOpenSession() throws Exception {
         TestDataCleaner.cleanAll(jdbcClient);
-        String email = "mcp-" + System.nanoTime() + "@example.com";
-        JsonNode user = MAPPER.readTree(rest("POST", "/api/users", null, """
-                {"name":"Mcp User","email":"%s","password":"password123"}""".formatted(email)).body());
-        userId = user.path("id").asLong();
-        String basic = Base64.getEncoder().encodeToString((email + ":password123").getBytes());
-        JsonNode key = MAPPER.readTree(rest("POST", "/api/api-keys", "Basic " + basic, null).body());
-        rawKey = key.path("rawKey").asString();
+        Account first = registerAccount("Mcp User");
+        userId = first.id();
+        rawKey = first.key();
 
         HttpResponse<String> init = mcpPost(null, request("initialize", """
                 {"protocolVersion":"%s","capabilities":{},"clientInfo":{"name":"it","version":"1"}}""".formatted(PROTOCOL_VERSION)));
@@ -142,16 +135,20 @@ class McpEndToEndTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void toolsList_returnsTheElevenToolsAndEachIsAnOperationIdOfTheLiveOpenApi() throws Exception {
+    void toolsList_returnsOneToolForEveryOperationIdOfTheLiveOpenApi() throws Exception {
         JsonNode tools = MAPPER.readTree(extractJson(mcpPost(sessionId, request("tools/list", "{}")).body())).path("result").path("tools");
         List<String> names = new ArrayList<>();
         tools.forEach(tool -> names.add(tool.path("name").asString()));
-        assertThat(names).hasSize(EXPECTED_TOOLS.size()).containsExactlyInAnyOrderElementsOf(EXPECTED_TOOLS);
 
         Set<String> operationIds = new HashSet<>();
         MAPPER.readTree(rest("GET", "/v3/api-docs", null, null).body()).path("paths").forEach(pathItem ->
-                pathItem.forEach(operation -> operationIds.add(operation.path("operationId").asString())));
-        assertThat(operationIds).containsAll(names);
+                pathItem.forEach(operation -> {
+                    String operationId = operation.path("operationId").asString();
+                    if (!operationId.isBlank()) {
+                        operationIds.add(operationId);
+                    }
+                }));
+        assertThat(names).hasSameSizeAs(operationIds).containsExactlyInAnyOrderElementsOf(operationIds);
     }
 
     @Test
@@ -204,6 +201,59 @@ class McpEndToEndTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void createPatchAndDeleteAnAdvertisement_throughTheWriteTools() throws Exception {
+        String bearer = "Bearer " + rawKey;
+        JsonNode created = callTool("createAdvertisement",
+                "{\"title\":\"Tool ad\",\"description\":\"Made by a tool\",\"adKind\":\"OFFER\"}", bearer);
+        assertThat(created.path("isError").asBoolean()).isFalse();
+        assertThat(created.path("structuredContent").path("status").asInt()).isEqualTo(201);
+        long adId = created.path("structuredContent").path("item").path("id").asLong();
+
+        String etag = callTool("getAdvertisement", "{\"id\":" + adId + "}", null).path("structuredContent").path("etag").asString();
+        JsonNode patched = callTool("patchAdvertisement",
+                "{\"id\":%d,\"etag\":%s,\"patch\":{\"title\":\"Patched by a tool\"}}".formatted(adId, MAPPER.writeValueAsString(etag)), bearer);
+        assertThat(patched.path("isError").asBoolean()).isFalse();
+
+        JsonNode read = callTool("getAdvertisement", "{\"id\":" + adId + "}", null).path("structuredContent");
+        assertThat(read.path("item").path("title").asString()).isEqualTo("Patched by a tool");
+
+        JsonNode deleted = callTool("deleteAdvertisement",
+                "{\"id\":%d,\"etag\":%s}".formatted(adId, MAPPER.writeValueAsString(read.path("etag").asString())), bearer);
+        assertThat(deleted.path("isError").asBoolean()).isFalse();
+        assertThat(deleted.path("structuredContent").path("status").asInt()).isEqualTo(204);
+
+        JsonNode gone = callTool("getAdvertisement", "{\"id\":" + adId + "}", null);
+        assertThat(gone.path("isError").asBoolean()).isTrue();
+        assertThat(gone.path("content").path(0).path("text").asString()).startsWith("HTTP 404");
+    }
+
+    @Test
+    void privilegedTools_followTheRoleOfTheKey() throws Exception {
+        Account moderator = registerAccount("Mcp Moderator");
+        jdbcClient.sql("UPDATE user_information SET role = 'MODERATOR' WHERE id = :id").param("id", moderator.id()).update();
+        Account plain = registerAccount("Mcp Plain");
+        String translations = "[{\"locale\":\"en\",\"name\":\"Plumbing\",\"description\":\"Plumbing services\"},"
+                + "{\"locale\":\"uk\",\"name\":\"Сантехніка\",\"description\":\"Сантехнічні послуги\"}]";
+        String createTaxon = "{\"type\":\"CATEGORY\",\"translations\":%s}".formatted(translations);
+
+        JsonNode queue = callTool("getModerationQueue", "{}", "Bearer " + moderator.key());
+        assertThat(queue.path("isError").asBoolean()).isFalse();
+        assertThat(queue.path("structuredContent").path("items").isArray()).isTrue();
+
+        JsonNode taxon = callTool("createTaxon", createTaxon, "Bearer " + moderator.key());
+        assertThat(taxon.path("isError").asBoolean()).isFalse();
+        assertThat(taxon.path("structuredContent").path("status").asInt()).isEqualTo(201);
+
+        JsonNode queueAsUser = callTool("getModerationQueue", "{}", "Bearer " + plain.key());
+        assertThat(queueAsUser.path("isError").asBoolean()).isTrue();
+        assertThat(queueAsUser.path("content").path(0).path("text").asString()).startsWith("HTTP 403");
+
+        JsonNode taxonAsUser = callTool("createTaxon", createTaxon, "Bearer " + plain.key());
+        assertThat(taxonAsUser.path("isError").asBoolean()).isTrue();
+        assertThat(taxonAsUser.path("content").path(0).path("text").asString()).startsWith("HTTP 403");
+    }
+
+    @Test
     void initialize_withAForeignOrigin_isForbiddenAndOpensNoSession() throws Exception {
         HttpResponse<String> response = initializeWithOrigin("http://evil.example");
         assertThat(response.statusCode()).isEqualTo(403);
@@ -227,6 +277,18 @@ class McpEndToEndTest extends AbstractPostgresIntegrationTest {
                 .POST(HttpRequest.BodyPublishers.ofString(body));
         return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
+
+    private Account registerAccount(String name) throws Exception {
+        String email = "mcp-" + System.nanoTime() + "@example.com";
+        JsonNode user = MAPPER.readTree(rest("POST", "/api/users", null, """
+                {"name":"%s","email":"%s","password":"password123"}""".formatted(name, email)).body());
+        String basic = Base64.getEncoder().encodeToString((email + ":password123").getBytes());
+        JsonNode key = MAPPER.readTree(rest("POST", "/api/api-keys", "Basic " + basic, null).body());
+        return new Account(user.path("id").asLong(), key.path("rawKey").asString());
+    }
+
+    /** The registered user's id and the raw API key the tests authenticate with. */
+    private record Account(long id, String key) {}
 
     private long createAdvertisement(String title) throws Exception {
         String body = """

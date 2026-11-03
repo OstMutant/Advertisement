@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Builds a REST path with strictly encoded path variables and query values; null query values are skipped. */
+/** Builds a REST path from a template and query parameters; null query values and empty collections are skipped, and a collection is sent as one comma-joined value. */
 public final class RestPath {
 
     private final UriComponentsBuilder builder;

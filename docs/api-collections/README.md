@@ -20,9 +20,14 @@ link to that page's Postman collection. Under it come the section tabs; only one
 On the REST page they are `Endpoints` (a link to the app's Swagger UI at `/swagger-ui/index.html`) and
 `Flows`, the default. The `Flows` section, from top to bottom:
 
-- **Templates:** `Everything`, `Minimal` and the templates saved in the browser, shown as tabs, with the
-  current run configuration as JSON that can be copied and applied back. Saved templates live in the
-  browser's `localStorage`.
+- **Templates:** `Administrator`, `Moderator` and `User` (the flows each role can run, see [Roles](postman/README.md#roles-and-running-without-an-administrator)) and the templates saved in the browser, shown as tabs; the label names every template that equals
+  the current selection. A flow that needs an administrator carries the tag "needs an administrator", and after
+  a run with an account that is not an administrator the page lists the skipped flows and where to enter the
+  administrator's e-mail and password. The current run configuration is shown as JSON that can be copied and
+  applied back. Saved templates live in the browser's `localStorage`.
+- **Administrator account:** a note on what happens without an administrator and two fields for the e-mail
+  and password of an existing administrator; empty fields keep the default. The values are used only for
+  the run and are not part of the copied configuration or the saved templates.
 - **Flow map:** one card per flow with a checkbox (Authentication is required and cannot be unchecked), the
   number of selected steps and, after a run, a count of passed, skipped or failed steps. A click on a card
   opens the flow: its settings as JSON (`Apply` stores them, `Reset to defaults` clears them), its steps
@@ -43,7 +48,8 @@ drift apart.
 behind the same switch as the REST page. Its section tabs are `Tools` and `Flows` (the default):
 
 - **Tools tab:** built live from the server's `tools/list`. Each tool shows its name, its description,
-  a parameter table, a box for the JSON arguments, an optional API key field and a `Call` button. The key
+  a parameter table, a box for the JSON arguments, an optional API key field and a `Call` button. The field is
+  empty on open and is filled with the key of the last flow run, or you paste your own; the key
   is kept only in the page's memory, never in `localStorage`.
 - **Flows tab:** the same runner as on the REST page, over
   [`postman/marketplace-mcp.postman_collection.json`](postman/marketplace-mcp.postman_collection.json).
@@ -56,8 +62,8 @@ JSON or as an event stream; both are read.
 
 ## Entry points
 
-- [`api-collection-tests.sh`](api-collection-tests.sh) runs `check-collection` and then `run-flows`, one after the other. With `--role user` it runs only the flows that need no administrator.
-- With `--config scripts/mcp-collection.config.json` the same entry point checks and runs the MCP collection instead: the coverage check compares it with the live `tools/list` (exceptions in [`mcp-coverage-allowlist.txt`](scripts/mcp-coverage-allowlist.txt)), then the MCP flows run. Without `--config` it runs the REST ones.
+- [`api-collection-tests.sh`](api-collection-tests.sh) runs `check-collection` and then `run-flows`, one after the other.
+- With `--config` [`scripts/mcp-collection.config.json`](scripts/mcp-collection.config.json) the same entry point checks and runs the MCP collection instead of the REST one; the configuration and the allow-list are described in [scripts/README.md](scripts/README.md#configuration).
 - [`scripts/check-collection.sh`](scripts/check-collection.sh) checks the collection against the OpenAPI document of the running app.
 - [`scripts/run-flows.sh`](scripts/run-flows.sh) runs the collection's flows against the running app, step by step.
 

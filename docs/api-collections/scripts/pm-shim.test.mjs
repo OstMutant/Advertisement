@@ -4,7 +4,7 @@
  *   undefined, and any other headers member fails the step as an unsupported pm call. Replaces
  *   global fetch with a stub, so no API is needed.
  * Usage: bash docs/api-collections/scripts/run-node.sh pm-shim.test.mjs
- * Uses: flow-runner/page/js/collection.js and runner.js (the page's own modules). No dependencies.
+ * Uses: flow-runner/page/js/collection.js and runner.js (the page's own modules), ./test-runner.mjs. No dependencies.
  * Env: None.
  * Input: None.
  * Outputs: one PASS or FAIL line per case, then a summary line; failures name the actual step state.
@@ -12,6 +12,7 @@
  * ───────────────────────────────────────────────────────────────────────── */
 import { parseCollection } from '../flow-runner/page/js/collection.js';
 import { runFlow } from '../flow-runner/page/js/runner.js';
+import { runCases } from './test-runner.mjs';
 
 const BODY = 'event: message\ndata: {"ok":true}\n\n';
 
@@ -54,13 +55,8 @@ const CASES = [
 globalThis.fetch = async () =>
   new Response(BODY, { status: 200, headers: { 'content-type': 'text/event-stream', 'mcp-session-id': 'session-1' } });
 
-let failures = 0;
-for (const testCase of CASES) {
+await runCases(CASES, async (testCase) => {
   const { steps, variables } = await runFlow(collectionWith(testCase.tests), { host: 'http://stub' });
   const step = steps[0];
-  const ok = testCase.check(step, variables);
-  failures += ok ? 0 : 1;
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${testCase.name}${ok ? '' : ` (status=${step.status}, error=${step.error})`}`);
-}
-console.log(`${CASES.length - failures}/${CASES.length} passed`);
-process.exit(failures === 0 ? 0 : 1);
+  return { ok: testCase.check(step, variables), detail: ` (status=${step.status}, error=${step.error})` };
+});

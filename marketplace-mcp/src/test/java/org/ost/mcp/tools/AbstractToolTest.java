@@ -1,6 +1,7 @@
 package org.ost.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.ost.mcp.config.McpProperties;
@@ -13,7 +14,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import java.util.List;
 import java.util.Map;
 
-/** Shared wiring of the tool tests: a mock REST server behind a real {@link RestApiClient}, plus the result helper they all use. */
+/** Shared wiring of the tool tests: a mock REST server behind a real {@link RestApiClient}, the per-test request-context reset, and the structured/errorText result helpers. */
 abstract class AbstractToolTest {
 
     protected MockRestServiceServer server;
@@ -34,5 +35,9 @@ abstract class AbstractToolTest {
     @SuppressWarnings("unchecked")
     protected static Map<String, Object> structured(CallToolResult result) {
         return (Map<String, Object>) result.structuredContent();
+    }
+
+    protected static String errorText(CallToolResult result) {
+        return ((TextContent) result.content().getFirst()).text();
     }
 }

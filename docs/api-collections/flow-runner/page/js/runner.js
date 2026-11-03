@@ -1,9 +1,12 @@
 /* ── Header ───────────────────────────────────────────────────────────────────
  * Description: Runs a loaded collection's steps in order against a host: substitutes variables, applies
  *   auth and form data, performs each request with fetch, runs the test script through the pm
- *   shim (given the status, body text and response headers), and reports every step through onStepUpdate. After the first failed step the remaining
- *   steps are skipped.
- * Usage: None -- a library module imported by main.js, scripts/run-flows.mjs and scripts/runner-429.test.mjs.
+ *   shim (given the status, body text and response headers), and reports every step through
+ *   onStepUpdate. After the first failed step the remaining steps are skipped. Steps outside the
+ *   selected flows, steps excluded by id and steps whose flow condition or own condition is not met
+ *   are skipped too.
+ * Usage: None -- a library module imported by main.js, scripts/run-flows.mjs, scripts/runner-429.test.mjs,
+ *   scripts/pm-shim.test.mjs and scripts/runner-when.test.mjs.
  * Uses: ./collection.js (substitute); ./pm-shim.js (createPm, runScript); global fetch, FormData,
  *   Blob, Uint8Array, atob, btoa, TextEncoder and Date.
  * Env: None.
@@ -18,7 +21,8 @@ import { substitute } from "./collection.js";
 import { createPm, runScript } from "./pm-shim.js";
 
 /**
- * Runs the collection's steps in order, reports each step through onStepUpdate and skips the rest after a failure.
+ * Runs the collection's steps in order, reports each step through onStepUpdate and skips the rest after a failure;
+ * `variables` overlay the collection variables and a run id is generated.
  * Arguments: collection -- model from parseCollection, options -- object with host, variables, flows (null for all), exclude (step ids), onStepUpdate(index, step).
  * Outputs: HTTP requests to the host; onStepUpdate calls for every step.
  * Returns: Promise resolving to an object with steps and variables.
@@ -54,6 +58,12 @@ export async function runFlow(collection, { host, variables = {}, flows = null, 
     if (exclude.includes(item.stepId)) {
       step.status = "skipped";
       step.note = "step not selected";
+      onStepUpdate(index, step);
+      continue;
+    }
+    if (item.flowWhen && runVariables[item.flowWhen.variable] !== item.flowWhen.value) {
+      step.status = "skipped";
+      step.note = "flow condition not met";
       onStepUpdate(index, step);
       continue;
     }

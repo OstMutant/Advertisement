@@ -3,19 +3,30 @@
  *   selected steps and a passed / failed / skipped pill tally. Keeps the cards in sync with the
  *   selection and with step results.
  * Usage: None -- a library module imported by main.js (passed requiredFlow in its options).
- * Uses: The selection object passed in (flowOn, stepOn, setFlow, subscribe); global document.
+ * Uses: ./roles.js (flowsNeedingAdministrator); the selection object passed in (flowOn, stepOn, setFlow, subscribe);
+ *   global document.
  * Env: None.
  * Input: The container element, collection, selection object and {onOpen, guard, requiredFlow} passed to
  *   createFlowMap; step results via update(index, step).
- * Outputs: Appends flow cards to the container; updates checkbox state, count text, pill and aria-
- *   pressed; calls onOpen(flowName) when a card is opened and selection changes through guard.
+ * Outputs: Appends flow cards to the container, each administrator-only flow with a "needs an administrator" tag;
+ *   updates checkbox state, count text, pill and aria-pressed; calls onOpen(flowName) when a card is opened and
+ *   selection changes through guard.
  *   No storage access.
- * Returns: N/A
+ * Returns: the controls {update(index, step), reset(), setOpen(flowName)} from createFlowMap.
  * ────────────────────────────────────────────────────────────────────────── */
 
+import { flowsNeedingAdministrator } from "./roles.js";
+
+/**
+ * Renders one card per flow into the container and keeps the cards in sync with the selection and step results.
+ * Arguments: container -- element the cards are appended to; collection -- model from parseCollection; selection -- selection object; {onOpen, guard, requiredFlow} -- open callback, selection guard and the flow that cannot be switched off.
+ * Outputs: appends flow cards and wires them to the selection.
+ * Returns: the controls {update(index, step), reset(), setOpen(flowName)}.
+ */
 export function createFlowMap(container, collection, selection, { onOpen, guard, requiredFlow }) {
   const cards = [];
   const statuses = new Map();
+  const needsAdmin = flowsNeedingAdministrator(collection);
 
   collection.flows.forEach((flow, position) => {
     const steps = collection.items.filter((item) => item.flow === flow.name);
@@ -68,7 +79,14 @@ export function createFlowMap(container, collection, selection, { onOpen, guard,
 
     const foot = document.createElement("div");
     foot.className = "foot";
-    foot.append(mark, count, pill);
+    if (needsAdmin.includes(flow.name)) {
+      const adminTag = document.createElement("span");
+      adminTag.className = "tag";
+      adminTag.textContent = "needs an administrator";
+      foot.append(mark, count, adminTag, pill);
+    } else {
+      foot.append(mark, count, pill);
+    }
     card.append(head, foot);
     container.append(card);
 

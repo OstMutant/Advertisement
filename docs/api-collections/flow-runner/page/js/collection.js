@@ -31,17 +31,18 @@ export async function loadCollection(url) {
  * Converts a raw Postman collection object into the flow list, the flat step items and the variables map.
  * Arguments: collection -- parsed Postman collection JSON object.
  * Outputs: None.
- * Returns: Object with name, variables, flows and items.
+ * Returns: Object with name, variables, flows (name, note and the flow condition) and items (each with its step header, helper flag and flow condition).
  */
 export function parseCollection(collection) {
   const flows = [];
   const items = [];
   for (const entry of collection.item) {
     if (Array.isArray(entry.item)) {
-      flows.push({ name: entry.name, note: descriptionText(entry.description) });
-      collectItems([entry], entry.name, items);
+      const { when, note } = parseFlowDescription(entry.description);
+      flows.push({ name: entry.name, note, when });
+      collectItems([entry], entry.name, items, when);
     } else {
-      collectItems([entry], "", items);
+      collectItems([entry], "", items, null);
     }
   }
   return {
@@ -75,17 +76,28 @@ export function substitute(template, variables) {
 const PLACEHOLDER = /\{\{\s*([^}\s]+)\s*\}\}/g;
 const HEADER_LINE = /^(\w+):\s*(.*)$/;
 
-function collectItems(entries, flow, items) {
+function collectItems(entries, flow, items, flowWhen) {
   for (const entry of entries) {
     if (Array.isArray(entry.item)) {
-      collectItems(entry.item, flow, items);
+      collectItems(entry.item, flow, items, flowWhen);
     } else {
-      items.push(toItem(entry, flow));
+      items.push(toItem(entry, flow, flowWhen));
     }
   }
 }
 
-function toItem(item, flow) {
+function parseFlowDescription(description) {
+  const text = descriptionText(description);
+  const lines = text.split("\n");
+  const match = /^when:\s*(.+)$/.exec(lines[0].trim());
+  if (match === null) {
+    return { when: null, note: text };
+  }
+  const blankIndex = lines.findIndex((line) => line.trim() === "");
+  return { when: parseWhen(match[1].trim()), note: blankIndex === -1 ? "" : lines.slice(blankIndex + 1).join("\n").trim() };
+}
+
+function toItem(item, flow, flowWhen) {
   const request = item.request;
   const { meta, text } = parseDescription(request.description);
   return {
@@ -104,6 +116,8 @@ function toItem(item, flow) {
     label: meta.label || item.name,
     kind: meta.kind || "optional",
     when: parseWhen(meta.when),
+    helper: meta.helper === "yes",
+    flowWhen,
     text,
   };
 }

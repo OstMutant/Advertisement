@@ -1,7 +1,7 @@
 /* ── Header ───────────────────────────────────────────────────────────────────
  * Description: Computes the editable settings of a flow (the collection variables its requests reference,
  *   compact or full, with overrides or defaults applied) and validates the settings JSON text
- *   the user edits.
+ *   the user edits. Email and password are entered in the Administrator account block, not here.
  * Usage: None -- a library module imported by flow-detail.js.
  * Uses: None.
  * Env: None.
@@ -14,6 +14,7 @@
 const PLACEHOLDER = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
 const COMPACT_LIMIT = 60;
 const HIDDEN_IN_COMPACT = ["host", "runId"];
+const ENTERED_ELSEWHERE = ["email", "password"];
 
 function referencedVariables(items) {
   const names = new Set();
@@ -41,7 +42,7 @@ function referencedVariables(items) {
 
 export function settingsFor(collection, flowName, showAll, overrides, host) {
   const referenced = referencedVariables(collection.items.filter((item) => item.flow === flowName));
-  const names = Object.keys(collection.variables).filter((name) => referenced.includes(name) && !HIDDEN_IN_COMPACT.includes(name));
+  const names = Object.keys(collection.variables).filter((name) => referenced.includes(name) && !HIDDEN_IN_COMPACT.includes(name) && !ENTERED_ELSEWHERE.includes(name));
   const shown = showAll ? names : names.filter((name) => collection.variables[name].length <= COMPACT_LIMIT);
   if (showAll) {
     shown.push("host", "runId");
