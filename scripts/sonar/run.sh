@@ -26,9 +26,10 @@
 #   TEST_REPORTS_VOLUME (default test-reports) -- the Docker volume mounted at /reports of the scanner container and of the build container.
 #   SONAR_BUILD_CONTAINER_NAME (default advertisement-build-only-sonar) -- name of the build container this script starts when it runs its own tests.
 #   SONAR_BUILD_ARGS (default empty) -- extra flags for the build-and-test.sh call that runs this stage's own tests; the CI passes --no-install so the reactor built once by the build step is not installed again.
-# Input: sonar-project.properties, each module's src/main/java (copied from the host), the Maven cache
-#   Docker volume's target-classes/<module> (mounted into the scanner container), the
-#   running SonarQube server's own API.
+# Input: sonar-project.properties, each module's src/main/java (copied from the host into the
+#   scanner container with `docker cp`, because volume mounts do not work when the caller is
+#   itself a container), the Maven cache Docker volume's target-classes/<module> (mounted into
+#   the scanner container), the running SonarQube server's own API.
 # Outputs: analysis uploaded to http://localhost:9099/dashboard?id=advertisement (anonymous
 #   browsing enabled every run -- see DECISIONS.md); local report at
 #   scripts/sonar/report/report.html. Self-heals two things every run: the sonar token in

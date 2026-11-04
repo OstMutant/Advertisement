@@ -38,18 +38,6 @@ item 25), not encoded in the type system. Surfaced by the same Altitude pass. Po
 a `SqlOperator`-level cardinality marker, or splitting the factory method shapes — needs a design
 decision, not a mechanical fix.
 
-### 3. `integration-tests/run.sh` silently drops all but the last test-class scenario argument (found during Batch I, 2026-07-30)
-
-`run.sh`'s arg-parsing loop (`for arg in "$@"; do ... else SCENARIO="$arg"; fi; done`) overwrites
-`SCENARIO` on every non-flag argument instead of accumulating them, so
-`bash scripts/integration-tests.sh --sandbox ClassA ClassB ClassC` silently runs only `ClassC` —
-`ClassA`/`ClassB` are dropped with no warning or error. Confirmed directly during Batch I: a run
-intended to cover 5 attachment-domain test classes only ran the last one named; had to be redone
-with a single comma-joined `-Dtest=...`-style argument instead (which the script does forward
-correctly as one opaque `SCENARIO` string). Fix is small and mechanical (join extra positional args
-with a comma instead of overwriting) but touches a shared script used by every batch's test cycle,
-so it's deferred here for a deliberate pass rather than a rushed inline fix.
-
 ### 4. Unify entity→DTO simple-mapping convention across all modules (decided during Batch C, 2026-07-30)
 
 **Convention adopted:** when a DTO is built by pure field copy with no join/enrichment (no locale,
@@ -156,21 +144,18 @@ gap, not a documented one. Needs a decision: guard the button behind `isAvailabl
 make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
 "create with no taxon starter" means to callers) — not sized here.
 
-### 12. `scripts/sonar/run.sh` / `scripts/build-and-test/run.sh` headers don't explain their own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
+### 12. `scripts/build-and-test/run.sh`'s header doesn't explain its own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
 
-`playwright/run.sh`'s own header already explains why it uses `docker cp` instead of a volume
+`playwright/run.sh`'s and `scripts/sonar/run.sh`'s own headers explain why they use `docker cp` instead of a volume
 mount ("volume mounts don't work when the caller is itself a container") — but
-`scripts/sonar/run.sh`'s structured header says nothing about this (checked directly, no mention
-in `Input`/`Outputs`/`Uses`), and `scripts/build-and-test/run.sh`'s explanation exists only as a
-body comment further down the file, not in its structured header. Surfaced while applying
+`scripts/build-and-test/run.sh`'s explanation exists only as a body comment further down the file, not in its structured header. Surfaced while applying
 `infra-doc-standards` to the root `scripts/` directory: the root `scripts/README.md` used to carry
 a "Docker socket constraint" section aggregating this fact across all three scripts, removed as a
 duplication violation once the skill's "one fact, one canonical home" rule was strengthened this
-same session to explicitly cover shared-constraint content — but removing it exposed that 2 of the
-3 referenced files never had this reason in their own header to begin with. Not fixed inline: both
-files live in different directories (`scripts/sonar/`, `scripts/build-and-test/`), outside this
-run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
-add one sentence to each file's `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
+same session to explicitly cover shared-constraint content — but removing it exposed that some of the
+referenced files never had this reason in their own header to begin with. Not fixed inline: the
+file lives outside this run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
+add one sentence to its `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
 matching `playwright/run.sh`'s existing pattern.
 
 ### 13. Repo-wide prose references to old per-module `<module>/CLAUDE.md` paths went stale after path-scoped migration (found during improvement-168 Phase 2.2, 2026-08-25)
@@ -280,24 +265,6 @@ their module's README "Key classes" table for the class list — that table no l
 to all 4 modules during item 11's repo-wide pass. Mechanical fix (update each pointer to name the
 current section instead), deferred only because it touches 4 files outside that item's approved
 Java/pom.xml/README-only scope.
-
-### 19. Two Liquibase changelogs missing their mandatory file-level header (found during improvement-183 item 11, 2026-09-09)
-
-`taxon-spring-boot-starter/db/taxon-changelog/master.xml` and
-`audit-spring-boot-starter/db/audit-changelog/audit-changelog-master.xml` (plus that module's
-`changes/01-audit-schema.xml`) lack the `<!-- Description: ... -->` header `module-doc-standards`
-requires on every master changelog and change file. Deferred only because Liquibase changelogs were
-outside item 11's approved scope (Java/pom.xml/README.md only), not because the header shape for a
-change file is settled — `module-doc-standards` itself flags the change-file header shape as "not
-yet designed."
-
-### 20. `attachment-spring-boot-starter/pom.xml` declares two dependencies with zero real references (found during improvement-183 item 11, 2026-09-09)
-
-`query-lib` and `jackson-datatype-jsr310` are both declared as dependencies in this module's
-`pom.xml` but neither is imported or used anywhere in `attachment-spring-boot-starter/src`. Likely
-dead — needs a grep-confirmed removal pass (same shape as `query-lib/pom.xml`'s own 3-dependency
-cleanup earlier this session), deferred only because it wasn't part of item 11's approved
-Java/pom.xml-comment/README scope (this is a dependency-removal, not a comment fix).
 
 ### 21. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
 
@@ -456,12 +423,6 @@ is made on how that should look. Entries 6 and 7 are the same kind of duplicatio
 `FeedbackEditPolicy.MAX_EDIT_AGE` (48 hours) has passed. A REST scenario cannot move the clock. Options:
 a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
 with a record whose `created_at` is older than the window. It needs a design decision before sizing.
-
-### 33. `marketplace-mcp` declares `org.jetbrains:annotations`, which nothing in the module uses (found during improvement-232, 2026-11-03)
-
-`marketplace-mcp/pom.xml` lists the dependency but no class in the module imports from
-`org.jetbrains.annotations`. It may still arrive through another dependency, so removing it needs a
-build of the reactor and a check of what else breaks; low risk, no behavior change expected.
 
 ### 34. The MCP endpoint path `/mcp` is written in `McpSecurityConfig` and again in `application.yml` (found during improvement-232, 2026-11-03)
 
