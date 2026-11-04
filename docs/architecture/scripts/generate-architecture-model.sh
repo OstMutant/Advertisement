@@ -10,11 +10,14 @@
 # Usage: bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--no-sonar-rescan] [--with-archunit] [--with-ci-metrics]
 #   (no flags)         regenerate architecture-model.json and architecture-map.html from repo state, including JaCoCo coverage and Surefire results from the last local build-and-test.sh run
 #   --with-adr-details embed full ADR text in the architecture-map.html (slower, larger output)
-#   --with-sonar       include SonarQube quality metrics (requires server running)
+#   --with-sonar       include SonarQube quality metrics; unless --no-sonar-rescan is given, it runs
+#                      scripts/sonar.sh --no-gate (a full build, test and scan, which starts the server)
+#                      when SonarQube is unreachable, has no analysis or is older than a changed .java file
 #   --no-sonar-rescan  use the stored Sonar analysis as is (the CI sonar stage already scanned); only meaningful with --with-sonar
 #   --with-archunit    include ArchUnit module-coupling analysis (runs ArchitectureMetricsExport)
 # Uses: bash, node (liquibase-schema-to-json.js, .claude/nav/scripts/generate-adr-index.sh, md-to-decisions-json.js),
-#   python3 (JaCoCo/Surefire parsing always; Sonar/ArchUnit only with --with-sonar/--with-archunit).
+#   python3 (JaCoCo/Surefire parsing always; Sonar/ArchUnit only with --with-sonar/--with-archunit),
+#   curl and scripts/sonar.sh (only with --with-sonar), docker (a Node container when no local node).
 # Env: None.
 # Input: scripts/build-and-test/reports/jacoco/*.xml, scripts/build-and-test/reports/surefire/*/
 #   (also the same two folders inside scripts/build-and-test/reports/advertisement-build-only-unit,
@@ -179,20 +182,36 @@ SCRIPT_TREE_LEAF_DIRS=(.claude/skills)
 # sort) for any directory not listed here. Applies uniformly to SCRIPT_GROUP_DIRS's flat dirs and
 # to every level of the SCRIPT_TREE_ROOTS tree (looked up by the node's own directory path).
 declare -A SCRIPT_GROUP_FILE_ORDER=(
-  [.claude/nav/scripts]="generate-adr-index.sh check-hardcoded-counts.sh check-flows-completeness.sh md-to-decisions-json.js"
+  [.claude/nav/scripts]="generate-adr-index.sh check-hardcoded-counts.sh check-flows-completeness.sh check-module-lists.sh check-rule-path-globs.sh md-to-decisions-json.js"
   [docs/architecture]="architecture-doc.sh architecture-doc.bat"
   [docs/architecture/scripts]="generate-architecture-model.sh liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
   [docs/architecture/data]="architecture-model.json arch-embed-index.md runtime-notes.md"
   [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
-  [scripts/sonar]="run.sh run.bat docker-compose.sonar.yml sonar-project.properties"
+  [scripts/sonar]="run.sh docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
-  [scripts/deploy-and-run]="run.sh reset.sh Dockerfile docker-compose.db.yml docker-compose.seaweedfs.yml docker-compose.app.yml"
+  [scripts/deploy-and-run]="run.sh reset.sh docker-compose.db.yml docker-compose.seaweedfs.yml docker-compose.app.yml"
   [scripts/run-all-tests]="run.sh"
-  [scripts/ci]="run.sh Dockerfile docker-entrypoint.sh watch-run.py"
+  [scripts/ci]="run.sh Dockerfile docker-entrypoint.sh dagu-rest-run-monitor.py"
   [scripts/ci/dagu]="ci.yaml pipeline-metrics.py"
-  [playwright/e2e]="_helpers.js 01-marketplace-empty-flow.spec.js 02-marketplace-authentication-flow.spec.js 03-marketplace-promotion-flow.spec.js 04-marketplace-advertisement-flow.spec.js 05-seed-filter-sort-pagination.spec.js 06-marketplace-delete-flow.spec.js 07-accessibility.spec.js"
+  [playwright/e2e]="_helpers.js 01-marketplace-empty-flow.spec.js 02-marketplace-authentication-flow.spec.js 03-marketplace-promotion-flow.spec.js 04-provider-profile-flow.spec.js 05-marketplace-advertisement-flow.spec.js 06-seed-filter-sort-pagination.spec.js 07-marketplace-delete-flow.spec.js 08-accessibility.spec.js 09-rest-api-swagger.spec.js 10-rest-api-flow.spec.js 11-api-flow-runner.spec.js"
   [playwright/e2e/_flows]="auth.flow.js signup.flow.js advertisement.flow.js advertisement-filter.flow.js filter.flow.js category.flow.js city.flow.js attachment.flow.js audit.flow.js timeline.flow.js entity-activity.flow.js delete.flow.js user-management.flow.js settings.flow.js language-switch.flow.js seed.flow.js"
 )
+# Files of one script-group directory: those named in SCRIPT_GROUP_FILE_ORDER first, in that order,
+# then every other matching file alphabetically, so a new file shows up without editing the table.
+# *.md is matched so a markdown-only directory is not an empty card; README.md renders separately.
+script_group_files_list() {
+  local d="$1" f ordered="" found
+  found="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
+  if [ -z "${SCRIPT_GROUP_FILE_ORDER[$d]:-}" ]; then
+    printf '%s\n' "$found"
+    return 0
+  fi
+  for f in ${SCRIPT_GROUP_FILE_ORDER[$d]}; do
+    [ -f "$REPO_ROOT/$d/$f" ] && ordered="$ordered$f"$'\n'
+  done
+  printf '%s' "$ordered"
+  printf '%s\n' "$found" | grep -vxF -f <(printf '%s' "$ordered") || true
+}
 decisions_json_for() {
   local module="$1"
   # Off by default (see --with-adr-details above) -- full ADR-body embedding accounts for
@@ -266,7 +285,7 @@ done
 
 # ── Domain <-> module mapping, derived live from each module's own pom.xml
 # <properties><architecture.boundedContext> declaration -- self-describing, not a hardcoded list of
-# module names here. A module with no such property (query-lib, integration-tests) is simply not a
+# module names here. A module with no such property (query-lib, html-sanitizer-lib, integration-tests) is simply not a
 # bounded context and gets no box on the diagram; this is how a brand-new module type (e.g.
 # marketplace-orchestrator's "orchestrator" kind) becomes visible on this diagram automatically,
 # from the same commit that adds the module, with no separate edit to this script required.
@@ -274,7 +293,7 @@ done
 # new ADR recorded alongside this change.
 declare -A BC_DOMAIN_MODULE=() BC_DOMAIN_LABEL=() BC_DOMAIN_KIND=()
 BC_DOMAIN_ORDER=() BC_DOMAIN_ORDER_STARTERS=()
-bc_shared_mod="" bc_ui_mod="" bc_orch_mod="" bc_restapi_mod=""
+bc_shared_mod="" bc_ui_mod="" bc_orch_mod="" bc_restapi_mod="" bc_mcp_mod=""
 for bc_mod in "${MODULES[@]}"; do
   bc_kind="$(sed -n '/<properties>/,/<\/properties>/p' "$REPO_ROOT/$bc_mod/pom.xml" 2>/dev/null \
     | grep -o '<architecture.boundedContext>[^<]*</architecture.boundedContext>' \
@@ -285,6 +304,7 @@ for bc_mod in "${MODULES[@]}"; do
     ui) bc_ui_mod="$bc_mod" ;;
     orchestrator) bc_orch_mod="$bc_mod" ;;
     rest-api) bc_restapi_mod="$bc_mod" ;;
+    mcp) bc_mcp_mod="$bc_mod" ;;
     starter)
       bc_word="${bc_mod%-spring-boot-starter}"
       bc_id="" bc_label_words=()
@@ -313,6 +333,10 @@ if [ -n "$bc_restapi_mod" ]; then
   BC_DOMAIN_MODULE[RestApi]="$bc_restapi_mod"; BC_DOMAIN_LABEL[RestApi]="External REST API"
   BC_DOMAIN_KIND[RestApi]="rest-api"; BC_DOMAIN_ORDER+=(RestApi)
 fi
+if [ -n "$bc_mcp_mod" ]; then
+  BC_DOMAIN_MODULE[Mcp]="$bc_mcp_mod"; BC_DOMAIN_LABEL[Mcp]="MCP Server Adapter"
+  BC_DOMAIN_KIND[Mcp]="mcp"; BC_DOMAIN_ORDER+=(Mcp)
+fi
 if [ -n "$bc_ui_mod" ]; then
   BC_DOMAIN_MODULE[UI]="$bc_ui_mod"; BC_DOMAIN_LABEL[UI]="UI/Application Layer"
   BC_DOMAIN_KIND[UI]="ui"; BC_DOMAIN_ORDER+=(UI)
@@ -320,6 +344,7 @@ fi
 # EntityType enum value -> the bounded-context domain it belongs to (platform-commons/core/model/EntityType.java).
 declare -A BC_ENTITY_TYPE_DOMAIN=(
   [ADVERTISEMENT]=Advertisement [USER]=User [USER_SETTINGS]=User [TAXON]=Taxon [PROVIDER_PROFILE]=ProviderProfile
+  [FEEDBACK]=Feedback [FEEDBACK_COMMENT]=Feedback
 )
 # What actually crosses each relationship, keyed by the relationship label -- checked directly
 # against the real Port method signatures, not guessed (AuditPort.capture*() all take
@@ -347,11 +372,12 @@ declare -A BC_LABEL_PAYLOAD=(
 # each carry a completely different payload). Keyed by simple interface name so the hook-callback
 # loop below can look it up per real `hook_iface` it discovers.
 declare -A BC_HOOK_PAYLOAD=(
-  [AuditDomainHook]="Map<Long,String> (resolveNames), Set<Long> (findExisting), String (resolveDisplayName), Optional<AuditSnapshotContentDto<T>> (castIfKnown)"
+  [AuditDomainHook]="Map<Long,String> (resolveNames), Set<Long> (findExisting), Optional<AuditSnapshotContentDto<T>> (castIfKnown)"
   [AuditActivityEnrichHook]="List<AuditTimelineItemDto<T>> (merge), List<AuditActivityItemDto<T>> (enrichActivity), String media state (getMediaStateForSnapshot)"
   [CurrentActorHook]="Optional<Long> (getCurrentActorId)"
   [UiLabelHook]="String (translateActorDeletedSuffix)"
   [SessionActorHook]="Optional<Long> (getCurrentActorId)"
+  [UserSettingsChangedHook]="UserSettingsDto (onSettingsChanged, after a settings save)"
 )
 
 # ── Bounded Contexts category split -- the same relationships render with the same arrow+label
@@ -377,7 +403,7 @@ declare -A BC_CATEGORY_LABEL=(
   [derived]="Derived Facts"
 )
 declare -A BC_CATEGORY_DESC=(
-  [orchestration]="Forward-direction real Port calls -- Orchestrator composing each domain, UI calling Orchestrator, and the one documented UI exception (AccessEvaluator -> UserAuthorizationPort). The BFF pattern working as intended."
+  [orchestration]="Forward-direction real Port calls -- Orchestrator composing each domain, UI and the REST API calling Orchestrator. The BFF pattern working as intended."
   [hooks]="Reverse-direction calls -- a starter or Orchestrator calls a *Hook interface it depends on; marketplace-app/marketplace-orchestrator supplies the real implementation. Dependency inversion, not orchestration -- does not violate the BFF principle."
   [derived]="Not code calls at all -- classification/composition facts derived from data (which EntityTypes get audited, which domains can carry attachments)."
 )
@@ -432,7 +458,7 @@ sys.exit(0 if owns else 1)
 # single source of truth lives next to the code, not duplicated in this generator. Walks backward
 # from that declaration line past blank/annotation lines (handles @FunctionalInterface) to find a
 # preceding "*/", then further back to the matching "/**"; strips "*"/"{@code}"/"{@link}" markup.
-# Every *.spi interface is expected to carry one -- see platform-commons/CLAUDE.md. Also reused for
+# Every *.spi interface is expected to carry one -- see .claude/rules/platform-commons.md. Also reused for
 # entity/service/contract classes on the Module screen (improvement-160-adjacent work) -- not every
 # one of those is guaranteed a Javadoc comment, so an empty result there is expected, not an error.
 # Defined here (ahead of the Entities/Key Services/Contract block below, which calls it at
@@ -515,6 +541,7 @@ fi
 # either way (both paths are heuristic, not extracted).
 MODULE_DOMAIN["marketplace-app"]="${MODULE_DOMAIN[marketplace-app]:-UI/Application Layer}"
 MODULE_DOMAIN["query-lib"]="${MODULE_DOMAIN[query-lib]:-Shared Kernel}"
+MODULE_DOMAIN["html-sanitizer-lib"]="${MODULE_DOMAIN[html-sanitizer-lib]:-Shared Kernel}"
 MODULE_DOMAIN["integration-tests"]="${MODULE_DOMAIN[integration-tests]:-Testing}"
 
 # ── Table ownership per module, live from the real Liquibase changelogs (table name + module are
@@ -1688,18 +1715,7 @@ emit_script_tree_node() {
   local desc=""
   [ -f "$REPO_ROOT/.claude/rules/$d.md" ] && desc="$(sed -n '5{s/^#* *//;p}' "$REPO_ROOT/.claude/rules/$d.md")"
 
-  local files_list=""
-  if [ -n "${SCRIPT_GROUP_FILE_ORDER[$d]:-}" ]; then
-    local f
-    for f in ${SCRIPT_GROUP_FILE_ORDER[$d]}; do
-      [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
-    done
-  else
-    # *.md included so a dir with only markdown content (e.g. .claude/commands) isn't an empty
-    # card -- README.md excluded since it renders separately as its own readme block below, never
-    # duplicated as a plain chip.
-    files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
-  fi
+  local files_list="$(script_group_files_list "$d")"
   local files_json decisions_field readme_field headers_field evidence_file
   files_json="$(json_str_array "$files_list")"
   decisions_field="$(decisions_json_for "$d")"
@@ -1783,7 +1799,7 @@ bounded_contexts_json() {
     elif [ "$d" = "Orchestrator" ]; then
       entities_json="[]"; tables_json="[]"
       # *Service.java (services/, composition/lookup) and *HookImpl.java (spi/, Hook implementations
-      # that only need domain-port access -- see marketplace-orchestrator/CLAUDE.md) are two
+      # that only need domain-port access -- see .claude/rules/marketplace-orchestrator.md) are two
       # sibling packages under this one module; both are real "what this module owns" content.
       services_json="$(json_named_file_array "$(find "$REPO_ROOT/$mod/src/main/java" \( -name '*Service.java' -o -name '*HookImpl.java' \) 2>/dev/null | sort | while read -r f; do
         printf '%s\t%s\n' "$(basename "$f" .java)" "${f#"$REPO_ROOT"/}"
@@ -2198,16 +2214,7 @@ services_list_json="$(services_json)"
   for d in "${SCRIPT_GROUP_DIRS[@]}"; do
     desc=""
     [ -f "$REPO_ROOT/.claude/rules/$d.md" ] && desc="$(sed -n '5{s/^#* *//;p}' "$REPO_ROOT/.claude/rules/$d.md")"
-    if [ -n "${SCRIPT_GROUP_FILE_ORDER[$d]:-}" ]; then
-      files_list=""
-      for f in ${SCRIPT_GROUP_FILE_ORDER[$d]}; do
-        [ -f "$REPO_ROOT/$d/$f" ] && files_list="$files_list$f"$'\n'
-      done
-    else
-      # *.md included so a dir with only markdown content isn't an empty card -- README.md
-      # excluded since it renders separately as its own readme block below, never duplicated.
-      files_list="$(find "$REPO_ROOT/$d" -maxdepth 1 \( -name '*.sh' -o -name '*.js' -o -name '*.bat' -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' -o -name '*.md' -o -name 'Dockerfile' \) -printf '%f\n' 2>/dev/null | grep -v '^README\.md$' | sort)"
-    fi
+    files_list="$(script_group_files_list "$d")"
     files_json="$(json_str_array "$files_list")"
     decisions_field="$(decisions_json_for "$d")"
     readme_field="$(readme_json_for "$d")"
@@ -2280,8 +2287,7 @@ fi
 node_count=$(grep -c '"type":' "$OUTPUT" || true)
 echo "Wrote $node_count nodes to $OUTPUT_FINAL"
 
-# ── A2: architecture-map.html -- a real drill-down pyramid (System -> Module -> [Contract/
-# Implementation/Method placeholders for Track B] -> Tooling & Pipelines), not a flat graph with a
+# ── A2: architecture-map.html -- a real drill-down pyramid (System -> Module -> Tooling & Pipelines), not a flat graph with a
 # JSON-dump side panel. Static Cytoscape.js explorer, model JSON inlined so the file works
 # standalone via file:// (no local server, no separate fetch() that CORS would block).
 cat > "$HTML_OUTPUT" <<'HTML_HEAD'
@@ -2293,7 +2299,6 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
 <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
 <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
-<script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
 <style>
   :root {
     --ink: #1a202c; --muted: #718096; --line: #e2e8f0; --bg: #f7f8fa; --card: #ffffff;
@@ -2353,10 +2358,6 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   .spi-methodcount { margin-top: 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
   .spi-method-list { margin-top: 2px; font-size: 11px; line-height: 1.6; }
   .spi-method-unused { color: var(--muted); font-style: italic; }
-  .placeholder-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--line); opacity: 0.6; }
-  .placeholder-row:last-child { border-bottom: none; }
-  .placeholder-row .name { font-size: 13px; font-weight: 600; }
-  .placeholder-row .tag { font-size: 10px; background: var(--bg); color: var(--muted); padding: 2px 8px; border-radius: 8px; }
   .adr-item { padding: 8px 0; border-bottom: 1px solid #f0f2f4; font-size: 13px; }
   .adr-item:last-child { border-bottom: none; }
   .adr-item .adr-id { color: var(--accent); font-weight: 600; font-size: 12px; }
@@ -2387,7 +2388,6 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
      with zoom, so this container never really overflows and native scrollbars never engage. Drag
      empty canvas space to pan instead (see the diagram-note text above each one). */
   #diagram-cy-wrap { overflow: hidden; max-height: none; }
-  #diagram-zoom-box { transform-origin: top left; width: fit-content; margin: 0 auto; transition: transform .1s ease-out; }
   .diagram-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
   .rel-row-flash { animation: rel-row-flash-anim 1.5s ease-out; }
   @keyframes rel-row-flash-anim { 0% { background: #fff3bf; } 100% { background: transparent; } }
@@ -2430,7 +2430,7 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <body>
 <header>
   <h1>Architecture Control Plane</h1>
-  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>. Track A only: module-level granularity; Contract/Implementation/Method levels are placeholders until Track B's ArchUnit exporter lands.</div>
+  <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>.</div>
   <nav id="breadcrumb"></nav>
 </header>
 <main id="content"></main>
@@ -2450,14 +2450,6 @@ cat "$OUTPUT" >> "$HTML_OUTPUT"
 cat >> "$HTML_OUTPUT" <<'HTML_TAIL'
 ;
 
-// useMaxWidth:false on every diagram type -- otherwise Mermaid shrinks the SVG to fit the
-// container width by default, which makes wide diagrams (the SPI map especially) render
-// illegibly tiny no matter how the CSS zoom control scales the result afterward. Render at
-// natural size instead; the diagram-wrap container scrolls, and zoom is a real magnifier on top.
-mermaid.initialize({
-  startOnLoad: false, theme: "neutral",
-  flowchart: { useMaxWidth: false }, er: { useMaxWidth: false }, sequence: { useMaxWidth: false }
-});
 if (typeof cytoscapeDagre !== "undefined") cytoscape.use(cytoscapeDagre);
 
 // ── Data indices ────────────────────────────────────────────────────────────────────────────
@@ -2490,7 +2482,6 @@ const PIPELINE_GROUP_ORDER = ["ai-tooling", "build-architecture-page", "scripts-
 // already used to hardcode for "scripts"+"playwright" specifically.
 const TREE_ROOTS = { "scripts-tree": ["scripts", "playwright"], "ai-tooling": [".claude"] };
 const totalDiagramCount = MODEL.diagramGroups.reduce((sum, g) => sum + g.diagrams.length, 0);
-let zoomLevel = 1;
 
 const domainOrder = [];
 moduleNodes.forEach(n => { if (!domainOrder.includes(n.domain)) domainOrder.push(n.domain); });
@@ -2620,7 +2611,7 @@ function renderBreadcrumb() {
   bc.innerHTML = html;
 }
 
-// ── System screen: just the 3 entry-point cards. Module browsing lives under Diagrams ›
+// ── System screen: the entry-point cards (Tooling & Pipelines, Backlog, Diagrams, ADRs, Code Quality) and the README. Module browsing lives under Diagrams ›
 // Module Dependencies (one shared graph-building function, not a second copy — see
 // renderModuleDependencyGraph() and docs/architecture/scripts/DECISIONS.md ADR-003). ──────────────────────────
 function renderSystem() {
@@ -2638,7 +2629,7 @@ function renderSystem() {
     </div>
     <div class="card special-card" onclick="navigate({screen:'diagrams'})">
       <div class="card-title">📐 Diagrams</div>
-      <div class="card-desc">${totalDiagramCount} diagrams — dependency graph (click a module to drill in), SPI map, context map, ERD, sequence flows</div>
+      <div class="card-desc">${totalDiagramCount} diagrams — dependency graph (click a module to drill in), SPI map, context map, ERD</div>
     </div>
     <div class="card special-card" onclick="navigate({screen:'adrs'})">
       <div class="card-title">📜 ADRs</div>
@@ -2656,7 +2647,7 @@ function renderSystem() {
   html += `<section class="block">${mdBlockToHtml(MODEL.rootReadme || "", "")}<div class="empty-hint">Source: ${sourceLink("README.md")}</div></section>`;
 
   document.getElementById("content").innerHTML = html;
-  mermaid.run({ querySelector: ".mermaid" });
+  renderFlowBlocks();
 }
 
 // Domain-colored, click-to-navigate module dependency graph -- the one and only place this is
@@ -2702,8 +2693,8 @@ function renderOneModuleDependencyGraph(containerId, zoomLabelId, nodes, assignC
           "width": "label", "height": "label", "padding": "10px", "shape": "round-rectangle", "text-wrap": "wrap", "text-max-width": 90
         } },
       { selector: "edge", style: {
-          "width": 1.5, "line-color": "#cbd5e0", "target-arrow-color": "#cbd5e0",
-          "source-arrow-shape": "triangle", "source-arrow-color": "#cbd5e0", "target-arrow-shape": "none",
+          "width": 2, "line-color": "#718096", "target-arrow-color": "#718096",
+          "source-arrow-shape": "triangle", "source-arrow-color": "#718096", "source-arrow-scale": 1.6, "target-arrow-shape": "none",
           "curve-style": "bezier"
         } },
       { selector: "edge[?dashed]", style: { "line-style": "dashed" } }
@@ -2713,6 +2704,15 @@ function renderOneModuleDependencyGraph(containerId, zoomLabelId, nodes, assignC
       : { name: "breadthfirst", directed: true, padding: 20, spacingFactor: 1.1 }
   });
   cy.on("tap", "node", e => navigate({ screen: "module", id: e.target.id() }));
+  // A click on an arrow centres the dependent module's row in the Dependency Table and flashes the dependency it names.
+  cy.edges().style("cursor", "pointer");
+  cy.on("tap", "edge", e => {
+    const row = document.getElementById("dep-row-" + e.target.data("target"));
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    const badge = [...row.cells[1].querySelectorAll(".module-badge")].find(b => b.textContent === e.target.data("source"));
+    [row, badge].filter(Boolean).forEach(el => { el.classList.remove("row-flash"); void el.offsetWidth; el.classList.add("row-flash"); });
+  });
   cy.on("zoom", () => {
     const label = document.getElementById(zoomLabelId);
     if (label) label.textContent = Math.round(cy.zoom() * 100) + "%";
@@ -2781,21 +2781,25 @@ function moduleBadgeHtml(id) {
   return `<a class="module-badge" onclick="navigate({screen:'module',id:'${id}'})" style="background:${color}">${esc(id)}</a>`;
 }
 
-// Fixed editorial commentary about the module graph as a whole -- not mechanically derivable from
-// pom.xml (these are judgment calls / interpretation, not facts), so unlike the graph/table above
-// they are plain static text here rather than generated. Carried over verbatim from the retired
-// docs/architecture/01-module-dependencies.md "Key Observations" section (see ADR-005) -- update
-// in place here if they go stale, there is no other copy.
-const MODULE_DEPENDENCY_KEY_OBSERVATIONS = [
-  "**Shared Kernel:** platform-commons is the foundation — no module depends on any other module except via platform-commons SPI contracts.",
-  "**Starter Independence:** Each starter (audit, attachment, user, advertisement, taxon, provider-profile, apikey) is self-contained and can be deployed independently.",
-  "**Optional Dependencies:** advertisement-spring-boot-starter declares audit and attachment as <optional>true</optional> — it can run without them.",
-  "**Query Library:** query-lib is a pure utility library (no Spring Boot autoconfiguration) that provides SQL filtering and sorting helpers.",
-  "**No Circular Dependencies:** All edges are acyclic — the dependency graph forms a DAG.",
-  "**Orchestrator Pulls Every Starter:** marketplace-orchestrator, not marketplace-app, declares all 6 starter dependencies (audit/attachment/user/advertisement at compile scope, taxon/provider-profile at runtime scope) — the one module that assembles the full feature set onto the runtime classpath.",
-  "**Two Adapters, One Orchestrator:** marketplace-app (Vaadin UI) and marketplace-rest-api (external REST API) each depend only on platform-commons + marketplace-orchestrator (marketplace-app also depends on marketplace-rest-api directly, to stay the sole @SpringBootApplication entry point) — neither adapter composes multiple domain Ports itself.",
-  "**Test-Only Reactor Member:** integration-tests is the sole module allowed to depend on more than one domain starter at once — a real, compile-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see integration-tests/CLAUDE.md for the full rationale and why this doesn't violate \"starters must not depend on each other.\""
-];
+// Editorial commentary about the module graph as a whole; every module list and count in it is read
+// from the model, so adding a module cannot leave it stale.
+const MODULE_DEPENDENCY_KEY_OBSERVATIONS = (() => {
+  const shortName = id => id.replace(/-spring-boot-starter$/, "");
+  const starterIds = moduleNodes.map(n => n.id).filter(id => id.endsWith("-spring-boot-starter"));
+  const orchestratorEdges = (byId["marketplace-orchestrator"] || {}).edges || {};
+  const compileStarters = (orchestratorEdges.DEPENDS_ON_COMPILE || []).filter(id => starterIds.includes(id)).map(shortName);
+  const runtimeStarters = (orchestratorEdges.DEPENDS_ON_RUNTIME || []).filter(id => starterIds.includes(id)).map(shortName);
+  return [
+    "**Shared Kernel:** platform-commons is the foundation — starters never depend on each other, they cooperate only through platform-commons SPI contracts; the modules that do depend on several starters are marketplace-orchestrator, the adapters that sit on it, and the test-only integration-tests.",
+    `**Starter Independence:** Each of the ${starterIds.length} starters (${starterIds.map(shortName).join(", ")}) is self-contained: it depends only on platform-commons and the shared libraries, never on another starter, and can be deployed independently.`,
+    `**Optional Starters:** marketplace-orchestrator reaches ${runtimeStarters.join(", ")} only through ComponentFactory<XPort> and declares them at runtime scope, so the application can run without any of them.`,
+    "**Query Library:** query-lib is a pure utility library (no Spring Boot autoconfiguration) that provides SQL filtering and sorting helpers.",
+    "**No Circular Dependencies:** All edges are acyclic — the dependency graph forms a DAG.",
+    `**Orchestrator Pulls Every Starter:** marketplace-orchestrator, not marketplace-app, declares all ${starterIds.length} starter dependencies (${compileStarters.join("/")} at compile scope, ${runtimeStarters.join("/")} at runtime scope) — the one module that assembles the full feature set onto the runtime classpath.`,
+    "**Three Adapters:** marketplace-app (Vaadin UI) and marketplace-rest-api (external REST API) each depend on platform-commons + marketplace-orchestrator (marketplace-app also depends on marketplace-rest-api and marketplace-mcp directly, to stay the sole @SpringBootApplication entry point), and neither composes multiple domain Ports itself; marketplace-mcp has no project dependency and reaches the REST API over HTTP with the caller's own API key.",
+    "**Test-Only Reactor Member:** integration-tests is the only test-only module that depends on several domain starters at once (marketplace-orchestrator does too, but it is shipped and reaches them through ComponentFactory ports) — a real, compile-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see .claude/rules/integration-tests.md for the full rationale and why this doesn't violate \"starters must not depend on each other.\""
+  ];
+})();
 
 // baseDir: repo-relative directory the source markdown file itself lives in (e.g. ".claude/nav"
 // for .claude/nav/README.md, "" for a repo-root file) -- resolves a same-directory link target
@@ -2815,7 +2819,7 @@ function mdInlineToHtml(s, baseDir) {
 // Paragraph/list/table/heading/fenced-code markdown -> HTML for ADR body text (Context/Decision/
 // Consequences, amendments, tables) and README.md content (headings, fenced "how to run" bash
 // blocks). Not a general markdown parser -- same "only what's needed" scope as
-// parseMermaidGraph(). Reuses mdInlineToHtml() for **bold**/`code` within each non-code block.
+// parseFlowchart(). Reuses mdInlineToHtml() for **bold**/`code` within each non-code block.
 function mdBlockToHtml(text, baseDir) {
   if (!text) return "";
   // Blocks break on a blank line OR on a line-type transition (e.g. "**Decision:**" directly
@@ -2870,7 +2874,7 @@ function mdBlockToHtml(text, baseDir) {
     current.lines.push(line);
   }
   return blocks.map(b => {
-    if (b.type === "code" && b.lang === "mermaid") return `<div class="diagram-wrap" style="padding:8px"><pre class="mermaid">${esc(b.text)}</pre></div>`;
+    if (b.type === "code" && b.lang === "mermaid") return `<div class="diagram-wrap flow-block" style="padding:8px"><pre class="flow-src" style="display:none">${esc(b.text)}</pre><div class="flow-cy" style="width:100%;height:200px"></div></div>`;
     if (b.type === "code") return `<pre class="md-code">${esc(b.text)}</pre>`;
     // +3: a README's top-level "#" title would collide with the surrounding page's own <h2>/<h3>
     // screen chrome -- start one level down (## -> <h4>) same as this tool's other embedded-markdown
@@ -2890,7 +2894,7 @@ function mdBlockToHtml(text, baseDir) {
 
 function renderModuleDependencyExtrasHtml() {
   const rows = moduleNodes.map(n =>
-    `<tr><td>${moduleBadgeHtml(n.id)}</td><td>${moduleDepsScopeHtml(n)}</td></tr>`
+    `<tr id="dep-row-${esc(n.id)}"><td>${moduleBadgeHtml(n.id)}</td><td>${moduleDepsScopeHtml(n)}</td></tr>`
   ).join("");
   const observations = MODULE_DEPENDENCY_KEY_OBSERVATIONS.map((o, i) =>
     `<li>${mdInlineToHtml(o).replace(/&lt;optional&gt;true&lt;\/optional&gt;/, "<code>&lt;optional&gt;true&lt;/optional&gt;</code>")}</li>`
@@ -3054,7 +3058,7 @@ function exportModuleMarkdown(id) {
   downloadMarkdown(`${n.id}.md`, md);
 }
 
-// ── Module screen: full readable detail, drill-down deps, ADRs, Track B placeholder slots ──────
+// ── Module screen: full readable detail, drill-down deps, ADRs ──────
 function renderDepList(ids, label, emptyText) {
   if (!ids || ids.length === 0) return `<div class="empty-hint">${emptyText}</div>`;
   return `<ul class="dep-list">` + ids.map(id => {
@@ -3335,13 +3339,6 @@ function renderModule() {
   if ((n.edges.DEPENDS_ON_OPTIONAL||[]).length) html += `<section class="block"><h3>Depends on (optional)</h3>${renderDepList(n.edges.DEPENDS_ON_OPTIONAL, "optional", "")}</section>`;
   html += `<section class="block"><h3>Depended on by</h3>${renderDepList(n.edges.DEPENDED_ON_BY, "", "Nothing in this repo depends on it directly (leaf module).")}</section>`;
 
-  html += `<section class="block"><h3>Deeper levels (Track B — not built yet)</h3>
-    <div class="placeholder-row"><span class="name">Contract method signatures &amp; types</span><span class="tag">needs ArchUnit exporter — names only above</span></div>
-    <div class="placeholder-row"><span class="name">Implementation classes</span><span class="tag">needs ArchUnit exporter</span></div>
-    <div class="placeholder-row"><span class="name">Methods</span><span class="tag">needs ArchUnit exporter</span></div>
-    <div class="placeholder-row"><span class="name">Test coverage (DIRECT/INDIRECT/E2E)</span><span class="tag">needs ArchUnit exporter</span></div>
-  </section>`;
-
   html += `<div class="empty-hint">Evidence: <code class="path">${esc(n.evidence[0].file)}</code></div>`;
 
   document.getElementById("content").innerHTML = html;
@@ -3455,7 +3452,7 @@ function renderPipelines() {
     html += `<section class="block">${mdBlockToHtml(MODEL.rootInfrastructure || "", "")}<div class="empty-hint">Source: ${sourceLink("INFRASTRUCTURE.md")}</div></section>`;
 
     document.getElementById("content").innerHTML = html;
-    mermaid.run({ querySelector: ".mermaid" });
+    renderFlowBlocks();
     return;
   }
 
@@ -3494,7 +3491,7 @@ function renderPipelines() {
     // A fact about this page's own rendering tech stack -- not per-file, so it doesn't belong in
     // any single file's own header (renderScriptGroupSection() already shows every file's real
     // Description/Usage/Uses/Input/Output, mechanically, no second copy of that table here).
-    html += `<div class="empty-hint"><strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for the draggable graphs (Module Dependencies, SPI Map); Mermaid.js for the Database ERD and Sequence Diagrams.</div>`;
+    html += `<div class="empty-hint"><strong>Rendering:</strong> Cytoscape.js + cytoscape-dagre for every graph, including the Database ERD and the README flow blocks.</div>`;
   } else {
     const targetId = view.path[0] === "scripts" ? "docs/architecture/scripts" : "docs/architecture/data";
     const n = scriptGroupNodes.find(x => x.id === targetId);
@@ -3507,10 +3504,9 @@ function renderPipelines() {
   }
 
   document.getElementById("content").innerHTML = html;
-  // A README's own ```mermaid fenced block (rendered as <pre class="mermaid"> by mdBlockToHtml())
-  // needs this same call every other Mermaid diagram on this tool already uses -- the fence's raw
-  // text sits inert in the DOM as plain text until mermaid.run() finds and replaces it with SVG.
-  mermaid.run({ querySelector: ".mermaid" });
+  // A README's own ```mermaid fenced block (a .flow-block from mdBlockToHtml()) holds only its source
+  // until renderFlowBlocks() draws it.
+  renderFlowBlocks();
 }
 
 // Walks MODEL's top-level SCRIPT_GROUP nodes down through view.path, for the tree belonging to
@@ -3599,7 +3595,7 @@ function renderScriptTree(g, groupId) {
   if (node) html += renderScriptGroupSection(node, true);
 
   document.getElementById("content").innerHTML = html;
-  mermaid.run({ querySelector: ".mermaid" });
+  renderFlowBlocks();
 }
 
 // ── Backlog screen ───────────────────────────────────────────────────────────────────────────
@@ -3683,50 +3679,74 @@ function renderBacklog() {
   document.getElementById("content").innerHTML = html;
 }
 
-// Diagram groups whose Mermaid source is a `graph`/`flowchart` (nodes + edges, optionally
-// grouped in `subgraph` blocks) -- these get parsed and re-rendered as real Cytoscape graphs, so
-// nodes are draggable and edges follow, exactly like the System map (user-requested, 2026-08-04:
-// "System" felt right, the others didn't -- because they're still static Mermaid SVGs). ERD
-// (04) and sequence diagrams (05) are NOT graph-shaped in the same sense (ERD needs a
-// table/column renderer Cytoscape doesn't give for free; sequence diagrams are temporal/lifeline
-// diagrams, not spatial node graphs -- dragging boxes around doesn't map onto what they show) --
-// those stay Mermaid, with pan+zoom, and the UI says why rather than silently behaving differently.
+// Diagram groups drawn as draggable Cytoscape graphs from a node/edge source (the Database ERD has its own renderer).
 const GRAPH_TYPE_KEYS = ["01-module-dependencies", "02-spi-map", "bounded-contexts"];
 
-// Minimal parser for this repo's own Mermaid dialect -- only what docs/architecture/01-03 actually
-// use: `graph LR|TD|TB`, `ID["Label<br/>text"]` node declarations, `subgraph ID["Label"] ... end`
-// blocks (become Cytoscape compound parents), and edges `A --> B`, `A -->|label| B`,
-// `A -.->|label| B` (dashed). Not a general Mermaid grammar -- would need extending if a diagram
-// ever uses a shape/edge syntax this repo's diagrams don't currently use.
-function parseMermaidGraph(source) {
+// Parses the Mermaid flowchart dialect this repository uses -- graph/flowchart header, subgraph,
+// rectangle / decision {..} / cylinder [(..)] nodes, plain, labelled and dashed edges, node chains
+// -- into the node/edge shape renderCytoscapeFromGraph() draws.
+function parseFlowchart(source) {
   const nodes = new Map();
   const edges = [];
   const stack = [];
+  let direction = "TB";
   const clean = s => s.replace(/<br\s*\/?>/gi, " ").trim();
   const ensure = id => {
     if (!nodes.has(id)) nodes.set(id, { id, label: id, parent: stack[stack.length - 1] || null });
     return nodes.get(id);
   };
+  const shapes = [["[(", ")]", "barrel"], ["[", "]", "rectangle"], ["{", "}", "diamond"]];
+  // Reads one node reference (an id, optionally followed by its label in one of the shapes) at pos.
+  const readNode = (line, pos) => {
+    const idm = /^\w+/.exec(line.slice(pos));
+    if (!idm) return null;
+    const node = ensure(idm[0]);
+    let p = pos + idm[0].length;
+    for (const [open, close, shape] of shapes) {
+      if (!line.startsWith(open, p)) continue;
+      const start = p + open.length;
+      const end = line.indexOf(close, start);
+      if (end === -1) break;
+      let label = line.slice(start, end);
+      if (label.length > 1 && label.startsWith('"') && label.endsWith('"')) label = label.slice(1, -1);
+      node.label = clean(label);
+      node.shape = shape;
+      p = end + close.length;
+      break;
+    }
+    return { id: node.id, next: p };
+  };
+  const edgeRe = /^\s*(?:(-\.->|-->)(?:\|([^|]*)\|)?|--\s+(.+?)\s+-->)\s*/;
   source.split("\n").map(l => l.trim()).filter(Boolean).forEach(line => {
     let m;
-    if (/^graph\s/.test(line)) return;
-    if ((m = /^subgraph\s+(\w+)\["([^"]*)"\]/.exec(line))) {
-      nodes.set(m[1], { id: m[1], label: clean(m[2]), parent: stack[stack.length - 1] || null, isGroup: true });
+    if ((m = /^(?:graph|flowchart)\b\s*(TB|TD|BT|LR|RL)?/.exec(line))) {
+      if (m[1]) direction = m[1] === "TD" ? "TB" : m[1];
+      return;
+    }
+    if (/^(%%|direction\b|style\b|linkStyle\b|classDef\b|class\b)/.test(line)) return;
+    if ((m = /^subgraph\s+(\w+)(?:\[(.*)\])?\s*$/.exec(line))) {
+      let label = m[2] || m[1];
+      if (label.length > 1 && label.startsWith('"') && label.endsWith('"')) label = label.slice(1, -1);
+      nodes.set(m[1], { id: m[1], label: clean(label), parent: stack[stack.length - 1] || null, isGroup: true });
       stack.push(m[1]);
       return;
     }
     if (line === "end") { stack.pop(); return; }
-    if ((m = /^(\w+)\["([^"]*)"\]\s*$/.exec(line))) {
-      ensure(m[1]).label = clean(m[2]);
-      return;
-    }
-    if ((m = /^(\w+)\s*(-->|-\.->)\s*(?:\|([^|]*)\|\s*)?(\w+)/.exec(line))) {
-      const [, src, arrow, elabel, tgt] = m;
-      ensure(src); ensure(tgt);
-      edges.push({ source: src, target: tgt, label: elabel ? clean(elabel) : "", dashed: arrow.indexOf(".") !== -1 });
+    let cur = readNode(line, 0);
+    while (cur) {
+      const em = edgeRe.exec(line.slice(cur.next));
+      if (!em) break;
+      const nxt = readNode(line, cur.next + em[0].length);
+      if (!nxt) break;
+      edges.push({
+        source: cur.id, target: nxt.id,
+        label: clean(em[2] !== undefined ? em[2] : (em[3] || "")),
+        dashed: em[1] === "-.->"
+      });
+      cur = nxt;
     }
   });
-  return { nodes: [...nodes.values()], edges };
+  return { nodes: [...nodes.values()], edges, direction };
 }
 
 let diagramCy = null;
@@ -3735,7 +3755,9 @@ let diagramCy2 = null; // Module Dependencies' second, own diagram (Integration 
 // Shared by every compound-node (group/parent) Cytoscape render -- Module Dependencies has its
 // own simpler flat renderer (renderModuleDependencyGraph()); this one is for graphs with subgroups
 // (Mermaid-parsed diagrams, and SPI Map's own live-generated node/edge data -- same shape).
-function renderCytoscapeFromGraph(nodes, edges, rankDir) {
+// With a container, draws a standalone read-only graph there (README flow blocks) and returns it;
+// without one, draws into the page's single #diagram-cy and keeps it in diagramCy (zoom controls).
+function renderCytoscapeFromGraph(nodes, edges, rankDir, container) {
   const parentOf = {};
   nodes.forEach(n => { parentOf[n.id] = n.parent || null; });
   // An edge directly between a compound parent and its own descendant forms a 2-cycle dagre's
@@ -3744,23 +3766,30 @@ function renderCytoscapeFromGraph(nodes, edges, rankDir) {
   const layoutEdges = edges.filter(e => parentOf[e.target] !== e.source && parentOf[e.source] !== e.target);
   const els = [
     ...nodes.map(n => ({
-      data: { id: n.id, label: n.label, parent: n.parent || undefined, file: n.file || undefined },
+      data: { id: n.id, label: n.label, parent: n.parent || undefined, file: n.file || undefined, shape: n.shape || "rectangle" },
       classes: n.isGroup ? "group-node" : ""
     })),
-    ...layoutEdges.map((e, i) => ({
-      data: { id: "e" + i, source: e.source, target: e.target, label: e.label || "", dashed: e.dashed }
+    ...layoutEdges.filter(e => !e.deferred).map(e => ({
+      data: { id: "e" + edges.indexOf(e), source: e.source, target: e.target, label: e.label || "", dashed: e.dashed, rowId: e.rowId }
     }))
   ];
   const hasDagre = typeof cytoscapeDagre !== "undefined";
-  diagramCy = cytoscape({
-    container: document.getElementById("diagram-cy"),
+  const cy = cytoscape({
+    container: container || document.getElementById("diagram-cy"),
     elements: els,
+    ...(container ? { userZoomingEnabled: false, userPanningEnabled: false, boxSelectionEnabled: false, autoungrabify: true } : {}),
     style: [
       { selector: "node", style: {
           "label": "data(label)", "font-size": 10, "color": "#1a202c", "text-valign": "center", "text-halign": "center",
           "background-color": "#ebf4ff", "border-width": 1.5, "border-color": "#2b6cb0",
           "shape": "round-rectangle", "width": "label", "height": "label", "padding": "10px",
           "text-wrap": "wrap", "text-max-width": 110
+        } },
+      { selector: 'node[shape = "diamond"]', style: {
+          "shape": "diamond", "padding": "26px", "background-color": "#fffaf0", "border-color": "#c05621", "text-max-width": 90
+        } },
+      { selector: 'node[shape = "barrel"]', style: {
+          "shape": "barrel", "background-color": "#f0fff4", "border-color": "#2f855a"
         } },
       { selector: "node.group-node", style: {
           "background-color": "#f7f8fa", "background-opacity": 0.6, "border-color": "#a0aec0",
@@ -3779,19 +3808,26 @@ function renderCytoscapeFromGraph(nodes, edges, rankDir) {
       ? { name: "dagre", rankDir: rankDir || "TB", nodeSep: 18, rankSep: 70, padding: 20 }
       : { name: "breadthfirst", directed: true, padding: 20 }
   });
-  diagramCy.on("zoom", () => {
-    const label = document.getElementById("zoom-label");
-    if (label) label.textContent = Math.round(diagramCy.zoom() * 100) + "%";
-  });
+  if (!container) {
+    diagramCy = cy;
+    cy.on("zoom", () => {
+      const label = document.getElementById("zoom-label");
+      if (label) label.textContent = Math.round(cy.zoom() * 100) + "%";
+    });
+  }
   // Any node carrying a real "file" (SPI Map's interfaces/impl classes) opens it directly --
   // group/parent nodes and Mermaid-parsed diagrams with no file association just have no data to
   // open, so nothing happens on click there, same as before.
-  diagramCy.on("tap", "node[file]", e => window.open("../../" + e.target.data("file"), "_blank"));
-  diagramCy.nodes("[file]").style("cursor", "pointer");
+  cy.on("tap", "node[file]", e => window.open("../../" + e.target.data("file"), "_blank"));
+  cy.nodes("[file]").style("cursor", "pointer");
   // SPI Map's "calls"/"implemented by" edges have a matching table row below (spiRowId()) --
   // jump to it on click. Any other diagram's edges (Module Dependencies, Bounded Contexts) just
   // find no matching id and no-op, so this is safe to wire in generically here.
-  diagramCy.on("tap", "edge", e => {
+  // Edges flagged `deferred` are added after the layout, so they never position the nodes.
+  cy.add(layoutEdges.filter(e => e.deferred).map(e => ({
+    data: { id: "e" + edges.indexOf(e), source: e.source, target: e.target, label: e.label || "", dashed: e.dashed, rowId: e.rowId }
+  })));
+  cy.on("tap", "edge", e => {
     const d = e.target.data();
     const rowId = d.label === "calls" ? spiRowId("call", d.target, d.source.replace(/^call_/, ""))
       : d.label === "implemented by" ? spiRowId("impl", d.source, d.target) : null;
@@ -3802,10 +3838,29 @@ function renderCytoscapeFromGraph(nodes, edges, rankDir) {
     void row.offsetWidth;
     row.classList.add("row-flash");
   });
+  return cy;
+}
+
+// Draws every README flowchart fence (mdBlockToHtml() emits it as a .flow-block holding its source)
+// as its own read-only Cytoscape graph, then sizes the block to the drawn graph.
+function renderFlowBlocks() {
+  document.querySelectorAll(".flow-block:not([data-drawn])").forEach(box => {
+    const holder = box.querySelector(".flow-cy");
+    if (!holder.clientWidth) return;
+    box.setAttribute("data-drawn", "1");
+    const parsed = parseFlowchart(box.querySelector(".flow-src").textContent);
+    const cy = renderCytoscapeFromGraph(parsed.nodes, parsed.edges, parsed.direction, holder);
+    const bb = cy.elements().boundingBox();
+    const scale = Math.min(1, Math.max(200, holder.clientWidth - 32) / bb.w);
+    holder.style.height = Math.ceil(bb.h * scale + 32) + "px";
+    cy.resize();
+    cy.zoom(scale);
+    cy.pan({ x: (holder.clientWidth - bb.w * scale) / 2 - bb.x1 * scale, y: 16 - bb.y1 * scale });
+  });
 }
 
 function renderCytoscapeDiagram(source, rankDir) {
-  const parsed = parseMermaidGraph(source);
+  const parsed = parseFlowchart(source);
   renderCytoscapeFromGraph(parsed.nodes, parsed.edges, rankDir);
 }
 
@@ -3948,7 +4003,7 @@ function renderSpiMapExtrasHtml(subsystem) {
     <section class="block"><h3>Legend</h3>
       <div class="empty-hint">Click a node to open its real <code class="path">.java</code> file. Click an edge to jump to its row below. Drag a node to reposition it, drag empty canvas space to pan.</div>
       <table class="simple"><tbody>
-        <tr><td class="scope-label" style="width:150px">Dashed gray box</td><td>A module boundary (<code class="path">platform-commons</code>, a starter, <code class="path">marketplace-app</code>, or <code class="path">marketplace-orchestrator</code>)</td></tr>
+        <tr><td class="scope-label" style="width:150px">Dashed gray box</td><td>A module boundary (<code class="path">platform-commons</code>, a starter, <code class="path">marketplace-app</code>, <code class="path">marketplace-orchestrator</code> or <code class="path">marketplace-rest-api</code>)</td></tr>
         <tr><td class="scope-label">Blue rounded box</td><td>A Java interface, an implementation class, or a real caller class</td></tr>
         <tr><td class="scope-label">──calls──▶</td><td>A real caller class injects/calls the interface — arrow points from the caller to the interface</td></tr>
         <tr><td class="scope-label">──implemented by──▶</td><td>Arrow points from the interface to its implementation class</td></tr>
@@ -3958,7 +4013,7 @@ function renderSpiMapExtrasHtml(subsystem) {
 }
 
 // Parses one "**Heading:** location sentence. Example: example sentence." paragraph from the
-// platform-commons/CLAUDE.md#spi-implementation-rules arch-embed into the pieces
+// .claude/rules/platform-commons.md#spi-implementation-rules arch-embed into the pieces
 // renderImplementationRulesHtml()/exportSpiMapMarkdown() both render as a Location/Example pair
 // -- generic over the paragraph's own content, so a third implementation-kind paragraph added to
 // that CLAUDE.md section later needs no code change here. Returns raw markdown (backticks intact,
@@ -3981,7 +4036,7 @@ function parseImplementationRuleParagraphs() {
 // Glossary content (SPI/Port/Hook) -- subsystem-independent, so rendered once at the bottom of
 // the top-level Diagrams listing screen (next to Implementation Rules), not once per SPI Map
 // subsystem tab -- renderSpiMapExtrasHtml() used to repeat the SPI paragraph on every tab before
-// this. All three paragraphs are live-read platform-commons/CLAUDE.md arch-embeds (MODEL.archEmbeds).
+// this. All three paragraphs are live-read .claude/rules/platform-commons.md arch-embeds (MODEL.archEmbeds).
 // Parses one "**Heading** body text" glossary paragraph -- same bold-lead-in shape as
 // parseImplementationRuleParagraphs() but without the required ":" before the closing "**"
 // (a glossary heading is a short phrase/question, not a label).
@@ -4004,14 +4059,14 @@ function renderDiagramsOverviewHtml() {
   return `
     <section class="block"><h3>Overview</h3>
       ${items}
-      <div class="empty-hint">All cross-module extension points (Ports and Hooks) live in <code class="path">platform-commons</code> to decouple starters from marketplace-app — see ${sourceLink("platform-commons/CLAUDE.md")}'s "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.</div>
+      <div class="empty-hint">All cross-module extension points (Ports and Hooks) live in <code class="path">platform-commons</code> to decouple starters from marketplace-app — see ${sourceLink(".claude/rules/platform-commons.md")}'s "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.</div>
     </section>`;
 }
 
 // Static, subsystem-independent content -- rendered once at the bottom of the top-level Diagrams
 // listing screen instead of once per SPI Map subsystem tab (renderSpiMapExtrasHtml used to repeat
 // this identical block on every tab). Text itself is read live from the
-// platform-commons/CLAUDE.md#spi-implementation-rules arch-embed (MODEL.archEmbeds), not
+// .claude/rules/platform-commons.md#spi-implementation-rules arch-embed (MODEL.archEmbeds), not
 // hand-copied here, so the two can't drift apart the way the old hardcoded version already had
 // once (a stale CurrentActorHookImpl package path, fixed earlier this session).
 function renderImplementationRulesHtml() {
@@ -4026,7 +4081,7 @@ function renderImplementationRulesHtml() {
   return `
     <section class="block"><h3>Implementation Rules</h3>
       ${items}
-      <div class="empty-hint">All implementations follow these patterns — the core "pure delegation" rule is stated once, canonically, in ${sourceLink("platform-commons/CLAUDE.md")}'s "Hook and Port Implementation Rules" section, not restated here.</div>
+      <div class="empty-hint">All implementations follow these patterns — the core "pure delegation" rule is stated once, canonically, in ${sourceLink(".claude/rules/platform-commons.md")}'s "Hook and Port Implementation Rules" section, not restated here.</div>
     </section>`;
 }
 
@@ -4049,7 +4104,7 @@ function buildSpiMapMermaid() {
 function exportSpiMapMarkdown() {
   let md = `# SPI Map\n\n`;
   md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › SPI Map.\n\n`;
-  md += `## Overview\n\nAll cross-module extension points (Ports and Hooks) live in \`platform-commons\` to decouple starters from marketplace-app. Suffixes encode call direction: \`*Port\` = marketplace -> starter; \`*Hook\` = starter -> marketplace. See platform-commons/CLAUDE.md's "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.\n\n`;
+  md += `## Overview\n\nAll cross-module extension points (Ports and Hooks) live in \`platform-commons\` to decouple starters from marketplace-app. Suffixes encode call direction: \`*Port\` = marketplace -> starter; \`*Hook\` = starter -> marketplace. See .claude/rules/platform-commons.md's "SPI Interface Naming" table for the authoritative direction/role definition of each suffix.\n\n`;
   md += `## SPI Dependency Graph\n\n\`\`\`mermaid\n${buildSpiMapMermaid()}\`\`\`\n`;
   md += `\n## SPI Interface Details\n\n`;
   MODEL.spiMap.subsystemOrder.forEach(s => {
@@ -4065,7 +4120,7 @@ function exportSpiMapMarkdown() {
     md += "\n";
     if (MODEL.spiMap.subsystemNotes[s]) md += `${MODEL.spiMap.subsystemNotes[s]}\n\n`;
   });
-  md += `## Implementation Rules\n\nAll implementations follow these patterns (core "pure delegation" rule stated once, canonically, in platform-commons/CLAUDE.md's "Hook and Port Implementation Rules" section):\n\n`;
+  md += `## Implementation Rules\n\nAll implementations follow these patterns (core "pure delegation" rule stated once, canonically, in .claude/rules/platform-commons.md's "Hook and Port Implementation Rules" section):\n\n`;
   parseImplementationRuleParagraphs().forEach(it => {
     md += `### ${it.heading}\n- Location: ${it.location}\n${it.example ? `- Example: ${it.example}\n` : ""}\n`;
   });
@@ -4073,11 +4128,8 @@ function exportSpiMapMarkdown() {
 }
 
 // ── Database ERD: live from MODEL.dbErd (real Liquibase changelog data) -- same "live, not a
-// separately-maintained .md" pattern as Module Dependencies/SPI Map. Mermaid's own erDiagram
-// renderer is used (not Cytoscape -- parseMermaidGraph() only understands "graph TB/LR" syntax,
-// not erDiagram's column-block/relationship notation), fed a mermaid source string built here
-// instead of a hand-copied one, so the diagram picture and the table-schema detail below it are
-// always the same data, never two documents that can drift apart.
+// separately-maintained .md" pattern as Module Dependencies/SPI Map; the picture (renderDbErdGraph()) and
+// the table-schema detail below it read the same data, so they cannot drift apart.
 function simplifyDbType(type) {
   if (!type) return "unknown";
   const t = type.toUpperCase();
@@ -4139,11 +4191,11 @@ function buildDbErdMermaidSource() {
 // cycle still exists in the real relationships today (Orchestrator <-> Audit), but a cycle between
 // two flat siblings is the ordinary case dagre handles fine -- it was never the failure mode ADR-016
 // diagnosed. Gets the same native pan/zoom/click/drag interaction every other Cytoscape diagram
-// already has for free, instead of the hand-rolled scroll-drag Mermaid fallback needed elsewhere.
+// already has for free.
 // category: one of BC_CATEGORY_ORDER's keys ("orchestration"/"hooks"/"derived"), or
 // omitted/falsy for the full, unfiltered graph (used only by the Markdown export -- every live tab
 // always passes its own category). Node set is restricted to domains actually touched by the
-// filtered edges, not all 8 every time -- that's the real decluttering this split exists for.
+// filtered edges, not every domain every time -- that's the real decluttering this split exists for.
 function buildContextMapGraph(category) {
   const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared");
   const moduleOf = {};
@@ -4278,8 +4330,8 @@ function linkifyEvidence(text) {
 }
 
 // activeCategory: the current tab's category key -- Domain Contents/Overview/Legend stay
-// unfiltered (same domains/text every tab, same precedent as SPI Map's Overview/Legend/Call Flow
-// Examples staying global while only the interface-details table filters per subsystem); only the
+// unfiltered (same domains/text every tab, same precedent as SPI Map's Overview/Legend
+// staying global while only the interface-details table filters per subsystem); only the
 // Relationships table filters to the active tab's edges.
 function renderBoundedContextsExtrasHtml(activeCategory) {
   const category = (label, items) => items.length
@@ -4287,7 +4339,7 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
   const relationships = MODEL.boundedContexts.relationships
     .filter(r => r.label !== "decouples" && r.category === activeCategory);
   // Same domain set the diagram itself draws for this tab (buildContextMapGraph's own "involved"
-  // set) -- Domain Contents lists only the domains this category's edges actually touch, not all 8
+  // set) -- Domain Contents lists only the domains this category's edges actually touch, not every domain
   // every tab, so the two sections never disagree about what's "on screen" for this category.
   const involvedIds = new Set(relationships.flatMap(r => [r.from, r.to]));
   const domains = MODEL.boundedContexts.domains.filter(d => d.id !== "Shared" && involvedIds.has(d.id));
@@ -4321,7 +4373,7 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
   }).join("");
   return `
     <section class="block"><h3>Overview</h3>
-      <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal, all "extracted" (grep/AST match, never guessed or hand-typed) — see the Evidence column, or hover a Label cell for what it actually means. Not shown on the diagram: <code class="path">platform-commons</code> (the "Shared" module) is a compile-time dependency of every domain and Orchestrator — a real fact, but the same one repeated 7 times, so it's stated once here as text instead of drawn as 7 identical edges.</div>
+      <div class="empty-hint">Domain grouping (entities/services/tables/ports per box) is extracted live from real <code class="path">@Table</code> classes, <code class="path">*Service</code> classes, Liquibase tables, and SPI interface <code class="path">implements</code> relationships. Every relationship below is backed by a real, named code signal, all "extracted" (grep/AST match, never guessed or hand-typed) — see the Evidence column, or hover a Label cell for what it actually means. Not shown on the diagram: <code class="path">platform-commons</code> (the "Shared" module) is a compile-time dependency of every domain and Orchestrator — a real fact, but the same one repeated for every domain, so it's stated once here as text instead of drawn as 7 identical edges.</div>
     </section>
     <section class="block"><h3>Legend</h3>
       <div class="empty-hint">Click a domain box to open its real module page. Click an arrow to jump to its row in the Relationships table below. Drag empty canvas space to pan. This tab shows only the domains and relationships belonging to the current category — see the diagram-note above for what that category actually means.</div>
@@ -4341,7 +4393,7 @@ function exportBoundedContextsMarkdown() {
   let md = `# Bounded Contexts — Context Map\n\n`;
   md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Bounded Contexts. The live version splits relationships across 3 tabs by category (Service Calls / Hook Callbacks / Derived Facts); this export keeps all of them in one document, with a Category column.\n\n`;
   md += `## Context Map\n\n\`\`\`mermaid\n${buildContextMapMermaidSource()}\`\`\`\n\n`;
-  md += `platform-commons ("Shared") is a compile-time dependency of every domain and Orchestrator -- not drawn above (same fact repeated 7 times), stated once here instead.\n\n`;
+  md += `platform-commons ("Shared") is a compile-time dependency of every domain and Orchestrator -- not drawn above (same fact repeated for every domain), stated once here instead.\n\n`;
   md += `## Domain Contents\n\n`;
   MODEL.boundedContexts.domains.forEach(d => {
     md += `### ${d.label} — \`${d.module}\`\n\n`;
@@ -4355,22 +4407,69 @@ function exportBoundedContextsMarkdown() {
   downloadMarkdown("bounded-contexts.md", md);
 }
 
-// Mermaid's erDiagram renderer gives each entity's SVG group an id like
-// "entity-USERINFORMATION-<uuid>" -- strip the prefix/uuid, match against the real table names
-// (also uppercased/underscore-stripped) to find which table was clicked, then jump to its schema
-// section below (id="db-table-<real_name>", set in renderDbErdTableSchemas()). Called after
-// mermaid.run()'s promise resolves -- the SVG doesn't exist synchronously before that.
-function wireDbErdEntityClicks() {
-  document.querySelectorAll('[id^="entity-"]').forEach(g => {
-    const m = /^entity-([A-Z0-9]+)-/.exec(g.id);
-    if (!m) return;
-    const table = MODEL.dbErd.tables.find(t => t.name.toUpperCase().replace(/_/g, "") === m[1]);
-    if (!table) return;
-    g.style.cursor = "pointer";
-    g.addEventListener("click", () => {
-      const el = document.getElementById("db-table-" + table.name);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+// Tables as nodes named after the real table (with the owning module), a solid edge per real foreign
+// key labelled with its column, a dashed edge per relationship the codebase leaves unconstrained;
+// a click on a table jumps to its schema section below (id="db-table-<real_name>", set in
+// renderDbErdTableSchemas()).
+function renderDbErdGraph() {
+  const byUpper = {};
+  MODEL.dbErd.tables.forEach(t => { byUpper[t.name.toUpperCase()] = t; });
+  const moduleOf = t => String(t.module || "unknown").replace(/-spring-boot-starter$/, "");
+  const modules = [...new Set(MODEL.dbErd.tables.map(moduleOf))];
+  const nodes = [
+    ...modules.map(m => ({ id: "module:" + m, label: m, isGroup: true })),
+    ...MODEL.dbErd.tables.map(t => ({ id: t.name.toUpperCase(), label: t.name, parent: "module:" + moduleOf(t) }))
+  ];
+  const seen = new Set();
+  const edges = [];
+  const addFk = (refTable, table, column) => {
+    const key = refTable.toUpperCase() + ">" + table.toUpperCase() + ">" + column;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push({ source: refTable.toUpperCase(), target: table.toUpperCase(), label: column, dashed: false, rowId: "db-col-" + table + "-" + column });
+  };
+  MODEL.dbErd.tables.forEach(t => {
+    t.foreignKeys.forEach(fk => addFk(fk.refTable, t.name, fk.column));
+    t.columns.forEach(c => { if (c.foreignKeyTable) addFk(c.foreignKeyTable, t.name, c.name); });
+  });
+  MODEL.dbErd.conceptualRelationships.forEach(r => {
+    // The label starts with the column that holds the reference; fall back to the table when it names none.
+    const column = (/^\w+/.exec(r.label) || [""])[0];
+    const holder = byUpper[r.to];
+    const rowId = holder && holder.columns.some(c => c.name === column) ? "db-col-" + holder.name + "-" + column : holder && "db-table-" + holder.name;
+    edges.push({ source: r.from, target: r.to, label: r.label, dashed: true, deferred: true, rowId });
+  });
+  const cy = renderCytoscapeFromGraph(nodes, edges.filter(e => byUpper[e.source] && byUpper[e.target]), "LR");
+  cy.nodes(":childless").style("cursor", "pointer");
+  // Module frames in a grid of three, each keeping its own inner layout; dagre alone stacks them in one column.
+  let x = 0, y = 0, rowHeight = 0, col = 0;
+  cy.nodes(":parent").forEach(frame => {
+    const box = frame.boundingBox();
+    const dx = x - box.x1, dy = y - box.y1;
+    frame.descendants().forEach(n => n.position({ x: n.position().x + dx, y: n.position().y + dy }));
+    x += box.w + 80;
+    rowHeight = Math.max(rowHeight, box.h);
+    if (++col === 3) { col = 0; x = 0; y += rowHeight + 80; rowHeight = 0; }
+  });
+  cy.fit(undefined, 30);
+  // The label of a dotted (no real foreign key) relationship shows only while its table is hovered.
+  cy.style().selector("edge[?dashed]").style({ "label": "" }).selector("edge.hover").style({ "label": "data(label)", "z-index": 10 }).update();
+  // A click on an arrow centres the column that holds the reference in the schema section below.
+  cy.edges().style("cursor", "pointer");
+  cy.on("tap", "edge", e => {
+    const row = document.getElementById(e.target.data("rowId"));
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.classList.remove("row-flash");
+    void row.offsetWidth;
+    row.classList.add("row-flash");
+  });
+  cy.on("mouseover", "node", e => e.target.connectedEdges().addClass("hover"));
+  cy.on("mouseout", "node", e => e.target.connectedEdges().removeClass("hover"));
+  cy.on("tap", "node", e => {
+    const table = byUpper[e.target.id()];
+    const el = table && document.getElementById("db-table-" + table.name);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -4383,7 +4482,7 @@ function renderDbErdTableSchemas() {
       if (c.foreignKeyTable) constraints.push(`FK → ${c.foreignKeyTable}(${c.foreignKeyColumn})`);
       if (c.unique) constraints.push("UNIQUE");
       if (!c.nullable) constraints.push("NOT NULL");
-      return `<tr><td><code class="path">${esc(c.name)}</code></td><td>${esc(c.type)}</td><td class="scope-label">${esc(constraints.join(", "))}</td><td>${esc(c.remarks)}</td></tr>`;
+      return `<tr id="db-col-${esc(t.name)}-${esc(c.name)}"><td><code class="path">${esc(c.name)}</code></td><td>${esc(c.type)}</td><td class="scope-label">${esc(constraints.join(", "))}</td><td>${esc(c.remarks)}</td></tr>`;
     }).join("");
     const fkItems = t.foreignKeys.map(fk =>
       `<li><code class="path">${esc(fk.column)}</code> → <code class="path">${esc(fk.refTable)}(${esc(fk.refColumn)})</code> ON DELETE ${esc(fk.onDelete)}</li>`
@@ -4410,10 +4509,10 @@ function renderDbErdExtrasHtml() {
   ).join("");
   return `
     <section class="block"><h3>Overview</h3>
-      <div class="empty-hint">All tables are created via Liquibase migrations. Each starter owns its own changelog under its own <code class="path">db/*-changelog/</code> directory — no shared migrations between modules. Column/table descriptions live directly in each changelog's own <code class="path">remarks=</code> attribute (single source of truth, see root CLAUDE.md's "Database Changes" guideline) — not duplicated in a separate markdown file.</div>
+      <div class="empty-hint">All tables are created via Liquibase migrations. Each starter owns its own changelog under its own <code class="path">db/*-changelog/</code> directory — no shared migrations between modules (the application's own <code class="path">db/changelog</code> master is empty). Column/table descriptions live directly in each changelog's own <code class="path">remarks=</code> attribute (single source of truth, see root CLAUDE.md's "Database Changes" guideline) — not duplicated in a separate markdown file.</div>
     </section>
     <section class="block"><h3>Legend</h3>
-      <div class="empty-hint">Click a table in the diagram above to jump to its schema below.</div>
+      <div class="empty-hint">Click a table in the diagram above to jump to its schema below, or an arrow to jump to the column that holds the reference.</div>
       <table class="simple"><tbody>
         <tr><td class="scope-label" style="width:110px">PK</td><td>Primary key</td></tr>
         <tr><td class="scope-label">FK</td><td>Foreign key — real, enforced constraint in the database</td></tr>
@@ -4426,7 +4525,7 @@ function renderDbErdExtrasHtml() {
     </section>
     <section class="block"><h3>Tables (${MODEL.dbErd.tables.length})</h3>${renderDbErdTableSchemas()}</section>
     <section class="block"><h3>Relationships not backed by a real foreign key</h3>
-      <div class="empty-hint">This codebase deliberately leaves these columns unconstrained at the SQL level — purge-safety and referential integrity are enforced at the application layer instead (see each module's own CLAUDE.md "Key constraints"). Dotted lines in the diagram above.</div>
+      <div class="empty-hint">This codebase deliberately leaves these columns unconstrained at the SQL level — purge-safety and referential integrity are enforced at the application layer instead (see each module's own rules file under <code class="path">.claude/rules/</code>, "Key constraints"). Dotted lines in the diagram above.</div>
       <ul class="info-list">${relItems}</ul>
     </section>`;
 }
@@ -4434,7 +4533,7 @@ function renderDbErdExtrasHtml() {
 function exportDbErdMarkdown() {
   let md = `# Database ERD\n\n`;
   md += `Generated from architecture/architecture-map.html on ${new Date().toISOString().slice(0,10)}. Live version: docs/architecture/architecture-map.html › Diagrams › Database ERD.\n\n`;
-  md += `## Overview\n\nAll tables are created via Liquibase migrations. Each starter owns its own changelog under its own \`db/*-changelog/\` directory -- no shared migrations between modules.\n\n`;
+  md += `## Overview\n\nAll tables are created via Liquibase migrations. Each starter owns its own changelog under its own \`db/*-changelog/\` directory -- no shared migrations between modules (the application's own \`db/changelog\` master is empty).\n\n`;
   md += `## Entity Relationship Diagram\n\n\`\`\`mermaid\n${buildDbErdMermaidSource()}\`\`\`\n\n`;
   md += `## Table Schemas\n\n`;
   MODEL.dbErd.tables.forEach(t => {
@@ -4476,31 +4575,6 @@ function zoomDiagram(delta) {
     diagramCy.zoom({ level: diagramCy.zoom() + delta, renderedPosition: { x: diagramCy.width()/2, y: diagramCy.height()/2 } });
     return;
   }
-  // Mermaid (ERD/sequence) fallback: CSS scale transform + drag-to-pan, no native zoom/drag API.
-  zoomLevel = delta === 0 ? 1 : Math.min(3, Math.max(0.3, zoomLevel + delta));
-  const box = document.getElementById("diagram-zoom-box");
-  if (box) box.style.transform = `scale(${zoomLevel})`;
-  const label = document.getElementById("zoom-label");
-  if (label) label.textContent = Math.round(zoomLevel * 100) + "%";
-}
-
-// Click-and-drag panning for a scrollable container -- used only for the Mermaid (ERD/sequence)
-// fallback path; Cytoscape-rendered diagrams already pan/drag natively.
-function enableDragToPan(el) {
-  if (!el) return;
-  let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
-  el.style.cursor = "grab";
-  el.addEventListener("mousedown", e => {
-    dragging = true; el.style.cursor = "grabbing";
-    startX = e.clientX; startY = e.clientY; startLeft = el.scrollLeft; startTop = el.scrollTop;
-    e.preventDefault();
-  });
-  window.addEventListener("mousemove", e => {
-    if (!dragging) return;
-    el.scrollLeft = startLeft - (e.clientX - startX);
-    el.scrollTop = startTop - (e.clientY - startY);
-  });
-  window.addEventListener("mouseup", () => { dragging = false; el.style.cursor = "grab"; });
 }
 
 // ── Diagrams screen: all diagrams render live -- no markdown counterpart for any of them. ───────
@@ -4529,7 +4603,6 @@ function renderDiagrams() {
 
   const g = MODEL.diagramGroups.find(x => x.key === view.groupKey);
   const d = g.diagrams[view.diagramIndex];
-  zoomLevel = 1;
   diagramCy = null;
   diagramCy2 = null;
   // Page-level nav (back/export) — belongs to "which screen am I on," sits above the title (same
@@ -4562,7 +4635,7 @@ function renderDiagrams() {
         <button onclick="zoomDiagram2(0)">reset</button>
       </span>
     </div>`;
-    html += `<div class="diagram-note">${esc(g.label)} — Production Modules. Rendered from the same module data the whole model is built from (domain-colored, click a node to open its module page) — drag a node to reposition it, drag empty canvas space to pan the view. Excludes <code class="path">integration-tests</code> (test-only, never shipped) -- see the second diagram below.</div>
+    html += `<div class="diagram-note">${esc(g.label)} — Production Modules. An arrow points to the module being depended on (the arrowhead sits at the dependency, so marketplace-app → marketplace-mcp means the app depends on mcp); click an arrow to jump to that dependency in the table below. Rendered from the same module data the whole model is built from (domain-colored, click a node to open its module page) — drag a node to reposition it, drag empty canvas space to pan the view. Excludes <code class="path">integration-tests</code> (test-only, never shipped) -- see the second diagram below.</div>
       ${zoomControlsHtml}
       <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:45vh"></div></div>
       <div class="diagram-note" style="margin-top:16px">${esc(g.label)} — Integration Tests. <code class="path">integration-tests</code> (Testcontainers repository tests, never shipped) and every starter it depends on to test them.</div>
@@ -4593,20 +4666,12 @@ function renderDiagrams() {
     document.getElementById("content").innerHTML = html;
     renderContextMapGraph(d.category);
   } else if (g.key === "04-database-erd") {
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from the real Liquibase changelogs (table/column/type/constraints/FKs/indexes/remarks) — an ERD needs a table/column renderer, not a draggable node graph. Solid lines are real foreign keys; dotted lines are relationships this codebase deliberately leaves unconstrained at the SQL level (enforced at the application layer instead — see the notes below). Drag to pan, or use the zoom controls below.</div>
+    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}. Rendered live from the real Liquibase changelogs (table/column/type/constraints/FKs/indexes/remarks all come from the changelog XML itself, not a hand-maintained copy). Tables sit in a frame per module; drag a table to reposition it, drag empty canvas to pan, or use the zoom controls. Click a table to jump to its schema below, or an arrow to jump to the column that holds the reference. Solid lines are real foreign keys; dotted lines are relationships this codebase deliberately leaves unconstrained at the SQL level (enforced at the application layer instead — see the notes below); hover a table to see the labels of its dotted lines.</div>
       ${zoomControlsHtml}
-      <div class="diagram-wrap" id="diagram-scroll"><div id="diagram-zoom-box"><pre class="mermaid">${esc(buildDbErdMermaidSource())}</pre></div></div>
+      <div class="diagram-wrap" id="diagram-cy-wrap" style="padding:0"><div id="diagram-cy" style="width:100%;height:70vh"></div></div>
       ${renderDbErdExtrasHtml()}`;
     document.getElementById("content").innerHTML = html;
-    enableDragToPan(document.getElementById("diagram-scroll"));
-    mermaid.run({ querySelector: ".mermaid" }).then(() => wireDbErdEntityClicks());
-  } else {
-    html += `<div class="diagram-note">${esc(g.label)} — ${esc(d.title || "")}, rendered live via Mermaid.js. This diagram type (sequence/temporal) isn't rendered as a draggable node graph — a sequence diagram shows message order along lifelines, which isn't "drag this box anywhere" the way a dependency graph is. Drag to pan, or use the zoom controls below.</div>
-      ${zoomControlsHtml}
-      <div class="diagram-wrap" id="diagram-scroll"><div id="diagram-zoom-box"><pre class="mermaid">${esc(d.source)}</pre></div></div>`;
-    document.getElementById("content").innerHTML = html;
-    mermaid.run({ querySelector: ".mermaid" });
-    enableDragToPan(document.getElementById("diagram-scroll"));
+    renderDbErdGraph();
   }
 }
 
@@ -4705,8 +4770,8 @@ function openAdrPopupForAdr(id, module, title, status) {
 
 // ── System screen's "Overview" block: a small glossary of general terms/concepts used across
 // this tool and this repo's own conventions -- hand-maintained prose, same "genuinely
-// non-mechanical content" exception this tool already uses elsewhere (SPI Map's Call Flow
-// Examples, Bounded Contexts' narrative sections) -- a term's meaning isn't something to extract
+// non-mechanical content" exception this tool already uses elsewhere (the SPI Map and Bounded
+// Contexts narrative sections) -- a term's meaning isn't something to extract
 // from a file, it's explained once, here, at the bottom of the System screen (not a separate
 // "Notes" card/screen -- dropped that shape after landing it, kept the content).
 const GLOSSARY = [
@@ -4715,7 +4780,7 @@ const GLOSSARY = [
     technical decision — what was decided, the context that led to it, and why. Each module owns
     its own <code class="path">DECISIONS.md</code> file holding its own sequential
     <code>ADR-NNN</code>s.</p>
-    <p><strong>How it's used here:</strong> filed via <code>/decision &lt;module&gt; —
+    <p><strong>How it's used here:</strong> filed via <code>/record-decision &lt;module&gt; —
     &lt;title&gt;</code>. Once written, an ADR is never edited to remove content or deleted — if a
     later decision reverses or replaces it, the old ADR gets <code>Status: Superseded</code> (or an
     amendment note) pointing at the new one, and a new ADR is added instead.

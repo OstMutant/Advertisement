@@ -2,6 +2,49 @@
 
 ---
 
+## ADR-036: The architecture map draws every diagram with Cytoscape — Mermaid.js is removed from the page
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** Mermaid.js stayed on the page for two uses only: the Database ERD (a Mermaid `erDiagram`
+built by `buildDbErdMermaidSource()`) and the fenced mermaid blocks of README files shown inside the
+map. Every other diagram was already drawn with Cytoscape, so the page loaded two rendering engines
+(four scripts from the network) and kept a second zoom and pan mechanism (a CSS scale transform and
+drag-to-pan) for the Mermaid output. The generic fallback that drew a sequence diagram was dead: no
+diagram group has one.
+
+**Decision:**
+1. The Database ERD is a Cytoscape graph: one node per table, grouped in a frame per owning module
+   (frames laid out in a grid of three, each keeping its own inner layout); a solid edge per real
+   foreign key, labelled with the column; a dashed edge per relationship the codebase leaves
+   unconstrained, added after the layout so only real foreign keys position the frames, its label
+   shown on hover. A click on a table jumps to its schema section, a click on an arrow centres the
+   column that holds the reference. Columns, types, constraints and indexes stay in that section,
+   which already listed them.
+2. A README flowchart fence is drawn by `renderFlowBlocks()`, one read-only Cytoscape graph per fence.
+   `parseFlowchart()` (replacing `parseMermaidGraph()`) reads the dialect the repository's READMEs use:
+   `graph`/`flowchart` with a direction, `subgraph`, rectangle, decision `{..}` and cylinder `[(..)]`
+   nodes, plain, labelled and dashed edges, and node chains on one line. The fence source is kept in a
+   hidden `<pre>`, not in an attribute, because `esc()` does not escape double quotes.
+3. Mermaid text is still produced by the markdown export builders; it needs no library and GitHub
+   draws it.
+4. Removed: the library script, `mermaid.initialize()`, every `mermaid.run()`, `wireDbErdEntityClicks()`,
+   the sequence-diagram fallback, drag-to-pan and the CSS zoom box.
+
+**Rejected alternatives:** ERD nodes carrying every column (18 tables of about ten columns each, not
+readable, and the schema section already lists them); one cloud of tables with no module grouping (a
+single dagre pass stacked the frames in one column, hence the grid); HTML cards without a graph; showing README
+flowcharts as plain code (loses the pictures); keeping Mermaid for README blocks only (the page would
+still load the library).
+
+**Consequences:** The old ERD's crow's-foot cardinality marks and in-diagram column lists are gone. The
+README standard still requires a Mermaid `Flow` section in each README, so a new node shape or edge form
+used there must be added to `parseFlowchart()`; the screenshot script compares each fence's edge count
+with its source and fails on a mismatch. Three scripts still load from `unpkg`; working offline is a
+separate matter.
+
 ## ADR-035: Code Quality screen always shows real test reports and run logs, grouped by folder under a session ID; cards are plain relative links
 
 **Status:** Accepted
@@ -809,7 +852,8 @@ general correctness fix independent of this diagram's fate.
 **Status:** Accepted — decision #3's hand-preserved list of actor-reference/no-FK point
 relationships is superseded by ADR-034 (now derived mechanically from a `remarks=` marker
 convention); the entity_type/entity_id generic-relationship portion of that same list, and every
-other part of this decision, still stands.
+other part of this decision, still stands. The Render step (native Mermaid `erDiagram`,
+`wireDbErdEntityClicks()`) is superseded by ADR-036.
 
 **Context:** Asked to migrate `04-database-erd.md` fully into `architecture-map.html`, same spirit
 as Module Dependencies (01)/SPI Map (02) — live diagram + real links + every piece of the
@@ -1605,7 +1649,7 @@ all 3 accurately needs its own scoped pass (verify each full call chain from scr
 
 ## ADR-032: Every `SCRIPT_GROUP` script self-documents via a fixed 7-field header, plus a rendered `README.md` per directory — no hand-written prose describing what a script does anywhere in the tool
 
-**Status:** Accepted
+**Status:** Accepted — point 4's live Mermaid drawing of a README fence is superseded by ADR-036.
 **Verified:** 2026-08-21
 
 **Context:** Nothing in the tool described what a script in `scripts/` actually does, what it

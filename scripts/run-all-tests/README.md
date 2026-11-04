@@ -12,14 +12,15 @@ Entry point: [`run.sh`](run.sh).
 ```mermaid
 flowchart LR
     R[run.sh] --> C{"--archunit-metrics?"}
-    C -->|yes| B["build-and-test.sh<br/>--unit --integration<br/>--archunit-metrics"]
-    C -->|no| B2["build-and-test.sh<br/>--unit --integration"]
+    C -->|yes| B["build-and-test.sh<br/>--unit --integration --skip-vaadin<br/>--archunit-metrics"] --> W
+    C -->|no| B2["build-and-test.sh<br/>--unit --integration --skip-vaadin"] --> W
     R --> D{"--reset?"}
-    D -->|yes| D1["deploy-and-run.sh<br/>--reset"] --> P[playwright.sh]
-    D -->|no| D2["deploy-and-run.sh<br/>--reset-only-db"] --> P
-    B --> S[summary]
-    B2 --> S
-    P --> S
+    D -->|yes| D1["deploy-and-run.sh<br/>--reset"] --> E
+    D -->|no| D2["deploy-and-run.sh<br/>--reset-only-db"] --> E
+    E{"deploy-and-run.sh<br/>succeeded?"}
+    E -->|yes| P[playwright.sh] --> W
+    E -->|no| X[skip playwright.sh] --> W
+    W[wait for both branches] --> S[summary]
 ```
 
 See [`run.sh`](run.sh)'s own header for the full parallel-execution and flag-forwarding behavior.

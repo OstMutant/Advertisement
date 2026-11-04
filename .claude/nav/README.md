@@ -27,8 +27,9 @@ flowchart TD
     G --> A["adr-index.md"]
     T["Task starts"] --> C["context-loading.md"]
     T --> F["flows.md"]
-    C -->|once an ADR id<br/>is known| X["md-to-decisions-json.js<br/>--extract"]
-    X --> A
+    C --> A
+    A --> X["md-to-decisions-json.js<br/>--extract, given module + ADR id"]
+    X --> M["that module's DECISIONS.md<br/>(only the requested ADR text)"]
 ```
 
 ## Explicitly not here, and why

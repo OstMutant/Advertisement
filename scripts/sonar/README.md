@@ -25,8 +25,15 @@ flowchart TD
     F2 --> G{"token<br/>invalid?"}
     G -->|yes| G1[regenerate token] --> I
     G -->|no| I{"scanner container<br/>stale or not running?"}
-    I -->|yes| I1[recreate scanner container] --> Z
-    I -->|no| Z["scanner runs -><br/>analysis uploaded + report generated"]
+    I -->|yes| I1[recreate scanner container] --> J
+    I -->|no| J{"SONAR_JACOCO_FROM<br/>set?"}
+    J -->|no| J1["build-and-test.sh<br/>--unit --integration"] --> K
+    J -->|yes| K["copy sources + target/classes into the scanner container,<br/>carry JaCoCo XML (from this run or the named test-report folders)"]
+    K --> L["scanner runs,<br/>waits for the quality gate"]
+    L --> M[HTML report generated]
+    M --> N{"gate failed and<br/>--no-gate not set?"}
+    N -->|yes| N1[exit non-zero]
+    N -->|no| Z["analysis uploaded + report generated"]
 ```
 
 Each file's own header has its own Description/Usage/Env/Input/Outputs/Returns — this file only

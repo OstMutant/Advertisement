@@ -25,7 +25,9 @@ flowchart TD
     B --> B1{flags recognized?}
     B1 -->|no| Z0[print error, exit 1]
     B1 -->|yes| C{--sync-artifacts only?}
-    C -->|yes| C1[docker cp metrics files onto host] --> Z1[exit 0]
+    C -->|yes| C1[sync_artifacts: docker cp metrics, docs files, adr-index, test reports and sonar report onto host] --> C2{sync succeeded?}
+    C2 -->|yes| Z1[exit 0]
+    C2 -->|no| Z6[exit 1]
     C -->|no| D{Dockerfile/entrypoint changed, image missing, or --rebuild?}
     D -->|yes| E[docker build Dockerfile] --> E1{build succeeded?}
     E1 -->|no| Z4[exit non-zero]
@@ -38,9 +40,13 @@ flowchart TD
     H -->|no| F
     H -->|yes| S
     G --> S[wipe ci-runner:/app, re-extract git ls-files set]
-    S --> I[dagu start ci.yaml -- params]
+    S --> R{a ci DAG run already active?}
+    R -->|yes| Z7[exit 1, refuse to start]
+    R -->|no| I[dagu start ci.yaml -- params]
     I --> J{--foreground?}
-    J -->|yes| K[stream output, block until done] --> L[sync_artifacts] --> Z2[exit: 0 if PASSED, non-zero if FAILED]
+    J -->|yes| K[stream output, block until done] --> L[sync_artifacts] --> L1{DAG passed and artifact sync succeeded?}
+    L1 -->|yes| Z2[exit 0]
+    L1 -->|no| Z8[exit non-zero]
     J -->|no| M[trigger detached] --> Z3[return immediately, exit 0 -- watch progress at :8082]
 ```
 

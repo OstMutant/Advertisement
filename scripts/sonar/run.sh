@@ -7,14 +7,16 @@
 #   the scanner container; tests run for real, not skipped, since JaCoCo coverage data only exists
 #   as a side effect of the test phase), uploads the analysis, and generates a local HTML report.
 # Usage: bash scripts/sonar/run.sh [--no-gate] [--pull-latest]. --no-gate skips quality-gate
-#   blocking (always exits 0); default blocks on a gate result of ERROR (exits non-zero).
+#   blocking (exits 0 whatever the gate result, but a failure earlier in the run -- build, token,
+#   scanner start -- still exits non-zero); default blocks on a gate result of ERROR.
 #   --pull-latest forces a Docker Hub pull check for both the SonarQube server and scanner images
 #   even if already present locally; default skips the pull once an image exists locally (checking
 #   Docker Hub on every run cost real time -- ~170s observed -- for no benefit on the common path).
 # Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
-#   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token.
+#   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token, scripts/utils/session-id.sh
+#   (write_session_info).
 # Env: SONAR_JACOCO_FROM (unset by default) -- space-separated BUILD_CONTAINER_NAMEs whose JaCoCo
 #   XML reports in /reports/<name>/jacoco/ (test-reports volume) are imported instead of running
 #   the build and tests; the compiled classes must already be in the Maven cache volume from an
@@ -36,8 +38,11 @@
 #   sonar-project.properties (regenerated via local admin/admin credentials and written back if
 #   invalid/missing), and a stale-image DB_MIGRATION_NEEDED dead-end on the embedded database (not
 #   supported -- local scan history is wiped via `docker compose down -v` and the server restarts
-#   fresh on the new image) -- see DECISIONS.md.
-# Returns: 0 on success (or always, with --no-gate); non-zero if the quality gate result is ERROR.
+#   fresh on the new image) -- see DECISIONS.md. Every run also rewrites sonar.sources and
+#   sonar.java.binaries in sonar-project.properties from pom.xml, logs to /tmp/sonar.log, and
+#   copies its run log to scripts/logs/sonar/.
+# Returns: 0 on success, and with --no-gate whatever the quality gate result (a failure before the
+#   gate check still exits non-zero); non-zero if the quality gate result is ERROR.
 #   Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON marker on a clean finish, or an
 #   AGENTIC_ERROR_BLOCK JSON marker (errorCategory/isRetryable/currentStep/description/
 #   durationSeconds) on any failure path (script error, token generation, quality gate), for an

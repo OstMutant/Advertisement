@@ -132,12 +132,14 @@ Playwright for full browser-driven end-to-end flows.
 flowchart LR
     QL[query-lib] --> STARTERS
     HSL[html-sanitizer-lib] --> STARTERS
-    PC[platform-commons] --> STARTERS[Domain starters]
+    PC[platform-commons] --> STARTERS
     STARTERS --> ORCH[marketplace-orchestrator]
     ORCH --> APP[marketplace-app]
     ORCH --> API[marketplace-rest-api]
+    API --> APP
+    MCP[marketplace-mcp] --> APP
 
-    subgraph STARTERS[" "]
+    subgraph STARTERS["Domain starters"]
         direction TB
         S1[audit-spring-boot-starter]
         S2[attachment-spring-boot-starter]
@@ -146,14 +148,19 @@ flowchart LR
         S5[taxon-spring-boot-starter]
         S6[provider-profile-spring-boot-starter]
         S7[apikey-spring-boot-starter]
+        S8[contact-spring-boot-starter]
+        S9[feedback-spring-boot-starter]
     end
 ```
 
-`platform-commons`/`query-lib`/`html-sanitizer-lib` are the shared foundation every starter
+An arrow points from a module to the module that uses it. `platform-commons`/`query-lib`/`html-sanitizer-lib` are the shared foundation every starter
 depends on; each domain starter owns one bounded context; `marketplace-orchestrator` composes
-cross-domain use cases for both delivery channels — `marketplace-app` (Vaadin UI) and
-`marketplace-rest-api` (external REST API). `integration-tests` (Testcontainers repository tests,
-test-only, not shown above) depends on every starter without any of them depending on it back.
+cross-domain use cases for two delivery channels — `marketplace-app` (Vaadin UI) and
+`marketplace-rest-api` (external REST API). `marketplace-mcp` is a third adapter: an MCP server that
+lets AI agents use the REST API over HTTP with the caller's own API key, so it depends on no other
+project module; `marketplace-app` bundles it together with the REST API. `integration-tests`
+(Testcontainers repository tests, test-only, not shown above) depends on every starter without any of
+them depending on it back.
 
 `platform-commons` holds contracts only — `*Port`/`*Hook` interfaces, DTOs, domain enums, snapshot
 types — never business logic or a Spring bean (enforced by its own module convention, see

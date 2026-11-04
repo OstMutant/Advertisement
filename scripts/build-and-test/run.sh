@@ -13,8 +13,8 @@
 #   running at the same time (see scripts/DECISIONS.md).
 # Usage: bash scripts/build-and-test/run.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
-#   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--skip-vaadin]
-#   [--no-install]
+#   [--integration-test <scenario-or-class>] [--sandbox|--no-sandbox] [--archunit-metrics]
+#   [--skip-vaadin] [--no-install]
 #   (no flags)           build the full reactor, then run both unit and integration tests (the
 #                         build-and-test.properties defaults, both true)
 #   --reset-cache        wipe the Maven cache volume and the Vaadin cache volume (MAVEN_CACHE_VOLUME / VAADIN_CACHE_VOLUME,
@@ -53,7 +53,8 @@
 #                                     jars an earlier build already put into the Maven cache volume;
 #                                     only for callers that ran a full build in the same pipeline just before
 # Uses: bash, docker, tar, grep, sed, scripts/utils/agentic-output.sh
-#   (emit_agentic_success_block/emit_agentic_error_block).
+#   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/session-id.sh
+#   (write_session_info).
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
 #   this script can run concurrently without a Docker container-name collision (Docker container
 #   names must be unique; a fixed name means a second concurrent `docker run` with the same name
@@ -95,12 +96,12 @@
 #   scripts/build-and-test/reports/surefire/<module>/, and the full raw console log for whichever
 #   phase ran copied to scripts/logs/build-and-test/ (unit-tests.log/integration-tests.log)
 #   -- persists the real failure detail past this run's own terminal output. Also always writes
-#   scripts/build-and-test/reports/build-info.txt (BUILD_CONTAINER_NAME, timestamp, which of
+#   scripts/logs/build-and-test/build-info.txt (BUILD_CONTAINER_NAME, timestamp, which of
 #   RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS/SKIP_VAADIN were set), so it's clear which invocation
 #   produced a given set of reports. With --archunit-metrics, also
 #   scripts/build-and-test/reports/architecture-metrics.json and
 #   scripts/logs/build-and-test/archunit-metrics.log. With --integration, also mirrors integration-tests/reports/
-#   (run.log + surefire/) via its own separate `docker cp` -- keeps that directory fresh
+#   (surefire/ only) via its own separate `docker cp` -- keeps that directory fresh
 #   regardless of whether integration tests ran through this script or integration-tests/run.sh's
 #   own direct invocation. All of the above lands on the host via `docker cp` from a third named
 #   volume, test-reports:/reports (wiped before every run, see the pre-run cleanup step below) --
