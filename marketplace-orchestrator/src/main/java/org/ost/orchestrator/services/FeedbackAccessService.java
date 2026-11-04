@@ -51,6 +51,12 @@ public class FeedbackAccessService {
                 .orElse(List.of());
     }
 
+    public int count(@NonNull EntityType entityType, @NonNull Long entityId) {
+        return feedbackPortFactory.findIfAvailable()
+                .map(port -> port.count(entityType, entityId))
+                .orElse(0);
+    }
+
     public FeedbackAggregateDto getAggregate(@NonNull EntityType entityType, @NonNull Long entityId) {
         return feedbackPortFactory.findIfAvailable()
                 .map(port -> port.getAggregate(entityType, entityId))

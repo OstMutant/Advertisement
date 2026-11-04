@@ -6,6 +6,7 @@ Do not hand-edit this file — add `**Also affects:** marketplace-rest-api` to t
 home file instead, then regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`.
 
 - [ADR-003 (docs/api-collections)](../docs/api-collections/DECISIONS.md) — The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses
+- [ADR-093 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API carries no hypermedia — no per-resource links, no action list; agents learn the caller from `getMe` and the operations from the MCP tool list
 - [ADR-091 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API limits write requests per account in a bearer-chain filter
 - [ADR-090 (marketplace-app)](../marketplace-app/DECISIONS.md) — An administrator cannot delete their own account
 - [ADR-089 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API partial updates use JSON Merge Patch applied over the PUT write record

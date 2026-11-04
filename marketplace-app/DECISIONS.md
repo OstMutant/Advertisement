@@ -2,13 +2,68 @@
 
 ---
 
+## ADR-093: External REST API carries no hypermedia — no per-resource links, no action list; agents learn the caller from `getMe` and the operations from the MCP tool list
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api, marketplace-mcp
+
+**Context:** Single-resource responses of the external REST API are flat DTOs with no links or
+action hints, and "REST hypermedia" stood as a planned direction. The question was whether
+consumers need `_links`, an action list, or both. The MCP trial named four gaps for an agent: who
+the caller is, whether edit and delete exist, whether `totalCount` counts every match, and why the
+page size is fixed. Since then `GET /api/users/me` (`getMe`) returns the caller's `id` and `role`,
+the MCP server exposes one tool per REST operation named by its `operationId`, and tool
+descriptions state who may call and how paging works. No consumer reads links: Swagger UI reads the
+OpenAPI document, the API flow runner and the Postman collections send scripted request sequences
+and take the role from `getMe`, and the MCP server reads only `rel="next"` of the paging `Link`
+header. Published guidance points the same way: a production rule set (Zalando) lists hypermedia as
+optional and advises against it, the MCP specification builds agent discovery on the tool list,
+tool descriptions and readable tool errors, and the one measured agent study traces failures to
+parameters, descriptions and vague errors, not to missing links; the sources arguing for hypermedia
+for agents are opinion or theory without measurement.
+
+**Decision:** Responses carry no hypermedia: no `_links`, no per-caller capability flags, and no
+endpoint listing the caller's actions. The permission rule of each operation is stated in its REST
+`@Operation` description and in its MCP tool description, and must match the rule the orchestrator
+enforces. A denied attempt is a 403, which the MCP server returns as a readable tool error. Paging
+stays as decided for list endpoints (RFC 8288 `Link` + `X-Total-Count`). Reopen only when a
+consumer needs a per-resource answer, for example when observed agent runs repeatedly hit 403 by
+guessing. The design to use then is a per-caller capability object of booleans in the
+single-resource body (the pattern of GitHub's repository `permissions`), each flag computed by the
+same `AuthorizationService` check that the service's `requireCan...` call uses, and tested by
+extending the level-3 role-matrix scenario tests so that for every role the flag is true exactly
+when the operation does not answer 403.
+
+**Rejected alternatives:**
+- **An action list by role on a `me` endpoint** — repeats OpenAPI plus the role `getMe` already
+  returns, cannot express ownership of one resource (the only question left), and is a second
+  hand-kept copy of the authorization rules.
+- **Hand-built HAL `_links` per actor** — a HAL link carries no HTTP method, so `edit` cannot say
+  PUT or PATCH; `delete` is not a registered link relation; HAL is an expired individual draft; the
+  Swagger UI add-on `swagger-hal-navigator` is an unreleased two-commit snapshot; links would mirror
+  about five distinct authorization rules and add a REST-only response shape per resource, for no
+  consumer.
+- **Spring HATEOAS with HAL-FORMS affordances** — the only mature option that carries methods, but a
+  library the list-endpoint decision already rejected, and again with no consumer.
+
+**Consequences:** The permission sentence in REST and MCP descriptions is the only action hint, so
+a wrong sentence misleads agents; nothing tests it automatically. Known conflict with outside
+practice, not acted on: Zalando forbids `Link` headers with JSON bodies, which the list-endpoint
+decision chose deliberately. By Fielding's definition the API is an HTTP API described by OpenAPI,
+not hypermedia-driven REST.
+
+---
+
 ## ADR-092: The MCP server is a separate module with no project dependencies that wraps the REST API over HTTP
 
 **Status:** Accepted
 
 **Verified:** 2026-11-01
 
-**Applied:** 1
+**Applied:** 2
 
 **Also affects:** marketplace-mcp
 
@@ -499,7 +554,7 @@ untouched. Only ADR-080's Taxon-specific mandate (its decision item 4) is revers
 
 **Status:** Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted)
 
-**Applied:** 1
+**Applied:** 2
 
 **Also affects:** marketplace-rest-api, taxon-spring-boot-starter, marketplace-mcp
 

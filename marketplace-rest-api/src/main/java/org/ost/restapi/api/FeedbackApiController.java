@@ -77,7 +77,7 @@ public class FeedbackApiController {
         List<FeedbackEntryResponse> items = entries.stream()
                 .map(entry -> toEntry(entry, actorId, authorNames, replyFor(entry.id(), actorId, ownerId)))
                 .toList();
-        int total = feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, id).reviewCount();
+        int total = feedbackAccessService.count(EntityType.PROVIDER_PROFILE, id);
         return PagedResponseBuilder.build(httpRequest, page, size, total, items);
     }
 

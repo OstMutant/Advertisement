@@ -21,7 +21,7 @@ public class AuditTools {
             description = "Lists the audit timeline: every recorded create, update, delete and restore across the marketplace, newest first unless sort is given. "
                     + "Only administrators and moderators may call it, with their API key; other callers are refused. "
                     + "Filter by actorIds, entityTypes, actionTypes and a fromDate and toDate window, and page with page; page size comes from the caller's saved timeline settings. "
-                    + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true call again with page = nextPage.",
+                    + ToolDescriptions.TOTAL_COUNT_NOTE + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true call again with page = nextPage.",
             annotations = @McpTool.McpAnnotations(title = "Read the audit timeline", readOnlyHint = true,
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))
     public CallToolResult getAuditTimeline(

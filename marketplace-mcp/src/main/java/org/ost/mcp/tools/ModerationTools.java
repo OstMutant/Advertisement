@@ -24,7 +24,7 @@ public class ModerationTools {
                     + "Only administrators and moderators may call it, with their API key; other callers are refused. "
                     + "An empty statuses list means only HIDDEN entries, the ones awaiting a decision; sort is field,direction "
                     + "with field createdAt or type and defaults to newest first. Page size comes from the caller's saved settings. "
-                    + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true call again with page = nextPage.",
+                    + ToolDescriptions.TOTAL_COUNT_NOTE + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true call again with page = nextPage.",
             annotations = @McpTool.McpAnnotations(title = "List the moderation queue", readOnlyHint = true,
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))
     public CallToolResult getModerationQueue(

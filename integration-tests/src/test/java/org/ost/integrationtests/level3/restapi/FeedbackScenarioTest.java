@@ -186,6 +186,27 @@ class FeedbackScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
+    void hiddenReview_isCountedInTotalCountHeader() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        RegisteredUser reviewer = registerUserAndIssueApiKey("Reviewer");
+        RegisteredUser stranger = registerUserAndIssueApiKey("Stranger");
+        long profileId = createProviderProfile(owner);
+        long feedbackId = JsonScenarioUtils.extractId(createReview(reviewer, profileId, 5, TEXT_GREAT));
+
+        mockMvc.perform(post("/api/feedback/" + feedbackId + "/flags")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(stranger))
+                        .contentType(MediaType.APPLICATION_JSON).content(FLAG_BODY))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get(feedbackPath(profileId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].hidden").value(true));
+    }
+
+    @Test
     void flagTwice_secondIsConflict_andFirstReasonSurvives() throws Exception {
         registerUserAndIssueApiKey("Admin");
         RegisteredUser owner = registerUserAndIssueApiKey("Owner");

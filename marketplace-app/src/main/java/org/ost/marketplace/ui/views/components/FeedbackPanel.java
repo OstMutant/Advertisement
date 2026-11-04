@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_AGGREGATE_COUNT;
+import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_AGGREGATE_COUNT_TITLE;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_BUTTON_REPORT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CENSORED_TEXT;
 import static org.ost.marketplace.services.i18n.I18nKey.FEEDBACK_CONFIRM_REPORT_BUTTON;
@@ -174,7 +175,7 @@ public class FeedbackPanel extends Div
         Span label = new Span(getValue(FEEDBACK_SECTION_LABEL));
         label.addClassName("feedback-header-label");
         headerContainer.add(label);
-        paginationBar.setTotalCount(aggregate.reviewCount());
+        paginationBar.setTotalCount(feedbackAccessService.count(entityRef.entityType(), entityRef.entityId()));
         if (aggregate.reviewCount() > 0) {
             int rounded = (int) Math.round(aggregate.avgRating());
             Span stars = new Span("★".repeat(rounded) + "☆".repeat(5 - rounded));
@@ -183,6 +184,7 @@ public class FeedbackPanel extends Div
             avg.addClassName("feedback-header-avg");
             Span count = new Span(getValue(FEEDBACK_AGGREGATE_COUNT, aggregate.reviewCount()));
             count.addClassName("feedback-header-count");
+            count.getElement().setAttribute("title", getValue(FEEDBACK_AGGREGATE_COUNT_TITLE, aggregate.reviewCount()));
             headerContainer.add(stars, avg, count);
         }
     }

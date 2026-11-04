@@ -536,6 +536,7 @@ public enum I18nKey {
     // === Feedback ===
     FEEDBACK_SECTION_LABEL("feedback.section.label"),
     FEEDBACK_AGGREGATE_COUNT("feedback.aggregate.count"),
+    FEEDBACK_AGGREGATE_COUNT_TITLE("feedback.aggregate.count.title"),
     FEEDBACK_EMPTY("feedback.empty"),
     FEEDBACK_FORM_BUTTON_SUBMIT("feedback.form.button.submit"),
     FEEDBACK_FORM_BUTTON_ADD("feedback.form.button.add"),

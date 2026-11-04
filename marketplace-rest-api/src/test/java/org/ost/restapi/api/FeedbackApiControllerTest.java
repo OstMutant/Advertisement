@@ -97,7 +97,7 @@ class FeedbackApiControllerTest {
         when(feedbackAccessService.findForEntity(EntityType.PROVIDER_PROFILE, PROFILE_ID, 0, 20)).thenReturn(List.of(feedback(FeedbackModerationStatus.NEW)));
         when(feedbackAccessService.resolveAuthorNames(Set.of(AUTHOR_ID))).thenReturn(Map.of(AUTHOR_ID, "Ivan"));
         when(feedbackAccessService.findCommentByFeedback(FEEDBACK_ID)).thenReturn(Optional.of(reply(FeedbackModerationStatus.NEW)));
-        when(feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, PROFILE_ID)).thenReturn(new FeedbackAggregateDto(EntityType.PROVIDER_PROFILE, PROFILE_ID, 5.0, 1));
+        when(feedbackAccessService.count(EntityType.PROVIDER_PROFILE, PROFILE_ID)).thenReturn(1);
 
         mockMvc.perform(get("/api/provider-profiles/7/feedback"))
                 .andExpect(status().isOk())
@@ -118,10 +118,11 @@ class FeedbackApiControllerTest {
         when(userProfileService.resolveFeedbackPageSize(AUTHOR_ID)).thenReturn(20);
         when(feedbackAccessService.findForEntity(EntityType.PROVIDER_PROFILE, PROFILE_ID, 0, 20)).thenReturn(List.of(feedback(FeedbackModerationStatus.HIDDEN)));
         when(feedbackAccessService.findCommentByFeedback(FEEDBACK_ID)).thenReturn(Optional.empty());
-        when(feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, PROFILE_ID)).thenReturn(new FeedbackAggregateDto(EntityType.PROVIDER_PROFILE, PROFILE_ID, 5.0, 1));
+        when(feedbackAccessService.count(EntityType.PROVIDER_PROFILE, PROFILE_ID)).thenReturn(1);
 
         mockMvc.perform(get("/api/provider-profiles/7/feedback"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
                 .andExpect(jsonPath("$[0].hidden").value(true))
                 .andExpect(jsonPath("$[0].rating").value(nullValue()))
                 .andExpect(jsonPath("$[0].text").value(nullValue()));
@@ -132,7 +133,7 @@ class FeedbackApiControllerTest {
         stubProfile();
         when(userProfileService.resolveFeedbackPageSize(null)).thenReturn(20);
         when(feedbackAccessService.findForEntity(EntityType.PROVIDER_PROFILE, PROFILE_ID, 0, 20)).thenReturn(List.of());
-        when(feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, PROFILE_ID)).thenReturn(new FeedbackAggregateDto(EntityType.PROVIDER_PROFILE, PROFILE_ID, 0, 0));
+        when(feedbackAccessService.count(EntityType.PROVIDER_PROFILE, PROFILE_ID)).thenReturn(0);
 
         mockMvc.perform(get("/api/provider-profiles/7/feedback"))
                 .andExpect(status().isOk())

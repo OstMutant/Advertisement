@@ -26,7 +26,9 @@ public class FeedbackTools {
     @McpTool(name = "listProviderProfileFeedback",
             description = "Lists the reviews of one provider profile, newest first, one page at a time. "
                     + "The list is public, no API key is needed. Page size is not a parameter: it comes from the caller's saved "
-                    + "settings. A hidden review carries no rating and no text. The result has items, totalCount, page, returned, "
+                    + "settings. A hidden review carries no rating and no text. "
+                    + ToolDescriptions.TOTAL_COUNT_NOTE
+                    + "The result has items, totalCount, page, returned, "
                     + "hasMore and nextPage; when hasMore is true call again with page = nextPage to continue.",
             annotations = @McpTool.McpAnnotations(title = "List provider profile reviews", readOnlyHint = true,
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))

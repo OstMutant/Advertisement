@@ -28,7 +28,8 @@ public class ProviderProfileTools {
     @McpTool(name = "listProviderProfiles",
             description = "Lists provider profiles (kinds MASTER, SHOP, SUPPORT), one page at a time, optionally filtered and sorted. "
                     + "The list is public, no API key is needed. Page size is not a parameter: it comes from the caller's saved "
-                    + "settings. The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true "
+                    + "settings. " + ToolDescriptions.TOTAL_COUNT_NOTE
+                    + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true "
                     + "call again with page = nextPage to continue.",
             annotations = @McpTool.McpAnnotations(title = "List provider profiles", readOnlyHint = true,
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))

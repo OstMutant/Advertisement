@@ -56,7 +56,7 @@ const { confirmDeleteDialog } = require('./_flows/delete.flow');
 const { openCardOverlay } = require('./_flows/advertisement.flow');
 const { runOpenFilterPanelFlow, runFillTitleFilterFlow, runApplyFilterFlow } = require('./_flows/advertisement-filter.flow');
 const { verifyDateRangeFilters, openQueryPanel, applyFilter, clearFilter, fillText, fillRole, goToNextPage, goToPrevPage, goToFirstPage, goToLastPage } = require('./_flows/filter.flow');
-const { changePageSizes, getPageSizes } = require('./_flows/settings.flow');
+const { changePageSizes, getPageSizes, pageSizeField } = require('./_flows/settings.flow');
 const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 const { issueApiKeyViaApi, postViaApi, createProviderProfileViaApi, seedTaxonsViaApi } = require('./_flows/seed.flow');
 
@@ -911,7 +911,8 @@ test.describe('Provider Profile flow', () => {
       const entry = feedbackPanel.locator('.feedback-entry').first();
       await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★☆', { timeout: 5000 });
       await expect(entry.locator('.feedback-entry-text')).toContainText('Great master, highly recommend!');
-      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
+      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1)');
+      await expect(feedbackPanel.locator('.feedback-header-count')).toHaveAttribute('title', 'Ratings: 1');
       await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('4.0');
       await screenshot(page, 'provider-catalog-feedback-panel-submitted');
 
@@ -930,7 +931,7 @@ test.describe('Provider Profile flow', () => {
 
       await expect(entry.locator('.feedback-entry-rating')).toHaveText('★★★★★', { timeout: 5000 });
       await expect(entry.locator('.feedback-entry-text')).toContainText('Updated: even better than I thought!');
-      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1 feedback entries)');
+      await expect(feedbackPanel.locator('.feedback-header-count')).toContainText('(1)');
       await expect(feedbackPanel.locator('.feedback-header-avg')).toContainText('5.0');
       await screenshot(page, 'provider-catalog-feedback-panel-edited');
 
@@ -1296,6 +1297,62 @@ test.describe('Provider Profile flow', () => {
     await ownerOverlay.locator('.overlay__content').evaluate(el => el.scrollTo(0, el.scrollHeight));
     await screenshot(page, 'provider-catalog-feedback-panel-scrolled-many-items');
     await closeOverlay(page);
+
+    // ── the feedback pager counts hidden entries: 2 more unflagged reviews make 6 entries (3 hidden), page size 5 means 2 pages ──
+    await test.step('feedback pager counts hidden entries', async () => {
+      for (const n of [5, 6]) {
+        await reviewViaApi(request, await createUser(), master.profileId, n % 5 + 1, `Pager test feedback ${n}.`);
+      }
+      const setFeedbackPageSize = async size => {
+        await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
+        await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 5000 });
+        const field = pageSizeField(page, 'feedback');
+        const previous = parseInt(await field.inputValue(), 10);
+        await field.click({ clickCount: 3 });
+        await field.fill(String(size));
+        await page.locator('.base-overlay.overlay--visible').getByRole('button', { name: /зберегти|save/i }).click();
+        await page.locator('.base-overlay.overlay--visible .overlay__breadcrumb-back').click();
+        await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+        return previous;
+      };
+      const feedbackDefault = await setFeedbackPageSize(5);
+
+      await page.goto(deepLink(master.profileId));
+      const pagerOverlay = page.locator('.provider-profile-catalog-overlay');
+      await pagerOverlay.waitFor({ timeout: 10000 });
+      const panel = pagerOverlay.locator('.feedback-panel');
+      const entries = panel.locator('.feedback-entry');
+      const count = panel.locator('.pagination-count');
+      const pagerButton = name => panel.getByRole('button', { name });
+      await expect(entries).toHaveCount(5, { timeout: 8000 });
+      await expect(count).toContainText('1–5 of 6', { timeout: 5000 });
+      await count.scrollIntoViewIfNeeded();
+      await screenshot(page, 'provider-feedback-pager-page1');
+
+      await pagerButton(/next|наступна/i).click();
+      await expect(entries).toHaveCount(1, { timeout: 8000 });
+      await expect(count).toContainText('6–6 of 6', { timeout: 5000 });
+      await screenshot(page, 'provider-feedback-pager-page2');
+
+      await pagerButton(/prev|попередня/i).click();
+      await expect(entries).toHaveCount(5, { timeout: 8000 });
+      await expect(count).toContainText('1–5 of 6', { timeout: 5000 });
+
+      // "First"/"Last" are only enabled from a non-boundary page -- go forward once more before testing First.
+      await pagerButton(/next|наступна/i).click();
+      await expect(entries).toHaveCount(1, { timeout: 8000 });
+      await pagerButton(/first|перша/i).click();
+      await expect(entries).toHaveCount(5, { timeout: 8000 });
+      await expect(count).toContainText('1–5 of 6', { timeout: 5000 });
+
+      await pagerButton(/last|остання/i).click();
+      await expect(entries).toHaveCount(1, { timeout: 8000 });
+      await expect(count).toContainText('6–6 of 6', { timeout: 5000 });
+      await screenshot(page, 'provider-feedback-pager-last-page');
+
+      await closeOverlay(page);
+      await setFeedbackPageSize(feedbackDefault);
+    });
 
     // ── the Moderation queue, scoped to this test's own items: 7 visible, scrollable list, pagination count reflects the real total ──
     await page.getByRole('tab', { name: /moderation/i }).click();

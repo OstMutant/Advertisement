@@ -230,8 +230,6 @@ frozen codebase.
 Planned directions:
 - Extend rule-based validation capabilities
 - Improve composability of the generic filtering layer
-- REST hypermedia (HATEOAS); broader `PATCH` support beyond the existing user-settings endpoint
-  (`PATCH /api/users/me/settings`)
 - Broaden the marketplace's public-facing feature set (provider profiles, richer discovery)
 
 ---

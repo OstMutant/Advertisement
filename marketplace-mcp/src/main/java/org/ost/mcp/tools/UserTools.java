@@ -47,7 +47,7 @@ public class UserTools {
             description = "Lists user accounts, one page at a time, optionally filtered and sorted. "
                     + "Only administrators and moderators may call it, with their API key; other callers are refused. "
                     + "Page size is not a parameter: it comes from the caller's saved settings. "
-                    + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true call again with page = nextPage.",
+                    + ToolDescriptions.TOTAL_COUNT_NOTE + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true call again with page = nextPage.",
             annotations = @McpTool.McpAnnotations(title = "List users", readOnlyHint = true,
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))
     public CallToolResult listUsers(

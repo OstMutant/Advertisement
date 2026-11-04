@@ -70,6 +70,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AdvertisementApiController {
 
+    private static final String WRITE_PERMISSION = "the owner of the advertisement, an administrator or a moderator may call it, with their API key.";
 
     // Mirrors AdvertisementSortMeta's UI-sortable set -- marketplace-rest-api can't import that
     // class (wrong dependency direction, see .claude/rules/marketplace-rest-api.md), so both sides
@@ -147,7 +148,7 @@ public class AdvertisementApiController {
         return activityHistorySupport.snapshot(actorId, EntityType.ADVERTISEMENT, id, snapshotId, AdvertisementSnapshotDto.class);
     }
 
-    @Operation(operationId = "updateAdvertisement", summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @Operation(operationId = "updateAdvertisement", summary = "Update an advertisement", description = "If-Match must carry the version from the last GET response's ETag; " + WRITE_PERMISSION)
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "title": "Plumbing services",
@@ -166,7 +167,7 @@ public class AdvertisementApiController {
     }
 
     @Operation(operationId = "patchAdvertisement", summary = "Partially update an advertisement",
-            description = "JSON Merge Patch (RFC 7396): send only the fields to change. A field left out keeps its value; null clears categoryIds or cityTaxonId; null on title, description or adKind is 400. categoryIds is replaced as a whole. An unknown field is 400. If-Match must carry the version from the last GET response's ETag (412 when stale); the caller must own the advertisement.")
+            description = "JSON Merge Patch (RFC 7396): send only the fields to change. A field left out keeps its value; null clears categoryIds or cityTaxonId; null on title, description or adKind is 400. categoryIds is replaced as a whole. An unknown field is 400. If-Match must carry the version from the last GET response's ETag (412 when stale); " + WRITE_PERMISSION)
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = {
             @Content(mediaType = "application/merge-patch+json", schema = @Schema(implementation = AdvertisementWriteRequest.class),
                     examples = @ExampleObject(value = "{\"cityTaxonId\": 5}")),
@@ -196,7 +197,7 @@ public class AdvertisementApiController {
         return enrichmentService.enrichSingle(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(operationId = "deleteAdvertisement", summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; the caller must own the advertisement.")
+    @Operation(operationId = "deleteAdvertisement", summary = "Delete an advertisement", description = "If-Match must carry the version from the last GET response's ETag; " + WRITE_PERMISSION)
     @ApiResponse(responseCode = "429", description = "Write limit reached")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

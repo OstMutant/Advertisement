@@ -8,7 +8,7 @@ discoverability)
 attachment-spring-boot-starter, marketplace-app, provider-profile-spring-boot-starter,
 user-spring-boot-starter, taxon-spring-boot-starter
 **Priority:** high (user-requested top-of-backlog placement, 2026-09-12)
-**When:** independent, no blockers. The hypermedia part (former item 3) moved to [improvement-230](../../tasks/improvement-230-rest-hypermedia-decision.md) on 2026-10-28; the media part was done in improvement-213 phase 7; the Basic-auth part in improvement-213 phase 2.
+**When:** independent, no blockers. The hypermedia part (former item 3) moved to [improvement-230](improvement-230-rest-hypermedia-decision.md) on 2026-10-28; the media part was done in improvement-213 phase 7; the Basic-auth part in improvement-213 phase 2.
 
 ## Current state (verified against real code, 2026-09-12)
 
@@ -154,7 +154,7 @@ its own real cost today:
 
 ### 3. Hypermedia — moved to improvement-230
 
-Moved on 2026-10-28: whether HAL `_links` and a `GET /api/me` entry point are needed is decided from the evidence of the MCP trial, see [improvement-230](../../tasks/improvement-230-rest-hypermedia-decision.md). The design drafted here (per-actor `_links`, `GET /api/me`, `swagger-hal-navigator`, pagination links in list bodies left out because they would reverse the pagination decision) is carried over there.
+Moved on 2026-10-28: whether HAL `_links` and a `GET /api/me` entry point are needed is decided from the evidence of the MCP trial, see [improvement-230](improvement-230-rest-hypermedia-decision.md). The design drafted here (per-actor `_links`, `GET /api/me`, `swagger-hal-navigator`, pagination links in list bodies left out because they would reverse the pagination decision) is carried over there.
 
 ### 4. and 5. HTTP Basic hardening — moved to improvement-213 phase 2
 
@@ -173,7 +173,7 @@ The Basic-auth brute-force gap on `POST /api/api-keys` and the 500 returned when
 - `attachment-spring-boot-starter/README.md`/`DECISIONS.md` — `AttachmentPort`'s existing
   generic-by-`EntityType` design (ADR-003 there) is exactly what makes item 1 above possible with no
   starter changes.
-- [improvement-230](../../tasks/improvement-230-rest-hypermedia-decision.md) — the hypermedia decision carved out of this task
+- [improvement-230](improvement-230-rest-hypermedia-decision.md) — the hypermedia decision carved out of this task
 
 ## Plan (approved 2026-10-28)
 
