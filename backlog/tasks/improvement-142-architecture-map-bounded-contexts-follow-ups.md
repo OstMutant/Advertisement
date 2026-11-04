@@ -1,7 +1,7 @@
 # improvement-142: Architecture Control Plane — Bounded Contexts content parity + ongoing architecture-map.html follow-ups
 
 **Type:** improvement — tracked continuation of `improvement-138`'s Architecture Control Plane work; keeps `improvement-138` itself from growing further after the Bounded Contexts mechanization pass.
-**Module:** `scripts/ai/generate-architecture-model.sh`, `docs/architecture-map.html`
+**Module:** `docs/architecture/scripts/generate-architecture-model.sh`, `docs/architecture/architecture-map.html`
 **Priority:** low (deprioritized to the bottom of the backlog 2026-08-28 per explicit user request)
 **When:** independent, no blockers — opportunistic pickup, no trigger
 
@@ -17,7 +17,7 @@ the remaining, concrete work item for whoever picks this issue up next.
 
 ## Problem
 
-`scripts/ai/DECISIONS.md` ADR-019 mechanized Bounded Contexts' domain grouping and relationships
+`docs/architecture/scripts/DECISIONS.md` ADR-019 mechanized Bounded Contexts' domain grouping and relationships
 live from real code (entities/services/tables/ports per domain, 19 relationships all `"extracted"`
 confidence, each with a real evidence file/method reference). Before deleting
 `docs/architecture/bounded-contexts.md` (matching the 01/02/04 precedent — migrate, verify content
@@ -443,7 +443,7 @@ deleting commit lands.
   opt-in flags on the existing per-module section, plus a dedicated card and on-demand refresh
   trigger) — a follow-up briefly drafted here on 2026-08-06 was moved there in full so this issue
   stays scoped to Bounded Contexts content parity only.
-- `scripts/ai/DECISIONS.md` ADR-015 (why Bounded Contexts stayed hand-maintained originally),
+- `docs/architecture/scripts/DECISIONS.md` ADR-015 (why Bounded Contexts stayed hand-maintained originally),
   ADR-016 (why the Cytoscape+dagre rendering attempt was dropped), ADR-018 (restored via Mermaid's
   native engine), ADR-019 (domain/relationship data mechanized live) — full decision history behind
   this file's hand-maintained-to-live migration.

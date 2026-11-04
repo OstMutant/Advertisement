@@ -88,13 +88,10 @@ fully matches.**
 
 - Violation: `ui/views/main/MainView.java:60-61` — `public void init()`, not `protected`
 - `refresh()` shape: `UserView.java:97-122` fully compliant (two catch blocks + notification +
-  finally). `AdvertisementsView.java:138-158` — single generic catch, no notification on failure
-  (silent blank grid) — **already tracked**, see
-  [improvement-010](../completed/tasks/improvement-010-advertisements-view-refresh-error-notification.md).
+  finally). `AdvertisementsView.java` now has the two-catch shape with a notification (fixed by
+  [improvement-010](../completed/tasks/improvement-010-advertisements-view-refresh-error-notification.md)).
   `TaxonManagementView.java:57-91` — single generic catch but does notify (partial).
-  `TimelineView.java:97-109` — single generic catch, no notification — **new, not yet tracked**;
-  same fix shape as improvement-010, worth folding into that issue's scope rather than filing
-  separately.
+  `TimelineView.java:97-109` — single generic catch, no notification — same fix shape as improvement-010.
 - No `refreshGrid`/`refreshData` naming variants found — fully compliant on naming
 - `ReferenceDataView.java` has no `refresh()` (pure tab container, out of scope)
 
@@ -162,9 +159,8 @@ children `"labeled-field__label"`/`"labeled-field__value"`) and `AdvertisementCa
 2. **`afterSave()` vs `proceed()`** — same shape: either rename the rule in `.claude/rules.md` to
    match the real method name, or decide `proceed()` should be renamed (higher-risk, touches 3 overlays).
 3. **`refresh()` two-catch-block shape** — genuine inconsistency (1/4 fully compliant), worth
-   fixing for real: `AdvertisementsView` (already tracked, improvement-010) and `TimelineView`
-   (not yet tracked — fold into improvement-010's scope) silently blank the screen instead of
-   showing validation errors.
+   fixing for real: `TimelineView` silently blanks the screen instead of showing validation
+   errors (`AdvertisementsView` was fixed by improvement-010).
 4. **CSS naming** — pick one convention (flat vs BEM) and decide whether the overlay family's BEM
    style should spread everywhere or be reverted to flat; the two mixed-within-one-file cases
    (`UiLabeledField`, `AdvertisementCardView`) are the clearest immediate cleanup candidates.

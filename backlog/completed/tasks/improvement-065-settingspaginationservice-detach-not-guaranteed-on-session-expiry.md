@@ -3,9 +3,9 @@
 **Type:** improvement — resource hygiene, follow-up to an already-fixed issue. Found via direct
 code review, verified against current source (2026-07-16).
 **Module:** `marketplace-app` (`ui/views/services/pagination/SettingsPaginationService.java`).
-**Priority:** 🔵 low-medium — a follow-up on top of a fix already shipped (improvement-018/ADR-028),
-not a fresh unaddressed area; genuine risk is real but narrower than a first-discovery leak.
-**When:** independent, no blockers.
+**Priority:** closed 2026-11-04, not a problem (was 🔵 low-medium — a follow-up on top of a fix already shipped (improvement-018/ADR-028),
+not a fresh unaddressed area; genuine risk is real but narrower than a first-discovery leak.)
+**When:** closed 2026-11-04, see `## Closure`.
 
 ## Problem
 
@@ -41,3 +41,29 @@ own session-lifecycle documentation before implementing either.
   bleed + the `DetachListener` safety net this issue questions the completeness of).
 - `backlog/completed/tasks/improvement-018-settings-pagination-cross-session-bleed.md` — the
   original issue ADR-028 resolved.
+
+## Closure (2026-11-04)
+
+Closed without a code change, after checking the Vaadin documentation and the code.
+
+- A UI is detached exactly once: after an explicit close, when its session closes or expires, or after three missed heartbeats, and the `DetachEvent` then reaches the components below it, including the `PaginationBar` this service listens on. Sources: [Application lifecycle](https://vaadin.com/docs/v25/flow/advanced/application-lifecycle.md), [lifecycle, latest](https://vaadin.com/docs/latest/flow/advanced/application-lifecycle).
+- When the whole browser is closed, heartbeats free nothing; the normal HTTP session timeout (30 minutes by default, `closeIdleSessions` is not set here) closes the session and its UIs. So the worst case is an entry living until the session expires, not a permanent leak.
+- While such an entry lives it is harmless: `onSettingsChanged` goes through `bar.getUI()`, which is empty for a detached component, so nothing runs.
+- A `SessionDestroyListener` would add nothing: by the time it is called the session's UIs are already removed.
+- The documentation does not state outright that every component's detach listener runs on every path; this conclusion rests on the UI lifecycle statements above, not on a test.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: n/a
+- haiku_decomposition_dispatch_count: n/a
+- haiku_decomposition_rework_needed: n/a
+- adrs_referenced: none
