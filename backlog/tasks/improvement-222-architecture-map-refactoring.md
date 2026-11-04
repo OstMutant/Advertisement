@@ -39,7 +39,7 @@ Further refactoring items are to be added here by the user.
 
 - [improvement-212](../completed/tasks/improvement-212-api-flow-runner-page.md) — where the question came up
 - [improvement-142](improvement-142-architecture-map-bounded-contexts-follow-ups.md) — earlier follow-ups of the Bounded Contexts diagram
-- [improvement-138](improvement-138-architecture-control-plane.md) — the architecture control plane this map belongs to
+- [improvement-138](../completed/tasks/improvement-138-architecture-control-plane.md) — the architecture control plane this map belongs to
 - `.claude/nav/adr-index.md` — the entries on the map's rendering moved Bounded Contexts from Mermaid to Cytoscape; this task continues in that direction and re-opens none of them
 
 ## Operational notes

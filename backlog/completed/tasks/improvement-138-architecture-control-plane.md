@@ -11,13 +11,39 @@ an AI-token-savings hypothesis) plus the absorbed `improvement-135` items 3/5 (t
 `check-architecture-model-freshness.sh`, a new ArchUnit exporter class next to
 `ArchitectureRulesTest`, `architecture-model.json` (generated artifact), `architecture-map.html`
 (generated artifact), `.claude/commands/sync-docs.md` (one new mapping-table row).
-**Priority:** 🔴 top — sequenced immediately after `improvement-137` (per explicit user request,
+**Priority:** closed 2026-11-04 (was 🔴 top) — sequenced immediately after `improvement-137` (per explicit user request,
 2026-08-04): "той план, який треба буде робити після 137 по пріоритету." Ranked ahead of
 `improvement-136` (paused, pending separate discussion).
-**When:** **Track A** — done (see `completed/tasks/improvement-138-architecture-control-plane-track-a.md`).
+**When:** closed 2026-11-04 — Track B shelved, see `## Closure`. **Track A** — done (see `completed/tasks/improvement-138-architecture-control-plane-track-a.md`).
 **Track B** — blocked on the absorbed item 5 governing rule below: does not start until item 3's
 real accumulated data shows a gap in the existing layer, or the user explicitly decides Track B
 itself is that evidenced-gap exception.
+
+## Planned — close improvement-138, Track B shelved (2026-11-04)
+
+Executed 2026-11-04.
+
+**Conclusion to record** (from 65 `## Operational notes` blocks, improvement-073 … improvement-226):
+- Item 3 has no verdict: `context_loading_consulted` yes 18 / no 16 / partial 1 / n/a 30,
+  `context_loading_matched` yes 14 / no 3 / n/a 48 — the layer is followed when read, but the tasks
+  that skipped it finished too, and no outcome metric (reads, tokens) was ever recorded to compare.
+- Track B's B2 cannot be measured: the main thread's token usage has no reporting tool; the
+  `token_cost_*` fields cover Agent calls only.
+- No documented discovery gap in `context-loading.md`/`flows.md`; item 5's rule therefore stands and
+  no new AI-navigation layer is added.
+- Reopen only on a documented context-discovery failure, or once a tool reports main-thread token usage.
+
+**Steps:**
+1. This file: add a `## Closure` section with the conclusion above, a `## Operational notes` block
+   (all `n/a`, `adrs_referenced: none`), set `**Priority:**`/`**When:**` to closed, fix its relative
+   links for the new directory (`../completed/tasks/…` → `…`), then `git mv` to `backlog/completed/tasks/`.
+2. `backlog/BACKLOG.md`: delete the priority-table row for 138 and the `### Top priority — improvement-138` section.
+3. `backlog/completed/BACKLOG-ARCHIVE.md`: append a `✅ Done (2026-11-04): improvement-138 closed — …` entry at the end.
+4. Repoint links to the moved file in `backlog/tasks/improvement-222-architecture-map-refactoring.md` (line 42)
+   and `backlog/tasks/improvement-142-architecture-map-bounded-contexts-follow-ups.md` (line 440) to `../completed/tasks/`.
+5. Run `bash docs/architecture/scripts/generate-architecture-model.sh` (the model reads the backlog), review its diff;
+   no `DECISIONS.md` touched, so no ADR-index regeneration and no `Applied` increments.
+6. `git add` only; no commit.
 
 ## Planned — absorb `improvement-135` items 3 and 5, close `improvement-135` (2026-08-28)
 
@@ -55,7 +81,7 @@ Executed 2026-08-28 — content absorbed as planned below.
 
 `improvement-135` validated the `.claude/nav/` layer built in `improvement-134`. Its items 1, 2,
 and 4 are done and stay recorded in the now-closed
-[`completed/tasks/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`](../completed/tasks/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md).
+[`completed/tasks/improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md`](improvement-135-ai-nav-layer-validation-and-adr-index-ci-check.md).
 Items 3 and 5 are copied here verbatim — this is the same open hypothesis as this issue's own
 Track B/B2 (does a token-minimal generated layer actually save tokens), just applied to the
 existing hand-authored `.claude/nav/` layer instead of a new one, and item 5's rule is what
@@ -799,7 +825,7 @@ Executed 2026-08-28 — content moved as planned below.
 **Track A is fully done.** Its full execution history (Module Dependencies/SPI Map/Database
 ERD/Bounded Contexts live migrations, all follow-up rounds, breadcrumb/back-button/toolbar fixes)
 moved to
-[`completed/tasks/improvement-138-architecture-control-plane-track-a.md`](../completed/tasks/improvement-138-architecture-control-plane-track-a.md)
+[`completed/tasks/improvement-138-architecture-control-plane-track-a.md`](improvement-138-architecture-control-plane-track-a.md)
 on 2026-08-28, per explicit user request to split done vs. not-done work. This issue stays open,
 scoped to Track B only (not started — see the 4 Verification findings above and §11's Track B
 description in the plan below).
@@ -833,3 +859,33 @@ without this file growing further.
 - `improvement-134` (completed) — the original `.claude/nav/` layer this plan's AI layer (§4) builds
   on top of, not replaces, until B2 proves otherwise.
 - `ArchitectureRulesTest.java` — the extraction engine this plan's exporter sits next to.
+
+## Closure (2026-11-04)
+
+Track B is shelved and the issue closed, on the evidence of 65 `## Operational notes` blocks
+(improvement-073 … improvement-226).
+
+- Item 3 has no verdict: `context_loading_consulted` yes 18 / no 16 / partial 1 / n/a 30,
+  `context_loading_matched` yes 14 / no 3 / n/a 48. The layer is followed when it is read, but the
+  tasks that skipped it finished too, and no outcome metric (reads, tokens) was recorded to compare.
+- B2 cannot be measured: the main thread's token usage has no reporting tool, and the `token_cost_*`
+  fields cover Agent calls only.
+- No documented discovery gap in `context-loading.md` or `flows.md`, so item 5's rule stands and no
+  new AI-navigation layer is added.
+- Reopen only on a documented context-discovery failure, or once a tool reports main-thread token usage.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: n/a
+- haiku_decomposition_dispatch_count: n/a
+- haiku_decomposition_rework_needed: n/a
+- adrs_referenced: none

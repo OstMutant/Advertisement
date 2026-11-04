@@ -98,7 +98,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 138 | improvement-138 — "Architecture Control Plane". **Track A completed 2026-08-04**, its full execution history archived to `completed/tasks/improvement-138-architecture-control-plane-track-a.md` on 2026-08-28. This issue's live scope is now **Track B** (ArchUnit contract/test model + AI-token-savings hypothesis, not started) plus **`improvement-135`'s absorbed items 3/5** (does the existing hand-authored `.claude/nav/` layer earn its cost — mechanism built, empirical answer pending real accumulated data; governing rule — no new `.claude/nav/*`-shaped content, including Track B, until that data shows a gap). `improvement-135` had nothing else still-open and is now closed (see `completed/BACKLOG-ARCHIVE.md`). **Self-gated — do not start until that data exists**, listed last in Top for this reason |
 | Top | 🟡 | 191 | improvement-191 — UI/UX Modernization Map, reconciled with improvement-188/096/129: a second external "UI/UX MODERNIZATION v2" directive verified accurate on its ArchUnit-boundary and Playwright-visual-QA claims, but its theme-baseline investigation duplicates improvement-188's already-answered "lean no" Aura finding and its AdvertisementCard/mobile scope overlaps improvement-129/096 — scoped down to the genuinely new parts (Query Block, Header/Tabs, surface system, typography, color, dialogs, Timeline, User UI, attachments, Provider Profile) plus the Map-then-approval process. `improvement-188` itself is now fully done (2026-09-17) — the wait on its Tasks C/D landing is satisfied. **Still waits on `improvement-129`'s open design questions being resolved** — sequenced after `improvement-198` for this reason |
 | Top | 🔵 | 222 | improvement-222 — Architecture map refactoring, first item: remove Mermaid from `architecture-map.html` (the Database ERD, the sequence-diagram group and README ` ```mermaid ` blocks are drawn by Mermaid today, the dependency graphs by Cytoscape); the template lives in `generate-architecture-model.sh`; further items to be added by the user |
 | Nice to have | — | 096, 129, 036, 065, 028, 133, 223, 172, 142, 177, 185, 197, 226, 215 | everything else — no internal priority order, pick up opportunistically |
@@ -106,12 +105,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-138
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-138](tasks/improvement-138-architecture-control-plane.md) | New (user-supplied task, 2026-08-04, "FINAL VISION v2" — supersedes an unseen `architecture-observability-vision.md` v1) | A generated, evidence-linked model of the repo (code, tests, pipelines, docs) read through two projections: a token-minimal AI layer (L0-L5) and a Cytoscape.js human visual explorer. **Track A** (visual control from already-structured sources) shipped, execution history archived to `completed/tasks/improvement-138-architecture-control-plane-track-a.md`. This issue's live scope is now **Track B** (ArchUnit-based contract/test-coverage model + the AI-token-savings hypothesis, gated by its own B2 "stop" measurement) plus **`improvement-135`'s absorbed items 3/5** (moved in 2026-08-28, since it's the same "does a nav layer save tokens" question, just for the existing hand-authored `.claude/nav/` layer instead of Track B's new generated one) — `improvement-135` had nothing else still-open and is now closed. **Self-gated by its own governing rule — do not start until the empirical token-savings data exists**, listed last in Top for this reason. See the issue file's "Absorbed from `improvement-135`" section for the live governing rule and pending measurement. |
 
 ### Top priority — improvement-191
 
