@@ -36,6 +36,13 @@ public class HeaderBar extends HorizontalLayout {
     private final transient I18nService          i18n;
     private final transient AuthContextService   authContextService;
 
+    @SuppressWarnings("java:S1450")
+    private Runnable onSettingsClosed = () -> { };
+
+    public void setOnSettingsClosed(Runnable onSettingsClosed) {
+        this.onSettingsClosed = onSettingsClosed;
+    }
+
     @PostConstruct
     protected void init() {
         addClassName("header-bar");
@@ -88,7 +95,7 @@ public class HeaderBar extends HorizontalLayout {
 
     private UiPrimaryButton createSettingsButton(Long userId) {
         UiPrimaryButton button = new UiPrimaryButton(i18n.get(HEADER_SETTINGS), VaadinIcon.COG.create());
-        button.addClickListener(_ -> accountOverlay.openForSettings(userId));
+        button.addClickListener(_ -> accountOverlay.openForSettings(userId, onSettingsClosed));
         button.addClassName("header-settings-button");
         return button;
     }

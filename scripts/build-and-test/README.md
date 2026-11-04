@@ -15,7 +15,7 @@ Entry point: [`run.sh`](run.sh).
 flowchart TD
     R[run.sh]
     R --> B{"reset-cache?"}
-    B -->|yes| B1["rm maven-cache<br/>volume"] --> C
+    B -->|yes| B1["rm scanner container,<br/>maven-cache and<br/>vaadin-cache volumes"] --> C
     B -->|no| C{"image missing or<br/>--rebuild-image or<br/>Dockerfile newer?"}
     C -->|yes| C1[docker build] --> E
     C -->|no| E[tar-pipe source in]
@@ -37,13 +37,13 @@ flowchart TD
 [`run.sh`](run.sh) reads [`build-and-test.properties`](build-and-test.properties)' own values as
 the baseline for whether unit/integration tests run, then a CLI flag overrides that baseline for
 one invocation only — see their own headers for the actual defaults and flag names. The build step
-always builds the whole reactor and always refreshes `marketplace-app.jar` in the shared volume
-regardless of which tests run — Maven's own incremental compilation makes a no-op rebuild cheap, so
+builds the whole reactor and refreshes `marketplace-app.jar` in the shared volume
+regardless of which tests run, unless `--no-install` skips it and tests against the jars an earlier build left in the shared volume — Maven's own incremental compilation makes a no-op rebuild cheap, so
 there's no separate "build-only" vs "full" mode to keep in sync.
 
 ## Environment notes
 
-The shared `.m2` lives entirely inside a Docker named volume (`maven-cache`), never bind-mounted
+The shared `.m2` lives entirely inside a Docker named volume (`maven-cache`, or the one `MAVEN_CACHE_VOLUME` names), never bind-mounted
 to the host's real `~/.m2` — a container build can never corrupt a developer's own local
 repository, and a developer's own local Maven runs are never affected by what happens inside this
 container. Concurrent `mvn` invocations across separate container instances running at the same

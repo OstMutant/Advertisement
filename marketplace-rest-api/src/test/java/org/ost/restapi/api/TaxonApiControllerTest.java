@@ -7,17 +7,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
+import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,12 +49,14 @@ class TaxonApiControllerTest {
     private static final Long ACTOR_ID = 10L;
 
     @Mock private TaxonCatalogService taxonCatalogService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
+    @Mock private SnapshotRestoreService snapshotRestoreService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new TaxonApiController(taxonCatalogService));
+        mockMvc = mockMvc(new TaxonApiController(taxonCatalogService, activityHistorySupport, snapshotRestoreService));
         authenticateAs(ACTOR_ID);
     }
 
@@ -146,6 +154,25 @@ class TaxonApiControllerTest {
                 .andExpect(jsonPath("$.name").value("Kyiv"));
     }
 
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.TAXON, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/taxons/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.TAXON), eq(7L), eq(5L), eq(TaxonSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/taxons/7/history/5")).andExpect(status().isNotFound());
+    }
+
     // ── update ──────────────────────────────────────────────────────────
 
     @Test
@@ -174,5 +201,68 @@ class TaxonApiControllerTest {
         doThrow(new AccessDeniedException("not privileged")).when(taxonCatalogService).softDelete(1L, ACTOR_ID, 0L);
 
         mockMvc.perform(delete("/api/taxons/1").header("If-Match", "\"0\"")).andExpect(status().isForbidden());
+    }
+
+    // ── restore ──────────────────────────────────────────────────────────
+
+    @Test
+    void restoreTaxon_returnsRestoredTaxon() throws Exception {
+        TaxonDto taxon = TaxonDto.builder().id(7L).type(TaxonType.CATEGORY).name("Plumbing").description("").build();
+        when(taxonCatalogService.findById(7L, Locale.ENGLISH)).thenReturn(Optional.of(taxon));
+
+        mockMvc.perform(post("/api/taxons/7/restore"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7));
+
+        verify(taxonCatalogService).restore(7L, ACTOR_ID);
+    }
+
+    @Test
+    void restoreTaxon_unknown_returnsNotFound() throws Exception {
+        doThrow(new NoSuchElementException("Taxon 7 not found")).when(taxonCatalogService).restore(7L, ACTOR_ID);
+
+        mockMvc.perform(post("/api/taxons/7/restore")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void restoreTaxon_notDeleted_returnsConflict() throws Exception {
+        doThrow(new TaxonNotDeletedException("Taxon 7 is not deleted")).when(taxonCatalogService).restore(7L, ACTOR_ID);
+
+        mockMvc.perform(post("/api/taxons/7/restore")).andExpect(status().isConflict());
+    }
+
+    // ── restoreFromSnapshot ──────────────────────────────────────────────
+
+    @Test
+    void restoreFromSnapshot_delegatesAndReturnsResource() throws Exception {
+        TaxonDto taxon = TaxonDto.builder().id(7L).type(TaxonType.CATEGORY).name("Plumbing").description("").build();
+        when(taxonCatalogService.findById(7L, Locale.ENGLISH)).thenReturn(Optional.of(taxon));
+
+        mockMvc.perform(post("/api/taxons/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7));
+
+        verify(snapshotRestoreService).restoreTaxon(ACTOR_ID, 7L, 5L, 3L);
+    }
+
+    @Test
+    void restoreFromSnapshot_missingIfMatch_isBadRequest() throws Exception {
+        mockMvc.perform(post("/api/taxons/7/history/5/restore")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void restoreFromSnapshot_unknownSnapshot_returnsNotFound() throws Exception {
+        doThrow(new NoSuchElementException("Snapshot 5 not found")).when(snapshotRestoreService).restoreTaxon(ACTOR_ID, 7L, 5L, 3L);
+
+        mockMvc.perform(post("/api/taxons/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void restoreFromSnapshot_staleVersion_returnsPreconditionFailed() throws Exception {
+        doThrow(new StaleWriteException("stale")).when(snapshotRestoreService).restoreTaxon(ACTOR_ID, 7L, 5L, 3L);
+
+        mockMvc.perform(post("/api/taxons/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isPreconditionFailed());
     }
 }

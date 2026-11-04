@@ -14,6 +14,7 @@ import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
+/** Audit snapshot for user settings, capturing changes to all page-size preferences. */
 @JsonTypeName("user_settings")
 @FieldNameConstants
 public record SettingsSnapshotDto(
@@ -21,13 +22,15 @@ public record SettingsSnapshotDto(
         int usersPageSize,
         int timelinePageSize,
         int providerProfilesPageSize,
+        int feedbackPageSize,
+        int moderationPageSize,
         int schemaVersion
 ) implements AuditableSnapshot {
 
     public static final int SCHEMA_VERSION = 1;
 
-    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize, int providerProfilesPageSize) {
-        this(adsPageSize, usersPageSize, timelinePageSize, providerProfilesPageSize, SCHEMA_VERSION);
+    public SettingsSnapshotDto(int adsPageSize, int usersPageSize, int timelinePageSize, int providerProfilesPageSize, int feedbackPageSize, int moderationPageSize) {
+        this(adsPageSize, usersPageSize, timelinePageSize, providerProfilesPageSize, feedbackPageSize, moderationPageSize, SCHEMA_VERSION);
     }
 
     @Override
@@ -44,6 +47,8 @@ public record SettingsSnapshotDto(
         diffField(changes, Fields.usersPageSize,            field(prev, SettingsSnapshotDto::usersPageSize),            usersPageSize());
         diffField(changes, Fields.timelinePageSize,         field(prev, SettingsSnapshotDto::timelinePageSize),         timelinePageSize());
         diffField(changes, Fields.providerProfilesPageSize, field(prev, SettingsSnapshotDto::providerProfilesPageSize), providerProfilesPageSize());
+        diffField(changes, Fields.feedbackPageSize,         field(prev, SettingsSnapshotDto::feedbackPageSize),         feedbackPageSize());
+        diffField(changes, Fields.moderationPageSize,       field(prev, SettingsSnapshotDto::moderationPageSize),       moderationPageSize());
         return changes;
     }
 
@@ -53,6 +58,8 @@ public record SettingsSnapshotDto(
                 new FieldChange(Fields.adsPageSize,              null, String.valueOf(adsPageSize())),
                 new FieldChange(Fields.usersPageSize,            null, String.valueOf(usersPageSize())),
                 new FieldChange(Fields.timelinePageSize,         null, String.valueOf(timelinePageSize())),
-                new FieldChange(Fields.providerProfilesPageSize, null, String.valueOf(providerProfilesPageSize())));
+                new FieldChange(Fields.providerProfilesPageSize, null, String.valueOf(providerProfilesPageSize())),
+                new FieldChange(Fields.feedbackPageSize,         null, String.valueOf(feedbackPageSize())),
+                new FieldChange(Fields.moderationPageSize,       null, String.valueOf(moderationPageSize())));
     }
 }

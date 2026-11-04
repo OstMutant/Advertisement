@@ -1,7 +1,7 @@
 # E2E Test Suite
 
 End-to-end tests that simulate real user scenarios against a live app + database.
-Tests are **serial and ordered** — each spec file depends on state left by the previous one.
+Every test creates the data it needs, with unique names, and checks only its own data — any test runs alone, in any order and in parallel.
 
 ---
 

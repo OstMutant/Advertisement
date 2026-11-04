@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: CI gate -- fails if the committed docs/architecture/data/architecture-model.json or
+# Description: Manual check -- fails if the committed docs/architecture/data/architecture-model.json or
 #   docs/architecture/architecture-map.html are stale (out of sync with what
 #   generate-architecture-model.sh would produce from current repo state). Backs both files up,
 #   regenerates in place, diffs, then restores the originals -- restore is guarded so an
@@ -11,7 +11,8 @@
 # Input: the committed architecture-model.json + architecture-map.html, plus everything
 #   generate-architecture-model.sh itself reads.
 # Outputs: an ERROR line naming which file is stale, if any; the committed files are backed up
-#   before and restored after, so a successful run leaves them byte-identical to how it found them.
+#   before and restored after, so a successful run leaves them byte-identical to how it found them,
+#   with mode 644.
 # Returns: 0 = up to date, 1 = stale (or the files don't exist yet).
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -37,6 +38,7 @@ cp "$HTML" "$BACKUP_HTML"
 restore_committed() {
   if [ -s "$BACKUP_JSON" ]; then mv -f "$BACKUP_JSON" "$JSON"; else rm -f "$BACKUP_JSON"; fi
   if [ -s "$BACKUP_HTML" ]; then mv -f "$BACKUP_HTML" "$HTML"; else rm -f "$BACKUP_HTML"; fi
+  chmod 644 "$JSON" "$HTML"  # mktemp makes 0600; the restored files must stay world-readable for the working-tree sync
 }
 trap restore_committed EXIT
 
@@ -47,7 +49,8 @@ bash "$REPO_ROOT/docs/architecture/scripts/generate-architecture-model.sh" > /de
 # unrelated reason between two freshness checks). Normalize it out of both copies before diffing,
 # same way the ncloc/complexity/etc. values themselves are still compared normally (those only
 # change when code actually changes).
-normalize() { sed -E 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' "$1"; }
+# The testReports and runLogs sections hold this machine's own runs, so they are dropped before diffing.
+normalize() { sed -E -e 's/"analysisDate": ?"[^"]*"/"analysisDate": "NORMALIZED"/' -e '/^  "(testReports|runLogs)": /d' "$1"; }
 
 stale=0
 if ! diff -q <(normalize "$BACKUP_JSON") <(normalize "$JSON") > /dev/null 2>&1; then

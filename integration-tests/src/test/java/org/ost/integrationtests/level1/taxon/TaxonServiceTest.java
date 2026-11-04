@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.taxon.model.TaxonNotDeletedException;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.taxon.config.TaxonAutoConfiguration;
 import org.ost.taxon.entities.Taxon;
@@ -18,6 +19,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -109,6 +111,35 @@ class TaxonServiceTest extends AbstractPostgresIntegrationTest {
         // reason the earlier version of this test (exact equality) proved flaky under real load.
         assertThat(afterUpdate.getUpdatedAt())
                 .isCloseTo(updated.getUpdatedAt(), within(1, java.time.temporal.ChronoUnit.MILLIS));
+    }
+
+    // ── restore ──────────────────────────────────────────────────────────────────
+
+    @Test
+    void restore_unknownTaxon_throwsNotFound() {
+        assertThatThrownBy(() -> taxonService.restore(999_999L, 99L))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    void restore_taxonNotDeleted_throwsConflictType() {
+        Taxon taxon = taxonRepository.save(Taxon.builder()
+                .type(TaxonType.CATEGORY).code("restore-not-deleted").build());
+
+        assertThatThrownBy(() -> taxonService.restore(taxon.getId(), 99L))
+                .isInstanceOf(TaxonNotDeletedException.class);
+    }
+
+    @Test
+    void restore_deletedTaxon_clearsDeletedAt() {
+        Taxon taxon = taxonRepository.save(Taxon.builder()
+                .type(TaxonType.CATEGORY).code("restore-clears-deleted-at").build());
+        taxonRepository.softDelete(taxon.getId(), 42L, taxon.getVersion());
+        assertThat(taxonRepository.findById(taxon.getId()).orElseThrow().getDeletedAt()).isNotNull();
+
+        taxonService.restore(taxon.getId(), 99L);
+
+        assertThat(taxonRepository.findById(taxon.getId()).orElseThrow().getDeletedAt()).isNull();
     }
 
     // ── validateTranslations (via create) ──────────────────────────────────────────

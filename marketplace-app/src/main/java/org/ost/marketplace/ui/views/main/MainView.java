@@ -22,19 +22,23 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryLongField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
+import org.ost.marketplace.ui.views.main.tabs.moderation.ModerationView;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProvidersView;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.ReferenceDataView;
 import org.ost.marketplace.ui.views.main.tabs.timeline.TimelineView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
+import org.ost.orchestrator.services.FeedbackAccessService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.TaxonCatalogService;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_MODERATION;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_PROVIDERS;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_TIMELINE;
@@ -59,8 +63,10 @@ public class MainView extends VerticalLayout {
     private final transient UserView usersView;
     private final transient TimelineView timelineView;
     private final transient ReferenceDataView referenceDataView;
+    private final transient ModerationView moderationView;
     private final transient AccessEvaluator access;
     private final transient I18nService i18n;
+    private final transient FeedbackAccessService feedbackAccessService;
     private final transient TaxonCatalogService taxonCatalogService;
     private final transient ProviderProfileReadService providerProfileReadService;
 
@@ -81,14 +87,16 @@ public class MainView extends VerticalLayout {
         tabsToPages.put(advertisementTab, advertisementsView);
         pendingDeepLinkCheckers.put(advertisementTab, advertisementsView::openPendingDeepLinkIfAny);
 
+        Tab providersTab = null;
         if (providerProfileReadService.isAvailable()) {
-            Tab providersTab = new Tab(i18n.get(MAIN_TAB_PROVIDERS));
+            providersTab = new Tab(i18n.get(MAIN_TAB_PROVIDERS));
             tabs.add(providersTab);
             pages.add(providersView);
             tabsToPages.put(providersTab, providersView);
             pendingDeepLinkCheckers.put(providersTab, providersView::openPendingDeepLinkIfAny);
             providersView.setVisible(false);
         }
+        final Tab providersTabForModeration = providersTab;
 
         if (access.canView()) {
             Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
@@ -103,6 +111,23 @@ public class MainView extends VerticalLayout {
             tabsToPages.put(timelineTab, timelineView);
             timelineView.setVisible(false);
 
+            if (feedbackAccessService.isAvailable()) {
+                Tab moderationTab = new Tab(i18n.get(MAIN_TAB_MODERATION));
+                tabs.add(moderationTab);
+                pages.add(moderationView);
+                tabsToPages.put(moderationTab, moderationView);
+                moderationView.setVisible(false);
+
+                if (providersTabForModeration != null) {
+                    Tab finalProvidersTab = providersTabForModeration;
+                    moderationView.setOnOpenProviderProfile(providerId -> {
+                        Tab previousTab = tabs.getSelectedTab();
+                        tabs.setSelectedTab(finalProvidersTab);
+                        providersView.openProfileOverlay(providerId, () -> tabs.setSelectedTab(previousTab));
+                    });
+                }
+            }
+
             if (taxonCatalogService.isAvailable()) {
                 Tab refDataTab = new Tab(i18n.get(MAIN_TAB_REFERENCE_DATA));
                 tabs.add(refDataTab);
@@ -114,7 +139,15 @@ public class MainView extends VerticalLayout {
 
         tabs.addSelectedChangeListener(_ -> {
             tabsToPages.values().forEach(page -> page.setVisible(false));
-            tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
+            Component selected = tabsToPages.get(tabs.getSelectedTab());
+            selected.setVisible(true);
+            if (selected == providersView) providersView.refreshOnTabSelect();
+            if (selected == moderationView) moderationView.refreshOnTabSelect();
+        });
+
+        // Settings is a modal overlay, not a tab -- closing it never fires tabs' own selection-change event.
+        headerBar.setOnSettingsClosed(() -> {
+            if (tabsToPages.get(tabs.getSelectedTab()) == providersView) providersView.refreshOnTabSelect();
         });
 
         headerBar.addClassName("main-header");

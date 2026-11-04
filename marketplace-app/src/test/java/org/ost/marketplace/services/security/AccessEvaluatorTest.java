@@ -120,7 +120,7 @@ class AccessEvaluatorTest {
         assertThat(accessEvaluator.getCurrentUserId()).isNull();
     }
 
-    // --- canOperate(Long ownerUserId) / canNotEdit / canNotDelete ---
+    // --- canOperate(Long ownerUserId) / canNotEdit ---
 
     @Test
     void canOperate_longOverload_admin_returnsTrue_regardlessOfOwnership() {
@@ -129,7 +129,6 @@ class AccessEvaluatorTest {
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isFalse();
-        assertThat(accessEvaluator.canNotDelete(TARGET_OWNER_ID)).isFalse();
     }
 
     @Test
@@ -139,7 +138,6 @@ class AccessEvaluatorTest {
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isTrue();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isFalse();
-        assertThat(accessEvaluator.canNotDelete(TARGET_OWNER_ID)).isFalse();
     }
 
     @Test
@@ -149,7 +147,6 @@ class AccessEvaluatorTest {
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isFalse();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isTrue();
-        assertThat(accessEvaluator.canNotDelete(TARGET_OWNER_ID)).isTrue();
     }
 
     @Test
@@ -158,7 +155,6 @@ class AccessEvaluatorTest {
 
         assertThat(accessEvaluator.canOperate(TARGET_OWNER_ID)).isFalse();
         assertThat(accessEvaluator.canNotEdit(TARGET_OWNER_ID)).isTrue();
-        assertThat(accessEvaluator.canNotDelete(TARGET_OWNER_ID)).isTrue();
     }
 
     // --- canViewUserAccount(Long targetUserId) ---
@@ -282,5 +278,22 @@ class AccessEvaluatorTest {
         loggedOut();
 
         assertThat(accessEvaluator.canEditRole(TARGET_OWNER_ID)).isFalse();
+    }
+
+    // --- canDeleteUserAccount(Long targetUserId) ---
+
+    @Test
+    void canDeleteUserAccount_delegatesToAuthorizationService() {
+        loggedInAs(ADMIN_USER);
+        when(authorizationService.canDeleteAccount(ADMIN_USER, TARGET_OWNER_ID)).thenReturn(true);
+
+        assertThat(accessEvaluator.canDeleteUserAccount(TARGET_OWNER_ID)).isTrue();
+    }
+
+    @Test
+    void canDeleteUserAccount_loggedOut_returnsFalse() {
+        loggedOut();
+
+        assertThat(accessEvaluator.canDeleteUserAccount(TARGET_OWNER_ID)).isFalse();
     }
 }

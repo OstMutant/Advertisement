@@ -13,3 +13,4 @@ organizational.
 | [`review/deep-review-orchestrator`](review/deep-review-orchestrator.md) | self-contained — see [`review/README.md`](review/README.md) for the full dispatch flow |
 | [`sonar/sonar-analyst`](sonar/sonar-analyst.md) | self-contained — see [`sonar/README.md`](sonar/README.md) for the full dispatch flow |
 | [`dagu/dagu-analyst`](dagu/dagu-analyst.md) | self-contained — see [`dagu/README.md`](dagu/README.md) for the full dispatch flow |
+| [`research/deep-researcher`](research/deep-researcher.md) | self-contained — see [`research/README.md`](research/README.md) for the full dispatch flow |

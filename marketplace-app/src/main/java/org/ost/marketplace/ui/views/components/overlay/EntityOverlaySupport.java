@@ -30,10 +30,6 @@ public class EntityOverlaySupport {
         return btn;
     }
 
-    public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
-        return createBreadcrumbButton(i18n.get(labelKey), onBack);
-    }
-
     // For a breadcrumb chain of arbitrary depth, e.g. "Home > Settings > Activity".
     public OverlayLayout createLayout(List<Component> breadcrumbLinks) {
         OverlayLayout layout = new OverlayLayout();

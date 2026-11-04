@@ -13,6 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.servlet.HandlerMapping;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.Base64;
@@ -34,8 +35,16 @@ public abstract class AbstractRestApiScenarioTest extends AbstractPostgresIntegr
 
     @BeforeEach
     void setUpRestApiScenario() {
+        ExercisedOperations.recordScenarioClass(getClass());
         TestDataCleaner.cleanAll(jdbcClient);
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).addFilters(springSecurityFilterChain).build();
+        // A request counts only when it reached a handler; a security rejection does not exercise an operation.
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).addFilters(springSecurityFilterChain)
+                .alwaysDo(result -> {
+                    Object pattern = result.getRequest().getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+                    if (pattern != null) {
+                        ExercisedOperations.recordRequest(result.getRequest().getMethod(), pattern.toString(), result.getResponse().getStatus());
+                    }
+                }).build();
     }
 
     protected record RegisteredUser(long id, String email, String password, String rawApiKey) {

@@ -15,7 +15,7 @@ Java package root: `org.ost.taxon`
 - `Taxon` entity + `TaxonCrudRepository` + `TaxonRepository` — soft-deletable taxonomy entries
 - `TaxonTranslation` entity + `TaxonTranslationRepository` — locale-keyed translations per taxon
 - `TaxonAssignment` entity + `TaxonAssignmentRepository` — many-to-many: (entity_type, entity_id) → taxon_id
-- `TaxonService` — CRUD taxon entries, soft-delete/restore, translation management
+- `TaxonService` — CRUD taxon entries, soft-delete/restore, translation management; `restore` throws `NoSuchElementException` for an unknown taxon and `TaxonNotDeletedException` (platform-commons) for one that is not deleted
 - `TaxonAssignmentService` — assign/unassign taxons to entities, batched lookup, usage counts
 - `DefaultTaxonPort` — implements `TaxonPort`; coordinates TaxonService + TaxonAssignmentService
 - `TaxonFilter` — value object for repository filter conditions (active / all / deleted)

@@ -10,11 +10,15 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.main.header.account.AccountNameFormModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.AccountNameViewModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.ProviderProfileFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.header.account.ApiKeysViewModeHandler;
 import org.ost.marketplace.ui.views.main.header.account.ProviderProfileViewModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.ProviderProfileCardView;
 import org.ost.marketplace.ui.views.main.tabs.providers.overlay.ProviderProfileCatalogViewModeHandler;
+import org.ost.marketplace.ui.views.components.ContactRevealPanel;
+import org.ost.marketplace.ui.views.components.FeedbackReplyPanel;
 import org.ost.marketplace.ui.views.components.EntityMetaPanel;
+import org.ost.marketplace.ui.views.components.FeedbackPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
@@ -30,8 +34,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Central registry of {@code UiComponentFactory<T, T.Parameters>} beans, one {@code @Bean} per
- *  {@code Configurable} prototype UI type. */
+/** Central registry of Spring-managed prototype UI component factory beans. */
 @Configuration
 public class ComponentFactoryConfig {
 
@@ -82,6 +85,21 @@ public class ComponentFactoryConfig {
     }
 
     @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ContactRevealPanel, ContactRevealPanel.Parameters> contactRevealPanelFactory(ObjectProvider<ContactRevealPanel> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<FeedbackPanel, FeedbackPanel.Parameters> feedbackPanelFactory(ObjectProvider<FeedbackPanel> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<FeedbackReplyPanel, FeedbackReplyPanel.Parameters> feedbackReplyPanelFactory(ObjectProvider<FeedbackReplyPanel> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
     public UiComponentFactory<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters> advertisementViewOverlayModeHandlerFactory(ObjectProvider<AdvertisementViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
@@ -108,6 +126,11 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<ProviderProfileViewModeHandler, ProviderProfileViewModeHandler.Parameters> providerProfileViewModeHandlerFactory(ObjectProvider<ProviderProfileViewModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<ApiKeysViewModeHandler, ApiKeysViewModeHandler.Parameters> apiKeysViewModeHandlerFactory(ObjectProvider<ApiKeysViewModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 

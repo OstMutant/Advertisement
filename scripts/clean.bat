@@ -81,6 +81,7 @@ if defined DO_BUILD (
         apikey-spring-boot-starter\target
         marketplace-orchestrator\target
         marketplace-rest-api\target
+        marketplace-mcp\target
         integration-tests\target
     ) do (
         if exist "%ROOT%%%d" (

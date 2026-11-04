@@ -20,6 +20,7 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -36,6 +37,7 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
         @NonNull Consumer<UserDto> onView;
         @NonNull Consumer<UserDto> onEdit;
         @NonNull Consumer<UserDto> onDelete;
+        @NonNull Predicate<UserDto> canDelete;
     }
 
     @Getter
@@ -86,6 +88,7 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
         grid.addColumn(new ComponentRenderer<>(user -> {
                     Button edit = new EditActionButton(getValue(USER_VIEW_BUTTON_EDIT), () -> p.getOnEdit().accept(user));
                     Button delete = new DeleteActionButton(getValue(USER_VIEW_BUTTON_DELETE), () -> p.getOnDelete().accept(user));
+                    delete.setVisible(p.getCanDelete().test(user));
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
                     layout.addClassName("user-grid-actions");
                     return layout;

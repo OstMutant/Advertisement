@@ -39,7 +39,7 @@ regression here except manual review or production data corruption.
 ## Approach
 
 Using `integration-tests`' existing Testcontainers Postgres setup, with a mocked/faulty
-S3 client (or a MinIO instance perturbed via the container, matching whatever this project's
+S3 client (or a SeaweedFS instance perturbed via the container, matching whatever this project's
 existing attachment integration tests already do for storage isolation):
 
 1. `AdvertisementSaveService`: test that a DB failure *after* the S3 move still leaves the system

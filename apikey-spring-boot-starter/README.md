@@ -13,9 +13,12 @@ was chosen over OAuth2 for this).
   every bearer-authenticated request; best-effort `last_used_at` touch on a successful resolve.
 - Listing (`listForActor`), revocation (`revoke`), and bulk cleanup (`deleteAllForActor`, called by
   `UserDeleteService` when the owning account is deleted), all scoped to a single actor's own keys.
+  `revoke` fails with not-found for an unknown or foreign key, and with an already-revoked error
+  (`ApiKeyAlreadyRevokedException`) for a key that is already revoked.
 - **SPI implementation:** `ApiKeyPort` (called by `marketplace-orchestrator`'s
   `ApiKeyManagementService`/`UserDeleteService`, which `marketplace-rest-api`'s `ApiKeyController`/
-  `ApiKeyAuthenticationFilter` go through — this starter is never imported directly by either).
+  `ApiKeyAuthenticationFilter` and `marketplace-app`'s account API keys tab go through — this starter
+  is never imported directly by any of them).
 
 ## Data flow
 
@@ -46,7 +49,8 @@ re-showing the secret), `label`, `created_at`, `last_used_at`, `revoked_at`.
 ## Dependencies
 
 - `platform-commons` — `ApiKeyPort`/`ApiKeySummaryDto`, in their own `apikey.spi`/`apikey.dto`
-  packages, matching every other domain with its own Maven starter module.
+  packages, and `ApiKeyAlreadyRevokedException` in `apikey.model`, matching every other domain with
+  its own Maven starter module.
 - No dependency on `user-spring-boot-starter` — `api_key.actor_id` carries no FK, so this
   starter's own Liquibase changelog can run against a database that has never seen
   `user-spring-boot-starter` at all.

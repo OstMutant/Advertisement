@@ -9,7 +9,7 @@ Automated E2E tests using `@playwright/test` (headless Chromium). See
 - Docker Desktop (Windows) or Docker Engine (Linux/WSL2)
 - App image already built and `marketplace-app` container created
   (`bash` [`scripts/deploy-and-run.sh`](../scripts/deploy-and-run.sh) once)
-- DB + MinIO containers running (started automatically by `deploy-and-run.sh`)
+- DB + SeaweedFS containers running (started automatically by `deploy-and-run.sh`)
 
 The `marketplace-app` container is started automatically if stopped. The database is reset
 automatically before each run — see "Database reset" below.
@@ -18,7 +18,7 @@ automatically before each run — see "Database reset" below.
 
 ```bash
 bash /app/playwright/run.sh                                 # all e2e tests
-bash /app/playwright/run.sh e2e                              # e2e suite (01–08), skips spec 06 seed
+bash /app/playwright/run.sh e2e                              # e2e suite, skips the --full blocks
 bash /app/playwright/run.sh e2e --full                       # e2e suite including spec 06 seed (~2 min extra)
 bash /app/playwright/run.sh --ux                              # all tests with screenshots
 bash /app/playwright/run.sh e2e --full --ux                   # full e2e suite with screenshots
@@ -32,6 +32,18 @@ After run:
 
 See [`run.sh`](run.sh)'s own header for what it does automatically (app readiness, DB reset,
 `pw-runner` container reuse).
+
+## Screenshot of any page
+
+```bash
+bash /app/playwright/run.sh --shot http://localhost:8082/ --shot-name dagu-home
+bash /app/playwright/run.sh --shot http://localhost:8082/dags/ci --shot-name dagu-start --shot-click Start
+```
+
+Saves a full-page PNG to `scripts/logs/playwright/shots/<name>.png` for a page outside the test
+suite, for example the Dagu web UI; `--shot-click` presses the first button with that visible name
+first, to capture the dialog it opens. It needs neither the application nor the database. See
+[`run.sh`](run.sh)'s own header and [`shot.js`](shot.js)'s own header for the details.
 
 ## Linting
 

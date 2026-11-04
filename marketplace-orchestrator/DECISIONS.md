@@ -2,6 +2,73 @@
 
 ---
 
+## ADR-011: Moderation queue implemented with SQL-level filter, sort, and pagination
+
+**Status:** Accepted
+
+**Context:** `FeedbackAccessService.findModerationQueue` merges/filters/sorts/pages entirely in
+memory, with a `MAX_QUEUE_FETCH=1000` cap per source query and an N+1 per-comment lookup for
+`entityId`. Every other catalog view (e.g. `AdvertisementRepository.findByFilter`) does this at
+the SQL level via `SqlFilterBuilder`/`OrderByBuilder`/`Pageable`.
+
+**Decision:** Moderation queue now uses the same SQL-level pattern. `FeedbackRepository` runs one
+`UNION ALL` CTE (feedback + comment rows, discriminated by `item_type`), resolving each comment's
+`entity_id` via a real `JOIN feedback` in the query itself — no per-comment query. `FeedbackPort`
+gained `findModerationQueue`/`countModerationQueue`, mirroring `AdvertisementPort.getFiltered`/
+`count`. `FeedbackAccessService` is now a thin delegate, resolving display `authorName`s only for
+the current page. `FeedbackService` gained an optional `ComponentFactory<UserPort>` field to
+resolve the `authorName` filter into a `Set<Long>` before querying — `feedback-spring-boot-starter`'s
+first cross-domain Port dependency, legal because it depends on the Port **interface**
+(`platform-commons`), not the starter **module** (banned by this starter's own Maven enforcer
+rule), the same distinction `AdvertisementService.resolveTaxonFilter` already relies on.
+`authorName` is no longer a sort option, matching the existing convention that no `*SortMeta` in
+this app sorts by a cross-domain display field.
+
+---
+
+## ADR-010: `ContactAccessService`/`AdvertisementOwnerProfileLookupService` split, and the `ContactService`→`ContactAccessService` rename
+
+**Status:** Accepted
+**Verified:** 2026-10-27
+**Applied:** 3
+
+**Context:** Resolving an advertisement's contact to its owner's provider-profile contact needs
+`ContactPort` plus, to resolve an ad's
+owner, `AdvertisementPort` + `ProviderProfilePort` — three domain ports for one use case, over
+this module's own ≤2-domain-port-per-class rule. The first version of this service was also named
+`ContactService`, which collided with `contact-spring-boot-starter`'s own internal
+`org.ost.contact.services.ContactService` (same default Spring bean name from two different
+packages), failing the app at startup with `ConflictingBeanDefinitionException`.
+
+**Decision:**
+1. Split into two classes, mirroring ADR-008's own "extract a `services.*` collaborator" shape:
+   `AdvertisementOwnerProfileLookupService` (`AdvertisementPort` + `ProviderProfilePort`, resolves
+   an ad's owner's provider profile id) and `ContactAccessService` (`ContactPort` + the lookup
+   service as a plain collaborator — find/save/recordView/countViewsThisMonth/delete/isAvailable,
+   plus `resolveContact()`). The lookup service, held as a plain collaborator field,
+   doesn't count against the ≤2-port rule — same shape `TaxonAssignmentWriteService` already has
+   for other save services.
+2. Named the resulting service `ContactAccessService`, not the bare `ContactService` a first pass
+   used — matching this module's own established convention that an orchestrator-level service
+   never reuses a starter's bare `<Domain>Service` name (`ProviderProfileSaveService`/
+   `ReadService`, never bare `ProviderProfileService`), and avoiding the real
+   `ConflictingBeanDefinitionException` the bare name triggered.
+3. The reveal use case lives in a third class, `ContactRevealService`, shared by the Vaadin UI and
+   the REST API: it counts every reveal attempt against a limit of 30 per 15 minutes per client
+   address (and viewer, when signed in), keyed by a plain string so this module stays
+   transport-agnostic; looks the channel up through `ContactAccessService.resolveContact` (so the
+   advertisement resolves to its owner's profile contact); records the view; and builds the messenger deep link
+   on the server. The UI panel and the REST controller only pass the viewer and the client address
+   in. `ContactAccessService.countProfileViewsThisMonth` resolves a profile's owner itself, so no
+   adapter repeats that lookup. Reveal and recording stay open to visitors who are not signed in,
+   as the UI always allowed; Viber has no documented link that opens a chat by phone number,
+   so the number is URL-encoded in the commonly used `viber://chat?number=%2B...` form, which still needs a check on a device.
+
+**Consequences:** `TooManyAttemptsException` carries the limiter's window, so the REST error mapping
+sets `Retry-After` from it instead of a fixed value.
+
+---
+
 ## ADR-009: `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal
 
 **Status:** Accepted
@@ -86,6 +153,8 @@ event reporting, not cross-domain composition.
 ## ADR-007: Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only
 
 **Status:** Accepted
+**Verified:** 2026-10-19
+**Applied:** 2
 
 **Context:** Mutating service/port methods across 4 domains (`AdvertisementPort`,
 `ProviderProfilePort`, `UserAccountPort`, `TaxonPort`) trusted `actingUserId` with no ownership/role
@@ -113,7 +182,37 @@ longer owns rule composition itself). Also closed a related bug found during imp
 `UserProfileService.save()` is the one write path for both name and role, but only the UI disabled
 the role field for unauthorized editors — server-side, nothing stopped a crafted request from
 self-escalating role. Fixed by requiring the stricter `canEditRole` check whenever `dto.role()`
-differs from the stored value.
+differs from the stored value. The read side follows the same rule: `AuditQueryService` and
+`ContactAccessService` take the acting user id and enforce the read rules through
+`AuthorizationService`, reusing `canOperate`/`isPrivileged` (no new predicates). A privileged user
+(administrator or moderator) sees every history entry and anyone else only the entries they
+authored, with the level derived from the role and never passed in by the caller; the global
+timeline requires a privileged user; a snapshot is readable by a privileged user, or by anyone else
+only when it appears in their own visible activity of that entity (snapshots carry no owner, so
+visibility of the entry stands in for ownership); contact view counts require the entity's owner,
+an administrator or a moderator. Revealing a contact and recording a view stay open to visitors who
+are not signed in. `AccessEvaluator` keeps deciding which controls to show.
+Restoring an entity to a recorded snapshot follows the same rule: `SnapshotRestoreService` reads the
+snapshot through `AuditQueryService` (so the read visibility applies) and saves the snapshot's
+values through the domain's normal save path, so validation, authorization and audit capture are
+those of an ordinary update and no separate restore permission exists. A restore requires the
+caller's current version (`If-Match`), and the audit entry is an ordinary update. The user restore
+changes name and role only; an advertisement's restore also returns its gallery to the snapshot's items when the snapshot recorded one.
+The feedback domain follows the same rule on its write side: `FeedbackWriteService` makes the caller
+the author of a review and allows an edit only of the caller's own review, and the starter refuses
+to flag a review or reply that is not NEW, so a moderator's confirmed verdict stays final; hidden
+entries are returned without text and rating to everyone, as the panel shows them; "not found" is a
+`NoSuchElementException`. The REST surface covers provider profiles only, because only they carry
+feedback in the UI.
+Moderation follows the same rule: reading the moderation queue and the hidden and confirmed-violation
+lists requires a privileged user, approving acts only on a flagged or confirmed-hidden entry and
+confirming a violation only on a flagged one, so the UI's buttons and the REST calls have the same
+limits. Permanent deletion of a flagged entry (reject) exists in the service but is not exposed: the
+UI has no such action.
+Gallery changes follow it as well: `AdvertisementMediaService` applies the edit-form rules to REST (the
+caller must be able to edit the advertisement, the attachment must belong to that advertisement, at
+most 10 items and 50 MB per file) and records every change as one entry on the advertisement's history,
+in one database transaction per request, exactly as a form save does.
 
 **Rejected alternatives:**
 1. Checks inside each of the 4 starters — reversed once grep confirmed the orchestrator is already
@@ -123,6 +222,10 @@ differs from the stored value.
    every `*Controller`) — cheaper, but leaves a residual gap for non-REST callers (a `@Scheduled`
    job, an event listener) an ArchUnit rule can't reach; rejected as the primary mechanism for a
    project heading toward public endpoints.
+3. Keeping the read rules in the UI and re-implementing them in each REST controller — two copies
+   drift, and a controller bug exposes data.
+4. A dedicated server-side restore permission or audit type — the restore is an update to earlier
+   values, so it needs the same rights as an update and records the same entry.
 
 **Consequences:** No `AdvertisementPort`/`ProviderProfilePort`/`UserAccountPort`/`TaxonPort`
 signature changes — `ProviderProfileSaveService.save()` dropped its untrusted
@@ -133,6 +236,10 @@ authorization — same residual gap option 2 already accepted; not closed now. N
 shared, localized notification (`I18nKey.COMMON_NOTIFICATION_ACCESS_DENIED`) instead of the
 exception's raw internal message — the first genuinely domain-agnostic notification string in this
 app's `I18nKey` enum, a deliberate exception to the per-view key-naming convention.
+`AuditQueryService`'s `getEntityActivity`, `getSnapshotContent`, `getTimelinePage` and
+`countTimeline`, and `ContactAccessService.countViewsThisMonth`, gained an acting-user parameter,
+and `getEntityActivity` lost its `showAll` flag; a non-privileged user's history of a settings
+record shows only their own entries.
 
 **Trigger to revisit:** If a non-orchestrator-mediated mutation caller is ever added, the residual
 authorization gap above becomes real and needs its own fix.
@@ -401,6 +508,7 @@ genuinely used for UI binding and remain a direct dependency.
 
 ## ADR-005: `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern
 **Status:** Accepted
+**Applied:** 1
 
 **Context:** ADR-004 kept `ActivityEnrichHookImpl` in `marketplace-app/spi`, reasoning its
 collaborator (`AdvertisementAuditEnrichService`) did real HTML-diff formatting rather than a
@@ -432,6 +540,13 @@ taking `CurrentLocaleHook`/`UiLabelHook` instead of `LocaleProvider`/`I18nServic
 `*Impl` class in its own `spi/` package — `CurrentLocaleHookImpl` (wraps `LocaleProvider`) —
 matching `UiLabelHookImpl`/`SessionActorHookImpl`'s existing shape; `UiLabelHookImpl` itself gains
 the four delegations.
+
+The forwarder implementations in `marketplace-app` serve both delivery channels. The REST API reaches
+them too (audit history labels, profile display data), so a forwarder never resolves a UI-scoped bean
+directly. The language is resolved by the orchestrator's own `CurrentLocaleService` (the UI session's
+language when the new `UiLocaleHook` forwarder answers inside a UI thread, otherwise the user's saved
+language, the request's `Accept-Language`, then English); `CurrentLocaleHook` was replaced by it, and the
+supported languages and the default come from `SupportedLocales` in `platform-commons`.
 
 **Consequences:** `marketplace-app`'s `services/advertisement/` package is now empty and removed —
 `AdvertisementSaveService` (ADR-001) and `AdvertisementAuditEnrichService` (this ADR) were its only

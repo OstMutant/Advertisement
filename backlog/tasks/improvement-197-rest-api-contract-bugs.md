@@ -1,4 +1,4 @@
-# improvement-197: REST API contract bugs — If-Match nullability, Link header missing path
+# improvement-197: REST API contract bugs — If-Match nullability, Link header missing path, author email on the public list
 
 **Type:** bug — REST API correctness
 **Module:** `marketplace-rest-api`, `advertisement-spring-boot-starter`, `provider-profile-spring-boot-starter`, `taxon-spring-boot-starter`
@@ -24,6 +24,8 @@ concerns — see each phase's failure scenario.
 `If-Match`'s documented "optional" contract actually behaves as documented, and RFC 8288 `Link`
 header navigation (this project's own chosen pagination mechanism, per `improvement-182`) actually
 points callers at the right resource.
+
+**Phase 1 is done.** Option (a) was taken: `If-Match` is required on the advertisement, provider profile, taxon and user `PUT`/`DELETE` (a missing header is a 400, a stale one a 412); the `*MatrixScenarioTest` classes in `integration-tests` cover both cases per operation. Phase 2 (the `Link` header path) is still open.
 
 ## Approach — Phase 1: omitting the optional `If-Match` header always fails, never succeeds
 
@@ -81,6 +83,8 @@ successful skip-version-check update, depending on which option is chosen).
 
 ## Approach — Phase 2: pagination `Link` header URLs are missing the resource path
 
+**Phase 2 is done** (fixed in the REST API during the MCP server work, 2026-10-31; the next-page link now carries the path and the filters).
+
 **Evidence.** Confirmed live against the running app (`curl`, 2026-09-17):
 ```text
 $ curl -D - "http://localhost:8081/api/advertisements?page=99999"
@@ -118,6 +122,8 @@ deployed servlet container, given this app's Vaadin+REST co-hosting) — if so, 
 needs to run against a real deployment (e.g. an `integration-tests` level3 REST scenario hitting a
 real embedded server), not `MockMvc` alone.
 
+**Update 2026-10-30 (MCP trial research):** reproduced again against the CI app on port 18081 (`GET /api/advertisements` answered `Link: <http://localhost:18081?page=1&size=20>; rel="next"`: no path, no filters). A likely cause: the list methods take a plain `UriComponentsBuilder` argument (`AdvertisementApiController.java` around line 113), which Spring fills without the request path; confirm during implementation. An MCP tool built on this endpoint cannot copy the raw `Link` header until it is fixed.
+
 **Recommended fix:** once root-caused, either construct the `UriComponentsBuilder` explicitly from
 the current request's real path (e.g. `ServletUriComponentsBuilder.fromCurrentRequest()`) instead of
 relying on Spring's auto-injection, or fix whatever is stripping the path from the auto-injected
@@ -127,6 +133,15 @@ instance.
 `"first"`/`"last"` cases) to assert the full URL, not just a `containsString` on the `rel` value —
 and add a real-deployment-level check (see above) since this exact bug already slipped past the
 MockMvc-only assertion once.
+
+## Approach — Phase 3: the public advertisement list returns the author's email (decided: intended, matches the UI)
+
+**Decided 2026-10-31:** the Vaadin UI shows the author's email as a tooltip on the card to every visitor, anonymous ones included, so the REST field stays public by design. Recorded in the REST list-endpoints ADR of `marketplace-app/DECISIONS.md`; no code change. The text below is the original evidence.
+
+
+**Evidence.** Found 2026-10-30 during the MCP trial research: an anonymous `GET /api/advertisements` returns `createdByUserEmail` for every item, while phone contacts go through a counted reveal (`ContactApiController`, the contact starter). Not verified whether the email exposure is a deliberate decision; check `marketplace-app/DECISIONS.md` and the advertisement response DTO first.
+
+**Decision needed before any change:** if it is not intended, drop the field from the public response (or return it only to the owner and to moderators), add a test that asserts the anonymous list has no email, and check the Vaadin side separately since it uses another DTO path. If it is intended, record why in the decision log so an agent or a client author does not report it again.
 
 ## Related
 

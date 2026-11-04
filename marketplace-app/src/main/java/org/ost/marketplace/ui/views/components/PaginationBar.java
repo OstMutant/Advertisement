@@ -115,6 +115,7 @@ public class PaginationBar extends HorizontalLayout implements I18nParams {
     }
 
     private void triggerCallback() {
+        updateUI();
         if (pageChangeListener != null) {
             pageChangeListener.accept(new PaginationEvent(currentPage, pageSize));
         }

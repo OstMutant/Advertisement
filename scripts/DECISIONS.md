@@ -2,6 +2,135 @@
 
 ---
 
+## ADR-017: AI dev containers (Claude Code, opencode) install their CLI with an explicit tag and `--engine-strict`; versions are Dockerfile ARGs, Node 24
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** `Dockerfile.claude` installed Node 20 and ran a bare `npm install -g
+@anthropic-ai/claude-code`. Claude Code 2.1.198 and later declare `engines.node >=22`; under
+Node 20 a bare-name install silently resolves the newest engine-compatible release (2.1.197) even
+though `latest` was 2.1.302 (verified with `npm install --dry-run` under Node 20.20.2 / npm
+10.8.2). An explicit tag (`@latest`, `@x.y.z`) installs the newest release under Node 20 with only
+an `EBADENGINE` warning, and `--engine-strict` turns that warning into a hard failure. The
+container runs with `docker run --rm`, so the in-container auto-updater's newer binary is
+discarded on every exit and each start runs the image's baked-in version; `claude.bat --update`
+also reused Docker's cached npm layer. Net effect: Sonnet 5.5 (needs Claude Code 2.1.284 or later)
+never appeared in `/model`, however often the image was rebuilt.
+
+**Decision:**
+- Versions are Dockerfile `ARG`s with defaults living only in `Dockerfile.claude`
+  (`BASE_IMAGE=eclipse-temurin:25-jdk-jammy`, `NODE_MAJOR=24`, `CLAUDE_CODE_VERSION=latest`,
+  `CLAUDE_CODE_REFRESH=0`), the same pattern `scripts/ci/Dockerfile` uses for its tool version.
+  `scripts/claude.bat` holds only the image/container names and passes a fresh
+  `CLAUDE_CODE_REFRESH` on `--update`; the `ARG` is declared after the apt layer, so only the
+  Claude Code layer rebuilds and the ~1 GB apt layer stays cached.
+- The install is `npm install -g --engine-strict @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}`
+  (explicit tag plus strict engines), so a Node/package mismatch fails the build loudly instead of
+  silently shipping an older release. `claude --version` is printed in the build log.
+- Node 24, not 22: both satisfy `engines.node >=22`, but 22's security support ends 2027-04-30
+  versus 2028-04-30 for 24.
+- `CLAUDE_CODE_VERSION` defaults to `latest` on purpose: a newly launched model can require a
+  Claude Code newer than the `stable` channel serves.
+- `Dockerfile.opencode` and `scripts/opencode.bat` follow the identical shape (`BASE_IMAGE`,
+  `NODE_MAJOR=24`, `OPENCODE_VERSION=latest`, `OPENCODE_REFRESH=0`, `opencode-ai@${OPENCODE_VERSION}`
+  with `--engine-strict`, `opencode --version` in the build log) — one decision for both
+  containers. `opencode-ai` declares no `engines` today, so `--engine-strict` is a no-op there that
+  keeps the two Dockerfiles interchangeable; the old Node 20 had left security support on 2026-04-30.
+
+**Rejected alternatives:**
+- Pinning the base image to a digest: recommended by Docker for supply-chain integrity, but this
+  is a dev tool container on a moving `jammy` tag and the upkeep outweighs the benefit.
+- A `docker-compose.claude.yml` with `build.args`: would move `claude.bat` from `docker
+  build`/`docker run` to compose for no gain.
+- Root `.env` as the version source: it feeds the compose deploy scripts, and parsing it in batch
+  is fragile.
+- The `stable` release channel, `DISABLE_AUTOUPDATER` (the in-container updater is harmless since
+  `--rm` discards it), and version overrides passed through `claude.bat` variables (a second
+  source of truth).
+
+**Consequences:** rebuilding always yields the newest Claude Code; bumping any version is a
+one-line `ARG` default change; a Node major below the package's `engines.node` breaks the build
+visibly; both containers are bumped and rebuilt the same way.
+
+**Sources:**
+- [Docker build best practices](https://docs.docker.com/build/building/best-practices/) — pin versions, version variables for easier bumps, `apt-get update` and `install` in one `RUN`
+- [Claude Code: install with npm](https://code.claude.com/docs/en/setup#install-with-npm) — npm package requires Node 22+, upgrade with `@latest`, specific version via `@x.y.z`, `stable` vs `latest` channels
+- [Node.js release schedule](https://endoflife.date/nodejs) — Node 22 and 24 support windows
+- [How to Build Docker Images with Cache Busting](https://oneuptime.com/blog/post/2026-01-30-docker-cache-busting/view) — third-party article, not official Docker documentation: `ARG` as a cache-bust value, declared as late as possible
+
+---
+
+## ADR-016: MinIO → SeaweedFS local dev/CI storage backend swap
+
+**Status:** Accepted
+
+**Context:** MinIO Community Edition's GitHub repo was archived upstream 2026-04-25 after a
+maintenance wind-down — license changed Apache 2.0 → AGPLv3 (2025-05), Admin GUI removed, Docker
+Hub publishing stopped. No further upstream security fixes will land on it. The project needed a
+replacement local S3-compatible storage backend for `scripts/deploy-and-run/`'s dev stack and
+`scripts/ci/dagu/ci.yaml`'s isolated e2e stack.
+
+**Decision:** Replaced MinIO with SeaweedFS (`chrislusf/seaweedfs` image) — Apache 2.0 licensed,
+actively maintained (36+ committers/12mo, 35.3k stars). `weed server -s3` runs
+master+volume+filer+S3-gateway as one process; `s3.json` identities (admin write + anonymous
+bucket-scoped read) generated inline at container startup from `.env`-sourced credentials, passed
+as real container environment variables (not embedded in the generating shell string, to avoid
+outer-shell substitution corrupting the JSON before escaping runs). Readiness is checked via the
+S3 gateway port alone (not the master's `/cluster/status` too) — a single readiness check,
+matching the same "one readiness mechanism, not two" principle `scripts/ci/DECISIONS.md` already
+established for a different service. A shared entrypoint script mounted via host-path bind mount
+was attempted first to avoid duplicating this logic between `run.sh`'s raw `docker run` path and
+`docker-compose.seaweedfs.yml`; reverted because host-path bind mounts don't work reliably in this
+sandbox — the same pre-existing constraint `scripts/ci/DECISIONS.md` documents for its own
+container-source-sync mechanism — so duplication between the two paths is accepted as a trade-off.
+
+**Rejected alternatives:** Garage (AGPLv3-licensed, far smaller community — 83 contributors total
+vs. SeaweedFS's active base) was considered and rejected on license + maintenance-activity
+grounds.
+
+---
+
+## ADR-015: `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out)
+
+**Status:** Accepted
+
+**Context:** `--in-container` (ADR-014's engine, undocumented decision of its own) runs a wrapped
+script inside a disposable `dev-shell` container via `scripts/utils/ensure-dev-shell.sh`/
+`sync-source.sh`, so a script's live state survives regardless of which shell triggered it. Three
+real, confirmed bugs made this unreliable: (1) `run.sh` used `exec docker exec ...` to invoke the
+inner run, which replaced the host process entirely and never returned control to copy results
+back out; (2) `sync_source_into`'s wipe-and-`git ls-files`-recreate never restores gitignored
+output directories (`scripts/logs/`, `playwright/pw-report/`, ...) since git tracks no files
+there, and `docker cp` can create only one missing leaf directory, not a multi-level missing
+path — silently dropping any script output written two or more levels under a freshly-wiped
+root; (3) OverlayFS (`dev-shell`'s container filesystem) can leave a just-written file's data in
+dirty pages not yet visible to a separate `docker cp` read issued immediately after the writing
+process exits — confirmed via two real runs where `docker cp` for one path silently returned
+nothing while an adjacent, near-identical `docker cp` in the same function succeeded.
+
+**Decision:** (1) `run.sh`'s `--in-container` branch drops `exec`, captures the inner `docker
+exec`'s real exit code, and calls a new `sync_artifacts_from_dev_shell`
+(`scripts/utils/sync-artifacts-from-dev-shell.sh`) before returning it — mirrors
+`scripts/ci/run.sh`'s own `sync_artifacts()` for the same class of problem. (2) `sync_source_into`
+now also runs a container-internal `docker exec "$container" mkdir -p .../scripts/logs
+.../playwright/pw-report ...` right after the wipe+extract — a container-internal `mkdir`, not a
+raw host-side one, so the WSL-bind-mount-unsafe finding does not apply. (3) `run.sh` runs `docker
+exec dev-shell sync` between the inner run finishing and the copy-out step, forcing OverlayFS to
+flush before `docker cp` reads.
+
+**Rejected alternative:** wrapping each `docker cp` in a blind retry loop — would mask the symptom
+without addressing why a fresh read can race a completed write; `sync` is the documented,
+deterministic primitive for this exact class of problem.
+
+**Consequences:** `--in-container` now reliably returns both the HTML/log artifacts and
+`tree.txt`/`raw.log` to the host after every run, confirmed via two real end-to-end runs (both
+`pw-report/index.html` and `scripts/logs/playwright/run.log` landing automatically, no manual
+`docker cp`).
+
+---
+
 ## ADR-014: Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool
 
 **Status:** Accepted

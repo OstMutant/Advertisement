@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
-// Named exception to the orchestrator's <=2-port rule: pure per-EntityType routing, no cross-port composition.
+/** Routes existence checks per EntityType to the appropriate domain port; allow-listed exception to the <=2-port composition limit. */
 @Service
 @RequiredArgsConstructor
 public class EntityExistenceService {
@@ -36,6 +36,7 @@ public class EntityExistenceService {
             case PROVIDER_PROFILE    -> providerProfilePortFactory.findIfAvailable()
                     .map(p -> p.findExistingIds(entityIds))
                     .orElse(Set.of());
+            case FEEDBACK, FEEDBACK_COMMENT -> Set.of();
         };
     }
 }

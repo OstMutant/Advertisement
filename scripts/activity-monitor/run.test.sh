@@ -228,7 +228,7 @@ mark_step "infra" "ok" "" ""
 STEP_COMPLETED_AT[infra]=$(( WRAPPER_START_TIME + 4 ))
 LAST_ACTIVITY_AT="$(date +%s)"
 tree_out="$(render_tree)"
-assert "completed step shows a real duration, not 0s" '[[ "$tree_out" == *"✅ Infra (DB/MinIO) (4s)"* ]]'
+assert "completed step shows a real duration, not 0s" '[[ "$tree_out" == *"✅ Infra (DB/SeaweedFS) (4s)"* ]]'
 assert "next undeclared step shows as running with a live elapsed counter" '[[ "$tree_out" == *"⏳ Build (running"* ]]'
 assert "a step further out in the sequence stays pending, no timer" '[[ "$tree_out" == *"⬜ Start container"* && "$tree_out" != *"⬜ Start container (running"* ]]'
 rm -rf "$WORK_DIR"
@@ -285,6 +285,82 @@ try_mechanical_format "Running 63 tests using 4 workers"
 try_mechanical_format "  ✓  1 some.spec.js:1:1 › whatever (1s)"
 assert "the live tally is never touched for a script other than playwright.sh" \
   '(( PW_TOTAL == 0 && PW_PASSED == 0 ))'
+
+# 17. real per-step duration from the producer -- parser reads stepDurationSeconds when present,
+# leaves it unset when absent, and the parallel-group render and the fallback both show the right value
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=(); STEP_DURATION=()
+CURRENT_SCRIPT_NAME="ci.sh"
+try_mechanical_format 'AGENTIC_SUCCESS_BLOCK: {"status":"success","currentStep":"unit","durationSeconds":900,"stepDurationSeconds":261}'
+assert "a success block's stepDurationSeconds is recorded as the step's real duration" '(( STEP_DURATION[unit] == 261 ))'
+try_mechanical_format 'AGENTIC_SUCCESS_BLOCK: {"status":"success","currentStep":"integration","durationSeconds":900}'
+assert "a success block without stepDurationSeconds leaves the real duration unset" \
+  '[[ -z "${STEP_DURATION[integration]:-}" ]]'
+
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=(); STEP_DURATION=()
+CURRENT_SCRIPT_NAME="ci.sh"
+WORK_DIR="$(mktemp -d)"
+WRAPPER_START_TIME=$(( $(date +%s) - 1500 ))
+mark_step "unit" "ok" "" "" 261
+mark_step "e2e" "ok" "" "" 1441
+STEP_COMPLETED_AT[unit]=$(( WRAPPER_START_TIME + 1450 ))
+STEP_COMPLETED_AT[e2e]=$(( WRAPPER_START_TIME + 1450 ))
+tree_out="$(render_tree)"
+assert "two parallel steps finishing together each show their own real duration (4m21s)" '[[ "$tree_out" == *"(4m21s)"* ]]'
+assert "two parallel steps finishing together each show their own real duration (24m1s)" '[[ "$tree_out" == *"(24m1s)"* ]]'
+assert "parallel steps with real durations never show a misleading (0s)" '[[ "$tree_out" != *"(0s)"* ]]'
+rm -rf "$WORK_DIR"
+
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=(); STEP_DURATION=()
+CURRENT_SCRIPT_NAME="deploy-and-run.sh"
+WORK_DIR="$(mktemp -d)"
+WRAPPER_START_TIME=$(( $(date +%s) - 10 ))
+mark_step "infra" "ok" "" ""
+STEP_COMPLETED_AT[infra]=$(( WRAPPER_START_TIME + 4 ))
+tree_out="$(render_tree)"
+assert "a step without a real duration keeps the wall-clock value (4s)" '[[ "$tree_out" == *"✅ Infra (DB/SeaweedFS) (4s)"* ]]'
+rm -rf "$WORK_DIR"
+
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=(); STEP_DURATION=()
+CURRENT_SCRIPT_NAME="ci.sh"
+WORK_DIR="$(mktemp -d)"
+WRAPPER_START_TIME=$(( $(date +%s) - 1500 ))
+mark_step "unit" "ok" "" "" 261
+mark_step "e2e" "ok" "" "" 1441
+STEP_COMPLETED_AT[unit]=$(( WRAPPER_START_TIME + 1450 ))
+STEP_COMPLETED_AT[e2e]=$(( WRAPPER_START_TIME + 1450 ))
+SCRIPT_STEP_SEQUENCE[ci.sh]="unit e2e"
+record_step_history
+unset 'SCRIPT_STEP_SEQUENCE[ci.sh]'
+history_unit_line="$(printf 'unit\t261')"
+history_e2e_line="$(printf 'e2e\t1441')"
+assert "history records the real unit duration, not the parallel-skewed baseline" \
+  'grep -qxF "$history_unit_line" "$WORK_DIR/history.tsv"'
+assert "history records the real e2e duration" \
+  'grep -qxF "$history_e2e_line" "$WORK_DIR/history.tsv"'
+rm -rf "$WORK_DIR"
+
+# 18. a finished member of a still-running parallel group keeps its real status icon
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=(); STEP_DURATION=()
+CURRENT_SCRIPT_NAME="ci.sh"
+WORK_DIR="$(mktemp -d)"
+WRAPPER_START_TIME=$(( $(date +%s) - 100 ))
+mark_step "unit" "ok" "" "" 61
+tree_out="$(render_tree)"
+assert "a finished parallel member shows its done icon and duration while siblings still run" \
+  '[[ "$tree_out" == *"✅ Unit tests (1m1s)"* ]]'
+rm -rf "$WORK_DIR"
+
+# 19. a skipped step carries its own real duration instead of the gap since the previous completion
+STEP_ORDER=(); STEP_STATUS=(); STEP_REASON=(); STEP_POINTER=(); STEP_COMPLETED_AT=(); STEP_DURATION=()
+CURRENT_SCRIPT_NAME="ci.sh"
+WORK_DIR="$(mktemp -d)"
+WRAPPER_START_TIME=$(( $(date +%s) - 500 ))
+try_mechanical_format 'AGENTIC_SKIP_BLOCK: {"status":"skipped","currentStep":"e2e","durationSeconds":400,"stepDurationSeconds":0}'
+STEP_COMPLETED_AT[e2e]=$(( WRAPPER_START_TIME + 434 ))
+tree_out="$(render_tree)"
+assert "a skipped step shows its own real duration (0s), not the wall-clock gap" \
+  '[[ "$tree_out" == *"⏭️ E2E (Playwright) (0s)"* ]]'
+rm -rf "$WORK_DIR"
 
 echo ""
 echo "passed: $PASS, failed: $FAIL"

@@ -90,37 +90,39 @@ the script's own header for the exact output/exit-code contract.
 
 ## Isolation
 
-The e2e stage runs its own `ci-advertisement-db`/`ci-advertisement-minio`/`ci-marketplace-app`
-containers on different host ports (15432/19000-19001/18081) and a separate Docker network
+The e2e stage runs its own `ci-advertisement-db`/`ci-advertisement-seaweedfs`/`ci-marketplace-app`
+containers on different host ports (15432/19000/19333/18081) and a separate Docker network
 (`ci-advertisement`) from the persistent dev stack — safe to run concurrently with normal dev work.
-They're left running after the run by default, for debugging (`--no-keep-e2e-infra` to tear them
-down instead). Since the containers (and their DB/MinIO volumes) can persist across runs, the
+They're left running after the run by default, for debugging (`--teardown-e2e-after` to tear them
+down instead). Since the containers (and their DB/SeaweedFS volumes) can persist across runs, the
 stage's own deploy always applies `--reset-only-db` first (fast truncate — clears leftover data
-from a prior run without touching the schema/migration history) unless `--reset-e2e-db` asks for a
+from a prior run without touching the schema/migration history) unless `--reset-e2e-stack` asks for a
 full `--reset` instead (only needed when the DB schema itself changed since the stack was last
-brought up). The
+brought up). The stage deploys with `--dev-tools`, so the API flow runner page spec runs there instead of
+skipping itself. The API collection flows for every role (REST and MCP) run in their own `api_flows` stage on a second isolated stack
+(`ci-api-*` containers and network, ports 25435/29001/29334/28081), in parallel with e2e and every other stage; the stage always removes that stack when it ends, and a failure of it fails the run. The
 `integration` stage always applies the Testcontainers sandbox workaround internally (not a
 toggleable flag) — `ci-runner`'s own Docker-outside-of-Docker nature hits the same
 dynamically-assigned-port problem regardless of host machine.
 
+`--reset-ci-cache` (Dagu parameter `reset_ci_cache`, a checkbox in the "Start" dialog) wipes the CI's own build caches, the volumes `ci-maven-cache` (Maven dependencies and built jars) and `ci-vaadin-cache` (Node.js for the Vaadin build), and removes the `sonar-scanner-ci` container that mounts the first one, before the build. It does not wipe `ci-test-reports` (test results) or `ci-dagu-home` (run history). It is off by default, and the next run then downloads the dependencies and Node.js again.
+
 ## Can I develop and run the app/tests myself while this runs?
 
 Yes — genuinely, not just "probably fine":
-- Maven dependency caching uses `ci-m2-cache`, a Docker-managed named volume mounted only inside
-  the container — completely separate from your own `~/.m2`. No shared state, no race.
-  `integration-tests` always spins up its own ephemeral Postgres via Testcontainers regardless.
+- The `build`/`unit`/`integration`/`sonar` steps' own Maven builds run through `scripts/build-and-test.sh`, which — via `ci-runner`'s Docker-outside-of-Docker access to the host socket — spins up a separate nested build container. `scripts/ci/dagu/ci.yaml` gives every step the CI's own volumes (`ci-maven-cache`, `ci-vaadin-cache`, `ci-test-reports`), its own build and scanner container names (`advertisement-build-only-ci-build`, `advertisement-build-only-ci-sonar`, `sonar-scanner-ci`) and, for the Sonar stage's own tests, its own Postgres port (25434; the `integration` stage uses 25433, manual runs 25432). The `ci-m2-cache` volume mounted into `ci-runner` itself is not touched by these steps. A manual build or test run can therefore go beside a CI run: it cannot replace the jars or reports of the CI run and cannot remove its containers. The one thing both share is the SonarQube server and its project `advertisement`: do not run the CI Sonar stage and a manual `sonar.sh` at the same time. The first run after a cache volume is created downloads every dependency. Inside the CI, parallel steps still share the CI's volumes: `scripts/build-and-test/build.sh` takes a lock file inside `/root/.m2` to serialize concurrent `mvn` invocations, so two builds queue rather than race. `integration-tests` always spins up its own ephemeral Postgres via Testcontainers regardless.
 - The e2e stage's `ci-*` stack (see "Isolation" above) never touches the persistent dev stack's
   containers, ports, network, or database.
 
 **The one real, observed limit is CPU/RAM contention, not data isolation.** Running the e2e stage
-alongside a full dev stack (app + db + minio + `pw-runner`) *and* SonarQube simultaneously caused
+alongside a full dev stack (app + db + seaweedfs + `pw-runner`) *and* SonarQube simultaneously caused
 genuine Playwright timeout flakiness on this project's own constrained sandbox — confirmed
 directly, not theoretical. On a normal, less constrained dev machine this is much less likely to
 bite, but it's a real resource limit, not a design flaw to "fix" — see
 [`DECISIONS.md`](DECISIONS.md) for the full writeup.
 
-**Two `--e2e` runs at once will collide with each other** — the isolated stack's container/network
+**Two `--e2e` runs at once, or two `--api-flows` runs at once, will collide with each other** — the isolated stack's container/network
 names (`ci-advertisement-db`, etc.) are fixed, not unique per run. Sequential CI runs, or one CI
-run alongside normal dev work, are both fine; two concurrent e2e stages are not.
+run alongside normal dev work, are both fine; two concurrent e2e stages (or two api_flows stages) are not.
 
 See [`DECISIONS.md`](DECISIONS.md) for the full design rationale.

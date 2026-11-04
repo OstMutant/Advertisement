@@ -1,5 +1,98 @@
 # `.claude/` — Architectural Decisions
 
+## ADR-005: `/optimize` reuses `deep-review-orchestrator` with a selectable lens instead of its own review pipeline
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** Nothing in the project looks for code that need not be maintained, measures what removing it would save, or keeps the results between sessions. `/deep-review` finds design problems and verifies each one, but it never edits code, does not measure and files every finding as its own task. The built-in `simplify` skill and `/code-review --fix` look only at the latest diff and apply fixes at once, with no ranking, no measurement and no approval per batch. Removable code found so far sits in the deferred-findings collection without an estimate of what each entry would save.
+
+**Decision:** One command, `/optimize` (a command file with its helper script in the folder of the same name), with four modes chosen by its first argument: discover (read-only), report, apply and verify. Discovery adds one read-only lens, `code-reduction-reviewer`, that estimates the saving of each finding and lists the ideas it rejected; it runs through `deep-review-orchestrator`, which gets three optional prompt inputs (`lenses:`, `exclude:`, `output: json`) and a `path <dir>` scope, so the orchestrator's Haiku verification, cross-file pass and backlog cross-check are reused unchanged and `/deep-review` behaves as before when no option is given. Findings, rejected ideas and the log of what each run inspected live in one standing backlog inventory. Measuring a batch and checking its hard rules (nothing under `marketplace-orchestrator/`, no new dependency, no reflection) is done by a plain script without a model call; applying a batch uses the Approval Rule, the per-unit Haiku dispatch of `/autopilot` and the smallest tests first, and stops after every batch. The command carries `disable-model-invocation: true` so only the user starts it.
+
+**Rejected alternatives:** A separate review pipeline for `/optimize` (duplicates the verification, the cross-file pass and the backlog check the orchestrator already has). A mode of `/deep-review` (mixes a read-only design review with a measure-and-apply workflow, and `/deep-review` is meant to stay a thin wrapper). Extending the DRY, KISS and YAGNI lens (that lens gives a design verdict, while this work needs estimates and a different output). OpenRewrite as a standing part (Lombok is already used in about 176 files, so the yield is small, and it ties the command to the build; kept as a possible one-off experiment). SonarQube duplication data as a starting point (a Java duplicate is counted only from 10 repeated statements, and it needs one more toolset of the Sonar agent). PMD CPD (the same coarse token-based duplication, plus a new tool).
+
+---
+
+## ADR-003: `/autopilot` step 2 and `/sync-docs` diff-mode apply the standing per-unit Haiku-dispatch rule, with rework-rate metrics to validate it
+
+**Status:** Accepted
+
+**Context:** `/deep-review`'s step-4 verification and `/sync-docs --full-audit`'s Step A3 research
+agents already dispatch on `model: "haiku"`, but neither `/autopilot`'s own implementation phase
+(step 2) nor `/sync-docs`'s default diff-mode had any Haiku-dispatch guidance at all — step 2
+always implements directly on the inherited model, and diff-mode's Javadoc/pom.xml/infra-header
+checks (the same mechanical per-file shape full-audit's Step A3 already proved cheap to
+parallelize) were never split out. An earlier draft of this decision gated both behind an invented
+numeric threshold (3+ independent units for autopilot, 8+ files for sync-docs) — re-checking
+against this project's own standing "Well-specified mechanical implementation work defaults to a
+Haiku-model agent" rule (`.claude/rules.md`) found that rule carries no count or size threshold at
+all: it applies per-unit, to even a single fully-specified change, as soon as the exact before/after
+is known with no open judgment call. The invented thresholds contradicted that existing rule rather
+than extending it, so they were dropped before this ADR was finalized. No real operational data
+existed yet either way for the general case (checked `backlog/completed/tasks/` for prior
+`## Operational notes` blocks from autopilot runs — none exist, the convention is too new) —
+settling the threshold question with real evidence, rather than an invented number, is exactly
+what this decision's own new metrics (below) are for.
+
+**Decision:**
+1. `/autopilot` step 2 applies the standing Haiku-dispatch rule to each unit of step 1's plan
+   individually, with no count or size gate: if a given file-level fix's exact before/after is
+   already known with no open judgment call, it's dispatched to Haiku — true even for a single
+   such unit. When multiple exist, group dispatches by file/module (same-file fusion, mirroring
+   `deep-review-orchestrator`'s step 4) as a batching optimization, never as a precondition for
+   using Haiku at all. A single cohesive design requiring continuous judgment across files (the
+   common single-feature `/autopilot` case) is still implemented directly — that case was never
+   Haiku-eligible under the standing rule either, threshold or not.
+2. `/sync-docs` diff-mode applies the same per-file dispatch, no file-count gate — mirrors Full
+   Audit Mode's own Step A3, which likewise never gated its own Haiku dispatch on volume.
+3. Three new fields added to `.claude/rules.md`'s standing `## Operational notes` block —
+   `haiku_decomposition_used`, `haiku_decomposition_dispatch_count`,
+   `haiku_decomposition_rework_needed` — so real evidence accumulates over time on whether
+   per-unit dispatch (no threshold) is actually safe in practice (a high rework rate would be
+   evidence *for* reintroducing a real, data-backed threshold) rather than relying on intuition or
+   an invented number. Aggregated by `/sync-docs --full-audit`'s existing Step A5, same as
+   `review_signal_ratio`.
+
+**Rejected alternatives:** An invented numeric threshold (3+ units / 8+ files) gating whether Haiku
+gets used at all — rejected because it contradicted the existing standing Haiku-dispatch rule's
+own, already-settled criterion (fully specified → Haiku, no threshold), and because no real data
+justified picking those specific numbers over any other. If a real threshold turns out to be
+warranted, this decision's own new metrics are what should justify it later — not another guess.
+
+## ADR-004: Per-task ADR usage tracking, counted in each ADR's own `**Applied:**` line
+
+**Status:** Accepted
+
+**Applied:** 2
+
+**Context:** `.claude/nav/adr-index.md` already tracks each ADR's existence, module, status, and
+an opportunistically-stamped `Verified:` date — but nothing tracked whether an ADR is actually
+*used* in real work. Without that it is impossible to tell which ADRs are load-bearing (worth
+keeping precise and current) from ones nobody has applied since they were written. The first
+attempt tallied a free-form `adrs_referenced:` field from every task file at generation time; it
+never produced a non-zero count, because the `## Operational notes` block was written once, at
+task end, from memory, and a blank field read the same as an unused ADR.
+
+**Decision:**
+1. The `## Operational notes` block (`.claude/rules.md`) exists from the moment a task is created
+   and is updated during the work. Its `adrs_referenced: <ADR-NNN (module), ... or none>` line lists
+   every ADR that actually shaped a decision in that task (merely reading one does not count), in
+   the exact key shape `adr-index.md`'s first column uses.
+2. The counter lives in the ADR: an optional `**Applied:** N` line after `**Status:**`.
+   `/record-decision` writes `**Applied:** 1` into a new ADR (its creating task is the first to
+   apply it). Whoever closes a task adds 1 to the `**Applied:**` of every ADR in its
+   `adrs_referenced`, except an ADR that task itself created; where the line is absent it is added
+   as `**Applied:** 1`. One count per task, however often the ADR is cited.
+3. `generate-adr-index.sh` only collects `**Applied:**` into the index's `Applied` column — blank
+   when the line is absent, never 0 — and the architecture-map generator shows the same value, so
+   the map fills in gradually and truthfully. Tasks closed before this decision are not backfilled.
+
+**Rejected alternatives:** Tallying `adrs_referenced` across task files inside
+`generate-adr-index.sh` — depends on a free-form field being filled in correctly, and a typo
+silently counts as zero. A separate usage log or second index file — a second source of truth next
+to the existing index.
+
 ## ADR-002: Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents
 
 **Status:** Accepted

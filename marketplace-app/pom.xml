@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: main Vaadin application; the only module with UI code, assembling the domain starters, the orchestrator, the REST API and the MCP server. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -33,6 +34,10 @@
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>marketplace-rest-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>marketplace-mcp</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

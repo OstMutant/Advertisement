@@ -8,6 +8,7 @@ import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.model.Role;
+import org.ost.platform.user.spi.UserPreferencesPort;
 import org.ost.user.config.UserAutoConfiguration;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserPreferencesRepository;
@@ -33,6 +34,9 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private UserPreferencesRepository preferencesRepository;
+
+    @Autowired
+    private UserPreferencesPort userPreferencesPort;
 
     @Autowired
     private UserRepository userRepository;
@@ -117,6 +121,22 @@ class UserPreferencesRepositoryTest extends AbstractPostgresIntegrationTest {
         preferencesRepository.updateLocale(actorId, "uk");
 
         assertThat(preferencesRepository.findLocaleByActorId(actorId)).isEqualTo("uk");
+    }
+
+    @Test
+    void findLocale_neverChosen_isEmpty() {
+        Long actorId = createTestUserWithPreferences();
+
+        assertThat(userPreferencesPort.findLocale(actorId)).isEmpty();
+    }
+
+    @Test
+    void findLocale_afterUpdateLocale_returnsTheSavedTag() {
+        Long actorId = createTestUserWithPreferences();
+
+        userPreferencesPort.updateLocale(actorId, "uk");
+
+        assertThat(userPreferencesPort.findLocale(actorId)).contains("uk");
     }
 
     @Test

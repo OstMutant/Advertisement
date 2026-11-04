@@ -7,7 +7,7 @@ any of them. No business logic lives here — only the shapes other modules agre
 ## What it provides
 
 - **`core.*`** — cross-cutting types shared by every module: `ComponentFactory` (top-level),
-  `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`), `core.config`
+  `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`, `SupportedLocales`), `core.config`
   (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`).
 - **`audit.*`** — the audit subsystem's contracts: `audit.api` (`AuditableSnapshot`), `audit.dto`
   (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`,
@@ -21,7 +21,8 @@ any of them. No business logic lives here — only the shapes other modules agre
   `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`,
   `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`),
   `user.model` (`Role`).
-- **`apikey.*`** — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`).
+- **`apikey.*`** — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`), `apikey.model`
+  (`ApiKeyAlreadyRevokedException`).
 - **`advertisement.*`** — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto`
   (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`,
   `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`).

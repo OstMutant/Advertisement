@@ -42,7 +42,7 @@ mutating action seems like it would help, say so and ask, rather than doing it.
 ## What to report
 
 - **Run status** — which DAG run (latest, or a specific one if asked), overall
-  PASSED/FAILED/RUNNING, and per-stage breakdown (`unit`/`integration`/`e2e`/`sonar`/
+  PASSED/FAILED/RUNNING, and per-stage breakdown (`unit`/`integration`/`e2e`/`api_flows`/`sonar`/
   `archunit_metrics`/`docs`) with which stage failed if any did.
 - **Logs** — for a specific failed stage, the relevant error output, not the entire raw log.
 - **DAG definition** — current `scripts/ci/dagu/ci.yaml` structure, if asked about the pipeline

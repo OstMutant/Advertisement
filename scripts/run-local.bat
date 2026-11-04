@@ -2,10 +2,10 @@
 REM ---------------------------------------------------------------------------
 REM Description: Runs the application locally via Maven, no Docker image rebuild -- dev profile
 REM   (Vaadin dev mode) by default, or a production Vaadin build + prod profile with --prod.
-REM   Requires DB and MinIO already running separately.
+REM   Requires DB and SeaweedFS already running separately.
 REM Usage: scripts\run-local.bat [--prod] [custom-JAVA_HOME-path]
 REM   --prod           production Vaadin build (mvnw clean package -DskipTests), prod Spring
-REM                     profile, port 8080 with hardcoded local DB/MinIO credentials
+REM                     profile, port 8080 with hardcoded local DB/SeaweedFS credentials
 REM   (no --prod)      dev profile, Vaadin dev mode, port 8080
 REM   <path>           override JAVA_HOME (default D:\Program Files\Java\jdk-25) for either mode
 REM Uses: cmd.exe, mvnw.cmd, java.

@@ -38,7 +38,7 @@ bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground [flags...]
 # A command not on the agentic-output.sh contract still works, fully model-narrated (needs
 # ANTHROPIC_API_KEY + jq -- see "Dependencies" below):
 bash scripts/activity-monitor.sh -- docker-compose -f scripts/deploy-and-run/docker-compose.db.yml \
-  -f scripts/deploy-and-run/docker-compose.minio.yml up -d
+  -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d
 
 # The "run" command above already redraws live in its own terminal when run directly by a human
 # -- --watch is only for peeking at a run started elsewhere (e.g. by the agent) from a second,

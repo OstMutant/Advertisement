@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="02-contact-view-revealed-value" author="ostap">
+        <addColumn tableName="contact_view">
+            <column name="revealed_value" type="VARCHAR(64)"
+                    remarks="The phone/telegram/viber value actually shown at reveal time, optional (null for rows written before this column existed) -- keeps historical clicks attributable to the number that was live then, even after the owner later changes it."/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

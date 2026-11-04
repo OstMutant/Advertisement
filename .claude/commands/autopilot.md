@@ -40,6 +40,23 @@ Steps:
      mention with no trace in the task file. This is the entire point of `/autopilot` — per the
      user's own framing, "questions that come up along the way, resolve them yourself, having
      studied the problem in detail and looked at similar things in the code."
+   - **Apply the standing Haiku-dispatch rule to each unit of step 1's plan individually — no
+     count or size threshold, same criterion as everywhere else in this project.** For each
+     file-level fix/edit the plan calls for, ask only: is the exact before/after already known,
+     with no open judgment call left (not just "apply the existing pattern here")? If yes,
+     dispatch it to Haiku per `.claude/rules.md`'s standing rule — this applies even to a single
+     such unit, not just when there happen to be several. If the plan is one cohesive design
+     requiring continuous judgment across files (the common case — most single-feature
+     `/autopilot` runs), implement directly instead; drafting a fully-specified prompt for
+     something that still needs judgment just moves the judgment into the prompt, with no savings.
+     - When multiple fully-specified units exist, group dispatches by file/module the same way
+       `deep-review-orchestrator`'s step 4 does (same-file fusion) — one Haiku call per
+       independent cluster, not one per line; this is a batching optimization, not a gate on
+       whether to dispatch at all.
+     - Each dispatch prompt must be fully self-contained (a fresh agent has no context): exact
+       file path, exact current code to replace, exact new code.
+     - Verify every dispatch's actual diff yourself before moving on — this run is unattended, so
+       a bad Haiku edit has no one else to catch it before the next step compiles/tests against it.
    - Do NOT stop to ask about routine follow-up steps that were implicitly part of the approved
      plan: running tests, redeploying, rerunning Playwright after a fix, writing the ADR, moving
      the task to `completed/`. Chain them straight through.
@@ -83,28 +100,28 @@ Steps:
      in parallel with a run already in flight.
 
 3. **Self-review before spending a full test cycle on it.** Once the implementation is written
-   (before running unit/integration/Playwright), dispatch this project's own `/review` command
+   (before running unit/integration/Playwright), dispatch this project's own `/deep-review` command
    (the `deep-review-orchestrator` agent) against the diff so far, then apply its findings
    directly. This catches obvious SOLID/DRY/KISS/YAGNI bugs cheaply, before burning a full test
    cycle on code that would need to change anyway — running the whole suite first and then
    discovering a review finding forces a second full run for nothing. Only proceed to step 4 once
-   `/review` has run and its findings (if any) are applied. This applies to **any** review run
+   `/deep-review` has run and its findings (if any) are applied. This applies to **any** review run
    during an autopilot session — not just this scheduled step — including one the user asks for ad
    hoc mid-run or after a commit already landed: default to applying findings directly, do not stop
    to ask whether to apply a finding that is itself low-risk (a rename, a dedup extraction, a
    straightforward null-guard). Only stop and ask when a finding's fix would itself be
    destructive/hard-to-reverse per the standing "Executing actions with care" bar — the same
    exception step 2 already carves out.
-   **`/review`'s `deep-review-orchestrator` never writes anything itself** (no `Write` tool, by
+   **`/deep-review`'s `deep-review-orchestrator` never writes anything itself** (no `Write` tool, by
    design) — it independently dispatches and verifies two finder lenses (`dry-kiss-yagni-reviewer`
    + `solid-reviewer`), confirms every surviving candidate with its own fresh verifier subagent, and
    returns a `ReportFindings` JSON payload plus prepared-but-unwritten task-file content for
-   anything genuinely new. `/autopilot` — not `/review` — is what applies findings and writes
+   anything genuinely new. `/autopilot` — not `/deep-review` — is what applies findings and writes
    files here:
    1. `Agent({description: "Code review", subagent_type: "deep-review-orchestrator", prompt:
       "<diff scope, or empty for uncommitted changes>"})`.
    2. Read its final result in full — do not re-derive or second-guess what it already verified;
-      that is not this step's job (per `.claude/commands/review.md`'s own step 2).
+      that is not this step's job (per `.claude/commands/deep-review.md`'s own step 2).
    3. Call `ReportFindings` with the JSON payload it returns, then apply every auto-report-bucket
       finding directly (per this step's own default-to-applying rule above).
    4. Any prepared-but-unwritten `backlog/tasks/*.md` content: present it and, only after
@@ -116,7 +133,7 @@ Steps:
    "The diff looks small enough to skip this step" is exactly the judgment call this process exists
    to remove — it was violated three times in a row in one session before being caught and
    corrected (against an earlier review mechanism, but the same discipline applies here). Do not
-   repeat it, and do not repeat a partial version of it either (dispatching `/review` but skipping
+   repeat it, and do not repeat a partial version of it either (dispatching `/deep-review` but skipping
    the apply step is the same violation in a different shape).
 
 4. **Verify like it's going into the final report, not like a checkbox.** When the change is small
@@ -160,7 +177,7 @@ Steps:
    (how many, which subagent type, foreground or `run_in_background`, and whether they ran in
    parallel in one message or sequentially — e.g. step 3's `deep-review-orchestrator` dispatch and
    its own internal finder/verifier subagents) and what each batch of agents was for — **and
-   explicitly what step 3's `/review` run found and what happened to each finding** (fixed /
+   explicitly what step 3's `/deep-review` run found and what happened to each finding** (fixed /
    skipped with why / routed to "needs human review" / "no findings survived verification"), not
    just that it ran, what got documented, and
    the concrete git status (what's staged, ready for "зроби коміт"). This

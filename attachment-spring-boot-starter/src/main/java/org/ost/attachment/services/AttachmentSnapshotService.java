@@ -1,5 +1,6 @@
 package org.ost.attachment.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
@@ -32,40 +33,47 @@ public class AttachmentSnapshotService {
     private final AttachmentSnapshotRepository attachmentSnapshotRepository;
 
     @Transactional
-    public void capture(EntityType entityType, Long entityId, Long actorId) {
-        captureAndGetId(entityType, entityId, actorId);
+    public void capture(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
+        insertSnapshot(entityType, entityId, actorId);
     }
 
     @Transactional
-    public Optional<Long> captureAndGetId(EntityType entityType, Long entityId, Long actorId) {
+    public Optional<Long> captureAndGetId(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
+        if (!insertSnapshot(entityType, entityId, actorId)) {
+            return Optional.empty();
+        }
+        return attachmentSnapshotRepository.findLatestId(entityType, entityId);
+    }
+
+    private boolean insertSnapshot(@NonNull EntityType entityType, @NonNull Long entityId, Long actorId) {
         log.info("Attachment snapshot capture: entityType={}, entityId={}", entityType, entityId);
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         if (prevOpt.isEmpty()) {
-            if (currentUrls.isEmpty()) return Optional.empty();
+            if (currentUrls.isEmpty()) return false;
             Map<String, String> urlToFilename = resolveFilenames(entityType, entityId, currentUrls);
             List<String> currNames = currentUrls.stream().map(u -> filename(u, urlToFilename)).toList();
             attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]),
                     List.of(new AttachmentMediaChange(null, currNames)), actorId);
-            return attachmentSnapshotRepository.findLatestId(entityType, entityId);
+            return true;
         }
         AttachmentMediaChange diff = buildDiff(entityType, entityId, prevOpt.get(), currentUrls);
-        if (diff == null) return Optional.empty();
+        if (diff == null) return false;
         attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), List.of(diff), actorId);
-        return attachmentSnapshotRepository.findLatestId(entityType, entityId);
+        return true;
     }
 
-    public String[] getUrlsBySnapshotId(Long snapshotId) {
+    public String[] getUrlsBySnapshotId(@NonNull Long snapshotId) {
         return attachmentSnapshotRepository.getUrlsById(snapshotId)
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
     }
 
-    public Long getLatestSnapshotId(EntityType entityType, Long entityId) {
+    public Long getLatestSnapshotId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentSnapshotRepository.findLatestId(entityType, entityId).orElse(null);
     }
 
-    public String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
+    public String getMediaStateForSnapshot(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long snapshotId) {
         return attachmentSnapshotRepository.getUrlsById(snapshotId)
                 .map(urls -> {
                     Map<String, String> urlToFilename = resolveFilenames(entityType, entityId, urls);
@@ -74,7 +82,7 @@ public class AttachmentSnapshotService {
                 .orElse("");
     }
 
-    public List<ChangeEntry> getChangesBySnapshotId(Long attachmentSnapshotId) {
+    public List<ChangeEntry> getChangesBySnapshotId(@NonNull Long attachmentSnapshotId) {
         return attachmentSnapshotRepository.findChangesById(attachmentSnapshotId)
                 .map(AttachmentSnapshotService::toChangeEntries)
                 .orElse(List.of());

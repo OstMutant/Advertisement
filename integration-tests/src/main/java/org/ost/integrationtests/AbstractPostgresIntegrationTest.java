@@ -18,7 +18,7 @@ import java.util.List;
  * {@code @Tag("testcontainers")} here is inherited by every subclass (JUnit 5 tags declared on a
  * superclass apply to all subclasses) -- this is the single point that keeps every Docker-backed
  * test out of a plain {@code mvn test} by default, via {@code excludedGroups} in
- * {@code integration-tests/pom.xml} (improvement-047). A new {@code *RepositoryTest} extending
+ * {@code integration-tests/pom.xml}. A new {@code *RepositoryTest} extending
  * this class is tagged automatically; nothing to remember per test class.
  */
 @Tag("testcontainers")
@@ -29,8 +29,7 @@ public abstract class AbstractPostgresIntegrationTest {
      * developed in) can create containers via the Docker socket but cannot reach a
      * dynamically-assigned published port from the test JVM — only statically published ones.
      * Setting this env var forces a fixed host-port binding as a workaround. Unset on a normal
-     * developer machine, where Testcontainers' default random-port assignment just works. See
-     * features/issues/improvement-027-unit-testcontainers-test-layer.md.
+     * developer machine, where Testcontainers' default random-port assignment just works.
      */
     private static final String FIXED_PORT_ENV = "INTEGRATION_TESTS_POSTGRES_FIXED_PORT";
 
@@ -43,6 +42,8 @@ public abstract class AbstractPostgresIntegrationTest {
 
     private static PostgreSQLContainer createContainer() {
         PostgreSQLContainer container = new PostgreSQLContainer(SharedEnvConfig.require("POSTGRES_IMAGE"));
+        // Cached Spring contexts each hold a Hikari pool; the 100-connection default runs out. fsync=off is the container's own default, repeated because withCommand replaces it.
+        container.withCommand("postgres", "-c", "fsync=off", "-c", "max_connections=300");
         String fixedPort = System.getenv(FIXED_PORT_ENV);
         if (fixedPort != null && !fixedPort.isBlank()) {
             container.setPortBindings(List.of(fixedPort + ":5432"));

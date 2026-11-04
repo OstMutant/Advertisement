@@ -1,32 +1,44 @@
 package org.ost.restapi.api;
 
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.orchestrator.services.AdvertisementDisplayEnrichmentService;
 import org.ost.orchestrator.services.AdvertisementReadService;
 import org.ost.orchestrator.services.AdvertisementSaveService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
 import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.EntityType;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
+import org.ost.restapi.api.patch.MergePatchSupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.authenticateAs;
@@ -34,6 +46,7 @@ import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.clearAuthent
 import static org.ost.restapi.api.support.RestApiMockMvcTestSupport.mockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -52,17 +65,22 @@ class AdvertisementApiControllerTest {
     @Mock private AdvertisementReadService readService;
     @Mock private AdvertisementDisplayEnrichmentService enrichmentService;
     @Mock private UserProfileService userProfileService;
+    @Mock private ActivityHistorySupport activityHistorySupport;
+    @Mock private SnapshotRestoreService snapshotRestoreService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService));
+        mockMvc = mockMvc(new AdvertisementApiController(saveService, readService, enrichmentService, userProfileService,
+                activityHistorySupport, snapshotRestoreService,
+                new MergePatchSupport(Validation.buildDefaultValidatorFactory().getValidator())));
         authenticateAs(ACTOR_ID);
         lenient().when(userProfileService.resolveAdsPageSize(any())).thenReturn(20);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithMedia(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichSingle(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithCategoriesAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActorInfo(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithMediaSummary(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -190,7 +208,7 @@ class AdvertisementApiControllerTest {
 
         mockMvc.perform(get("/api/advertisements"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString("rel=\"next\"")));
+                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString("/api/advertisements?page=1&size=20>; rel=\"next\"")));
     }
 
     // ── list — negative ──────────────────────────────────────────────────
@@ -216,6 +234,25 @@ class AdvertisementApiControllerTest {
         when(readService.findById(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/advertisements/1")).andExpect(status().isNotFound());
+    }
+
+    // ── history ──────────────────────────────────────────────────────────
+
+    @Test
+    void history_delegatesToSupport() throws Exception {
+        when(activityHistorySupport.history(ACTOR_ID, EntityType.ADVERTISEMENT, 7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/advertisements/7/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void historySnapshot_unknown_returnsNotFound() throws Exception {
+        when(activityHistorySupport.snapshot(eq(ACTOR_ID), eq(EntityType.ADVERTISEMENT), eq(7L), eq(5L), eq(AdvertisementSnapshotDto.class)))
+                .thenThrow(new java.util.NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(get("/api/advertisements/7/history/5")).andExpect(status().isNotFound());
     }
 
     // ── update ──────────────────────────────────────────────────────────
@@ -270,6 +307,136 @@ class AdvertisementApiControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    // ── patch ───────────────────────────────────────────────────────────
+
+    private static final AdvertisementSnapshotDto CURRENT = new AdvertisementSnapshotDto("Title", "Desc", AdKind.OFFER,
+            List.of(1L, 2L), 5L, null, AdvertisementSnapshotDto.SCHEMA_VERSION);
+
+    private AdvertisementSaveDto patchAndCaptureSave(String body) throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(1L);
+        when(readService.findById(1L)).thenReturn(Optional.of(AdvertisementInfoDto.builder().id(1L).build()));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content(body))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<AdvertisementSaveDto> captor = ArgumentCaptor.forClass(AdvertisementSaveDto.class);
+        verify(saveService).save(captor.capture(), eq(ACTOR_ID), any());
+        return captor.getValue();
+    }
+
+    @Test
+    void patch_emptyPatch_keepsEverythingAndSendsIfMatchVersion() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{}");
+
+        assertEquals(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, Set.of(1L, 2L), 5L, 4L), dto);
+    }
+
+    @Test
+    void patch_cityTaxonIdValue_changesOnlyIt() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"cityTaxonId\":9}");
+
+        assertEquals(new AdvertisementSaveDto(1L, "Title", "Desc", AdKind.OFFER, Set.of(1L, 2L), 9L, 4L), dto);
+    }
+
+    @Test
+    void patch_cityTaxonIdNull_clearsIt() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"cityTaxonId\":null}");
+
+        assertNull(dto.cityTaxonId());
+        assertEquals(Set.of(1L, 2L), Set.copyOf(dto.categoryIds()));
+    }
+
+    @Test
+    void patch_categoryIdsValue_replacesWholeList() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"categoryIds\":[7]}");
+
+        assertEquals(Set.of(7L), Set.copyOf(dto.categoryIds()));
+        assertEquals(5L, dto.cityTaxonId());
+    }
+
+    @Test
+    void patch_categoryIdsNull_clearsList() throws Exception {
+        AdvertisementSaveDto dto = patchAndCaptureSave("{\"categoryIds\":null}");
+
+        assertTrue(dto.categoryIds() == null || dto.categoryIds().isEmpty());
+    }
+
+    @Test
+    void patch_plainJsonContentType_isAccepted() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenReturn(1L);
+        when(readService.findById(1L)).thenReturn(Optional.of(AdvertisementInfoDto.builder().id(1L).build()));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"New\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void patch_titleNull_returns400WithFieldError() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{\"title\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.title").exists());
+        verify(saveService, never()).save(any(), any(), any());
+    }
+
+    @Test
+    void patch_unknownMember_returns400() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{\"cityTaxonID\":9}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patch_missingIfMatch_returns400() throws Exception {
+        mockMvc.perform(patch("/api/advertisements/1")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patch_unknownId_returns404() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patch_staleVersion_returns412() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenThrow(new StaleWriteException("stale"));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    void patch_notOwner_returns403() throws Exception {
+        when(saveService.findCurrentSnapshot(1L)).thenReturn(Optional.of(CURRENT));
+        when(saveService.save(any(), eq(ACTOR_ID), any())).thenThrow(new AccessDeniedException("not the owner"));
+
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType("application/merge-patch+json").content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void patch_textPlain_returns415() throws Exception {
+        mockMvc.perform(patch("/api/advertisements/1").header("If-Match", "\"4\"")
+                        .contentType(MediaType.TEXT_PLAIN).content("{}"))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
     // ── delete ──────────────────────────────────────────────────────────
 
     @Test
@@ -298,5 +465,41 @@ class AdvertisementApiControllerTest {
         org.mockito.Mockito.doThrow(new java.util.NoSuchElementException()).when(saveService).delete(1L, ACTOR_ID, 0L);
 
         mockMvc.perform(delete("/api/advertisements/1").header("If-Match", "\"0\"")).andExpect(status().isNotFound());
+    }
+
+    // ── restoreFromSnapshot ──────────────────────────────────────────────
+
+    @Test
+    void restoreFromSnapshot_delegatesAndReturnsResource() throws Exception {
+        when(snapshotRestoreService.restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L)).thenReturn(7L);
+        when(readService.findById(7L)).thenReturn(Optional.of(AdvertisementInfoDto.builder().id(7L).title("Original").build()));
+
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Original"));
+
+        verify(snapshotRestoreService).restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L);
+    }
+
+    @Test
+    void restoreFromSnapshot_missingIfMatch_isBadRequest() throws Exception {
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void restoreFromSnapshot_unknownSnapshot_returnsNotFound() throws Exception {
+        when(snapshotRestoreService.restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L))
+                .thenThrow(new NoSuchElementException("Snapshot 5 not found"));
+
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void restoreFromSnapshot_staleVersion_returnsPreconditionFailed() throws Exception {
+        when(snapshotRestoreService.restoreAdvertisement(ACTOR_ID, 7L, 5L, 3L)).thenThrow(new StaleWriteException("stale"));
+
+        mockMvc.perform(post("/api/advertisements/7/history/5/restore").header("If-Match", "\"3\""))
+                .andExpect(status().isPreconditionFailed());
     }
 }

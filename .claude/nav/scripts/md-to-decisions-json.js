@@ -31,7 +31,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const repoRoot = path.resolve(__dirname, "..", "..");
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 function parseDecisionsMarkdown(text) {
   const titleMatch = text.match(/^#\s+(.+)$/m);

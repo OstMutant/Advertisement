@@ -60,7 +60,7 @@
 
         <!-- ── user_preferences ────────────────────────────────────────────── -->
         <createTable tableName="user_preferences"
-                      remarks="One row per actor, created lazily on first settings write. Optimistic locking checked via (settings-&gt;&gt;'version')::bigint = :expectedVersion, not user_information.version -- deliberately decoupled from profile-name edits.">
+                      remarks="One row per actor, created eagerly at registration via UserService.register(), never lazily. Optimistic locking checked via (settings-&gt;&gt;'version')::bigint = :expectedVersion, not user_information.version -- deliberately decoupled from profile-name edits.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>

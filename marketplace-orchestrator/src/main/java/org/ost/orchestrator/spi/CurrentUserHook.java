@@ -10,7 +10,7 @@ import java.util.Optional;
  * adapter (Vaadin's session-backed Spring Security context today, a future REST adapter's own
  * auth mechanism) implements this its own way -- marketplace-orchestrator never assumes how
  * identity is resolved, only that some adapter can answer this. Same forwarder shape as
- * {@code SessionActorHook}/{@code CurrentLocaleHook} -- lives here, not platform-commons, for the
+ * {@code SessionActorHook}/{@code UiLocaleHook} -- lives here, not platform-commons, for the
  * same mandatory-dependency reasoning.
  */
 public interface CurrentUserHook {

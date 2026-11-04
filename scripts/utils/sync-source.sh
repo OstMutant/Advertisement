@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
+# ── Header ──────────────────────────────────────────────────────────────────
 # Description: Streams the current git working tree (tracked + untracked-not-gitignored files)
 #   into a running container's /app, wiping it first so a file deleted from the working tree since
-#   the last sync doesn't linger stale inside the container and break a build (a compile against a
-#   since-removed .java, say). The file set comes from `git ls-files`, not a tar tree-walk -- git
-#   already excludes .git, every */target, node_modules, and report/log dirs for free, and never
-#   trips over a socket/FIFO or an IDE-locked build artifact. Extracted from scripts/ci/run.sh so
-#   any container needing a live copy of the working tree (ci-runner, or a standalone dev-shell
-#   container for scripts/activity-monitor.sh's --in-container mode) shares one implementation.
+#   the last sync doesn't linger stale inside the container and break a build. File set comes from
+#   git ls-files (not a tar tree-walk) -- git already excludes .git, */target, node_modules, and
+#   report/log dirs, and never trips over sockets/FIFOs or IDE-locked artifacts. Extracted from
+#   scripts/ci/run.sh so any container needing a live working tree (ci-runner, dev-shell) shares
+#   one implementation. Also recreates gitignored output directories (scripts/logs/, playwright/pw-report/,
+#   scripts/build-and-test/reports/, scripts/sonar/report/) removed by the wipe (git can never
+#   restore them since they track no files) -- recreated via a container-internal `mkdir -p`
+#   because `docker cp` can only auto-create one missing leaf directory, not a multi-level missing
+#   path, so a script writing two or more levels into a freshly-wiped root would otherwise fail
+#   silently instead of producing its own output.
 # Usage: source this file, then call: sync_source_into <container-name>
-# Uses: git, tar, docker
+# Uses: git, tar, docker.
+# Env: None.
 # Input: the caller's own working tree (git ls-files' tracked + untracked-not-ignored set).
 # Outputs: none on the host; wipes and repopulates /app inside the named container.
-# Returns: (via sync_source_into) 0 on success; 1 if any of git ls-files/tar/the container-side
-#   extract failed, printing which stage failed to stderr.
+# Returns: (via sync_source_into) 0 on success; 1 if any of git ls-files/tar/container-side
+#   extraction failed, printing which stage failed to stderr.
+# ────────────────────────────────────────────────────────────────────────────
 
 sync_source_into() {
   local container="$1"
@@ -28,5 +35,15 @@ sync_source_into() {
     echo "ERROR: working-tree sync into $container failed (ls-files=${rc[0]} tar=${rc[1]} extract=${rc[2]})" >&2
     return 1
   fi
+
+  # Container-internal mkdir, not a raw host-side one -- never touches a real WSL/Windows-drive
+  # bind-mount path, so the "raw mkdir -p is unsafe here" finding this project already has on
+  # record for host paths doesn't apply.
+  docker exec "$container" mkdir -p \
+    /app/scripts/logs \
+    /app/playwright/pw-report \
+    /app/scripts/build-and-test/reports \
+    /app/scripts/sonar/report
+
   return 0
 }

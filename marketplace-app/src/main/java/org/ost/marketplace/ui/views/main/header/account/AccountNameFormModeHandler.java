@@ -50,8 +50,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
  * {@link AccountNameViewModeHandler}'s Edit button, itself only visible when
  * {@link AccessEvaluator#canEditUserAccount} is true, so this handler can assume edit rights on
  * the name itself. The role field is gated separately and more narrowly by
- * {@link AccessEvaluator#canEditRole}, never by self, even an admin's own role
- * (see {@code improvement-178}).
+ * {@link AccessEvaluator#canEditRole}, never by self, even an admin's own role.
  */
 @SpringComponent
 @Scope("prototype")
@@ -151,7 +150,6 @@ public class AccountNameFormModeHandler extends AbstractFormOverlayModeHandler<U
         historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER, params.getTargetUserId()))
                 .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
                 .canOperate(true)
                 .parentSteps(params.getBreadcrumbSteps())
                 .parentFormLabel(currentUser.name())
@@ -182,12 +180,10 @@ public class AccountNameFormModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
-        auditQueryService.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
+        auditQueryService.getSnapshotContent(access.getCurrentUserId(), params.getTargetUserId(), snapshotId, EntityType.USER, UserSnapshotDto.class)
                 .map(AuditSnapshotContentDto::snapshotData)
                 .ifPresent(snapshot -> {
-                    UserEditDto dto = new UserEditDto(params.getTargetUserId(), snapshot.name(),
-                            Role.valueOf(snapshot.role()), currentUser.version());
-                    loadRestored(dto);
+                    loadRestored(mapper.fromSnapshot(snapshot, params.getTargetUserId(), currentUser.version()));
                 });
     }
 

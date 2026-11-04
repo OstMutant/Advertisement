@@ -43,4 +43,12 @@ public interface AuditableSnapshot {
         if (prev == null || prev != curr)
             changes.add(new ChangeEntry.FieldChange(key, prev == null ? null : String.valueOf(prev), String.valueOf(curr)));
     }
+
+    static void diffField(List<ChangeEntry> changes, String key, Enum<?> prev, Enum<?> curr) {
+        diffField(changes, key, enumName(prev), enumName(curr));
+    }
+
+    static String enumName(Enum<?> e) {
+        return e == null ? "" : e.name();
+    }
 }

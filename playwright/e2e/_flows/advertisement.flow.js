@@ -35,8 +35,8 @@ const { closeEntityActivity } = require('./entity-activity.flow');
  * @returns {Promise<void>}
  */
 async function selectAdKind(page, overlay, labelText) {
-  const group = overlay.locator('[data-testid="advertisement-overlay-field-ad-kind"]');
-  await group.locator('vaadin-radio-button', { hasText: labelText }).click();
+  const group = overlay.getByTestId('advertisement-overlay-field-ad-kind');
+  await group.getByRole('radio', { name: labelText }).click();
 }
 
 const DEFAULT_AD_KIND_LABEL = { en: 'Offer', uk: 'Пропозиція' };
@@ -55,11 +55,11 @@ const AD_KIND_COLOR = {
 };
 
 async function assertCardHasAdKind(page, expect, card, labelText, screenshotName) {
-  return assertCardHasText(page, expect, card, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
+  return assertCardHasText(page, expect, card.locator('.advertisement-ad-kind-badge'), labelText, screenshotName, true);
 }
 
 async function assertViewOverlayHasAdKind(page, expect, overlay, labelText, screenshotName) {
-  await assertOverlayHasText(page, expect, overlay, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
+  await assertOverlayHasText(page, expect, overlay.locator('.advertisement-ad-kind-badge'), labelText, screenshotName, true);
   // The view-card's accent border must match the AdKind badge color -- header text stays static.
   const kindClass = AD_KIND_LABEL_TO_CLASS[labelText];
   const expectedTextColor = AD_KIND_COLOR[kindClass].text;
@@ -128,8 +128,8 @@ async function openCardOverlay(page, card, screenshotPrefix) {
  * @returns {Promise<void>}
  */
 async function switchToEditMode(page, overlay, screenshotPrefix) {
-  await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
-  await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 5000 });
+  await overlay.getByRole('button', { name: /edit|редагувати/i }).first().click();
+  await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').waitFor({ timeout: 5000 });
   if (screenshotPrefix) await screenshot(page, `${screenshotPrefix}-edit-opened`);
 }
 
@@ -143,9 +143,9 @@ async function switchToEditMode(page, overlay, screenshotPrefix) {
  * @returns {Promise<void>}
  */
 async function saveAndWaitForIdle(page, expect, overlay, screenshotPrefix) {
-  await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+  await overlay.getByRole('button', { name: /зберегти|save/i }).click();
   await expect(
-    overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first()
+    overlay.getByRole('button', { name: /скинути зміни|discard changes/i }).first()
   ).toBeDisabled({ timeout: 8000 });
   await closeNotification(page);
   await screenshot(page, `${screenshotPrefix}-saved`);
@@ -160,7 +160,7 @@ async function saveAndWaitForIdle(page, expect, overlay, screenshotPrefix) {
 async function openActivityTab(overlay) {
   const page = overlay.page();
   await closeEntityActivity(page);
-  await page.locator('.advertisement-history-button').click();
+  await overlay.getByRole('button', { name: /^(activity|активність)$/i }).click();
   const activityList = page.locator('.entity-activity-overlay .entity-activity-list');
   await activityList.waitFor({ timeout: 8000 });
   return activityList;
@@ -213,7 +213,7 @@ async function verifyCardInList(page, expect, card, description, mediaCount, scr
 async function deleteAllGalleryItems(expect, overlay) {
   const count = await overlay.locator('.attachment-gallery__item').count();
   for (let i = 0; i < count; i++) {
-    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
+    await overlay.locator('.attachment-gallery__item').getByRole('button', { name: /^(remove|видалити)$/i }).first().click();
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count - i - 1, { timeout: 5000 });
   }
 }
@@ -276,7 +276,7 @@ function assertAllRichTags(expect, html, context) {
 }
 
 async function typeAllFormats(page, overlay) {
-  const editor = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+  const editor = overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor');
   await editor.click();
   // Use setContents with explicit Delta — block-level toolbar pickers lose focus in Playwright
   // headless, and dangerouslyPasteHTML has a Quill v2 bug converting <ul> → <ol>.
@@ -339,30 +339,30 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   const imagePath = `/tmp/${screenshotPrefix}-image.png`;
   await downloadPng(avatar(screenshotPrefix), imagePath);
 
-  await page.locator('.add-advertisement-button').click();
+  await page.getByRole('button', { name: /add advertisement|додати оголошення/i }).click();
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
 
   await test.step('create discard clears form', async () => {
-    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-    await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
+    await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').fill(title);
+    await overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor').fill(description);
     await screenshot(page, `${screenshotPrefix}-discard-before`);
 
-    await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
-    await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue('', { timeout: 5000 });
-    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor')).toHaveText(/^\s*$/, { timeout: 5000 });
+    await overlay.getByRole('button', { name: /скинути зміни|discard changes/i }).first().click();
+    await expect(overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox')).toHaveValue('', { timeout: 5000 });
+    await expect(overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor')).toHaveText(/^\s*$/, { timeout: 5000 });
     await screenshot(page, `${screenshotPrefix}-discarded`);
   });
 
-  await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-  await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
+  await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').fill(title);
+  await overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor').fill(description);
   for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
   if (city) await selectCityInAdForm(page, overlay, city);
   if (adKind) await selectAdKind(page, overlay, adKind);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
 
-  await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
-  await overlay.locator('.attachment-gallery__video-input vaadin-button').click();
+  await overlay.locator('.attachment-gallery__video-input').getByPlaceholder(/video url|відео посилання/i).locator('input').fill(YT_URL);
+  await overlay.locator('.attachment-gallery__video-input').getByRole('button', { name: /add video|додати відео/i }).click();
   await overlay.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
   await screenshot(page, `${screenshotPrefix}-youtube-added`);
 
@@ -378,7 +378,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   await overlay.locator('.attachment-gallery__item').nth(2).waitFor({ timeout: 15000 });
   await screenshot(page, `${screenshotPrefix}-video-added`);
 
-  await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+  await overlay.getByRole('button', { name: /зберегти|save/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });
   await screenshot(page, `${screenshotPrefix}-saved`);
 
@@ -460,20 +460,20 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await deleteAllGalleryItems(expect, overlay);
     await screenshot(page, `${screenshotPrefix}-media-deleted`);
 
-    await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+    await overlay.getByRole('button', { name: /скинути зміни|discard changes/i }).first().click();
     await closeNotification(page);
-    await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(originalTitle, { timeout: 5000 });
-    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor')).toContainText(originalDescription, { timeout: 5000 });
+    await expect(overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox')).toHaveValue(originalTitle, { timeout: 5000 });
+    await expect(overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor')).toContainText(originalDescription, { timeout: 5000 });
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
     await screenshot(page, `${screenshotPrefix}-discarded`);
 
     // Adding media to existing gallery then discarding must also restore original count
-    await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
-    await overlay.locator('.attachment-gallery__video-input vaadin-button').click();
+    await overlay.locator('.attachment-gallery__video-input').getByPlaceholder(/video url|відео посилання/i).locator('input').fill(YT_URL);
+    await overlay.locator('.attachment-gallery__video-input').getByRole('button', { name: /add video|додати відео/i }).click();
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count + 1, { timeout: 10000 });
     await screenshot(page, `${screenshotPrefix}-media-added-to-existing`);
 
-    const discardBtn = overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first();
+    const discardBtn = overlay.getByRole('button', { name: /скинути зміни|discard changes/i }).first();
     await expect(discardBtn).toBeEnabled({ timeout: 5000 });
     await discardBtn.click();
     await closeNotification(page);
@@ -484,11 +484,11 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   await test.step(`edit and save v${editVersion} — delete all media, update title and description`, async () => {
     await deleteAllGalleryItems(expect, overlay);
 
-    const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
+    const titleInput = overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox');
     await titleInput.clear();
     await titleInput.fill(newTitle);
 
-    const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+    const descInput = overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor');
     await descInput.fill(newDescription);
     await screenshot(page, `${screenshotPrefix}-form-updated`);
 
@@ -521,12 +521,12 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
   await test.step(`text-only edit v${textEditVersion} — media field shows — after deletion${richText ? ', all Quill formats' : ''}`, async () => {
     await closeEntityActivity(overlay.page());
-    await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').waitFor({ timeout: 3000 });
+    await overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor').waitFor({ timeout: 3000 });
 
     if (richText) {
       await typeAllFormats(page, overlay);
     } else {
-      const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+      const descInput = overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor');
       await descInput.fill(textOnlyDescription);
     }
     await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-v3`);
@@ -556,11 +556,11 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   if (richText) {
     await test.step(`format-only edit v${textEditVersion + 1} — apply italic to first line, text unchanged`, async () => {
       await closeEntityActivity(overlay.page());
-      const editor = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+      const editor = overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor');
       await editor.click();
       await page.keyboard.press('Control+Home');
       await page.keyboard.press('Shift+End');
-      await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-toolbar .ql-italic').click();
+      await overlay.getByTestId('advertisement-overlay-field-description').getByRole('button', { name: 'italic' }).click();
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-format-only`);
 
       const fmtList = await openActivityTab(overlay);
@@ -592,7 +592,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     await test.step(`add category ${categoryToAdd} v${catAddVersion} — activity diff shows all fields, category assigned`, async () => {
       await closeEntityActivity(overlay.page());
-      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToAdd);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-add`);
       const catActivityList = await openActivityTab(overlay);
@@ -616,7 +616,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     await test.step(`remove category ${categoryToRemove} v${catRemoveVersion} — activity diff shows all fields, category unassigned`, async () => {
       await closeEntityActivity(overlay.page());
-      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToRemove);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-remove`);
       const catActivityList = await openActivityTab(overlay);
@@ -638,7 +638,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     await test.step(`set city ${cityToSet} v${citySetVersion} — activity diff shows city change`, async () => {
       await closeEntityActivity(overlay.page());
-      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').waitFor({ timeout: 3000 });
       await selectCityInAdForm(page, overlay, cityToSet);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-city-set`);
       const cityActivityList = await openActivityTab(overlay);
@@ -658,7 +658,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     await test.step(`set ad kind ${adKindToSet} v${adKindSetVersion} — activity diff shows ad kind change`, async () => {
       await closeEntityActivity(overlay.page());
-      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').waitFor({ timeout: 3000 });
       await selectAdKind(page, overlay, adKindToSet);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-ad-kind-set`);
       const typeActivityList = await openActivityTab(overlay);
@@ -752,9 +752,9 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   await closeNotification(page);
 
   // After restore: history overlay closes itself, revealing the still-open edit form populated with v1 values + 3 media items
-  const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
+  const titleInput = overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox');
   await expect(titleInput).toHaveValue(restoredTitle, { timeout: 8000 });
-  const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+  const descInput = overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor');
   await expect(descInput).toContainText(restoredDescription, { timeout: 5000 });
   await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 10000 });
   await screenshot(page, `${screenshotPrefix}-restored-in-form`);
@@ -823,9 +823,9 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
   await test.step(`cross-user replaces image — v${replaceVersion}`, async () => {
     // Switch back to Basic Information tab to access the gallery
     await closeEntityActivity(overlay.page());
-    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+    await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').waitFor({ timeout: 3000 });
 
-    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
+    await overlay.locator('.attachment-gallery__item').getByRole('button', { name: /^(remove|видалити)$/i }).first().click();
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(0, { timeout: 5000 });
     await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(img2);
     await overlay.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });

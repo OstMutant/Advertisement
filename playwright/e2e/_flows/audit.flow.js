@@ -13,14 +13,14 @@
  *   runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
-const { screenshot } = require('../_helpers');
+const { screenshot, accountOverlay } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
-const { openHistory, closeHistory } = require('./settings.flow');
+const { openHistory, closeHistory, pageSizeField } = require('./settings.flow');
 const { openEntityActivity } = require('./entity-activity.flow');
 
 async function runOpenSettingsFlow(page) {
-  await page.locator('.header-settings-button').click();
-  await page.locator('.account-overlay').waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: /^(settings|налаштування)$/i }).click();
+  await accountOverlay(page).waitFor({ timeout: 5000 });
 }
 
 async function runCloseSettingsFlow(page) {
@@ -28,7 +28,7 @@ async function runCloseSettingsFlow(page) {
     .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
     .first()
     .click();
-  await page.locator('.account-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+  await accountOverlay(page).waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 // rows: [{ action, version, actor, changesIncludes, hasUnchangedItem, hasDiff }] — all fields optional
@@ -70,16 +70,18 @@ async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName
 async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, privileged = false }) {
   await runOpenSettingsFlow(page);
 
-  // Field order: ads(0), providerProfiles(1) are ungated (every role); users(2), timeline(3) are
-  // privileged-only (moderator/admin).
-  const fields = page.locator('.settings-overlay-content vaadin-integer-field');
-  await expect(fields).toHaveCount(privileged ? 4 : 2, { timeout: 5000 });
-  const adsValue = await fields.nth(0).locator('input').inputValue();
-  const providersValue = await fields.nth(1).locator('input').inputValue();
-  let usersValue, timelineValue;
+  // ads, providerProfiles, feedback are ungated (every role); users, timeline, moderation are privileged-only.
+  const content = page.locator('.settings-overlay-content');
+  const sizeOf = key => pageSizeField(page, key).inputValue();
+  await expect(content.getByRole('spinbutton')).toHaveCount(privileged ? 6 : 3, { timeout: 5000 });
+  const adsValue = await sizeOf('ads');
+  const providersValue = await sizeOf('providerProfiles');
+  const feedbackValue = await sizeOf('feedback');
+  let usersValue, timelineValue, moderationValue;
   if (privileged) {
-    usersValue = await fields.nth(2).locator('input').inputValue();
-    timelineValue = await fields.nth(3).locator('input').inputValue();
+    usersValue = await sizeOf('users');
+    timelineValue = await sizeOf('timeline');
+    moderationValue = await sizeOf('moderation');
   }
   await screenshot(page, `${screenshotName}-defaults`);
 
@@ -91,9 +93,11 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await expect(row.locator('.entity-activity-version')).toContainText('v1');
   await expect(row).toContainText(adsValue);
   await expect(row).toContainText(providersValue);
+  await expect(row).toContainText(feedbackValue);
   if (privileged) {
     await expect(row).toContainText(usersValue);
     await expect(row).toContainText(timelineValue);
+    await expect(row).toContainText(moderationValue);
   }
   await screenshot(page, `${screenshotName}-activity`);
   await closeHistory(page);

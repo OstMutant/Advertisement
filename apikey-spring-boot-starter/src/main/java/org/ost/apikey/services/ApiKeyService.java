@@ -2,20 +2,24 @@ package org.ost.apikey.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.apikey.entity.ApiKey;
 import org.ost.apikey.repository.ApiKeyRepository;
 import org.ost.apikey.security.ApiKeyHasher;
 import org.ost.platform.apikey.dto.ApiKeySummaryDto;
+import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
  * Issues, resolves, lists, revokes, and bulk-deletes API keys -- the only business-logic class
  * this starter carries.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
@@ -43,13 +47,18 @@ public class ApiKeyService {
         return found.map(ApiKey::getActorId);
     }
 
-    public List<ApiKeySummaryDto> listForActor(@NonNull Long actorId) {
-        return repository.findByActorId(actorId).stream().map(ApiKey::toSummaryDto).toList();
+    public List<ApiKeySummaryDto> listForActor(@NonNull Long actorId, boolean includeRevoked) {
+        return repository.findByActorId(actorId).stream().filter(key -> includeRevoked || key.getRevokedAt() == null).map(ApiKey::toSummaryDto).toList();
     }
 
     @Transactional
     public void revoke(@NonNull Long actorId, @NonNull Long keyId) {
+        ApiKey key = repository.findByIdAndActorId(keyId, actorId).orElseThrow(() -> new NoSuchElementException("API key not found"));
+        if (key.getRevokedAt() != null) {
+            throw new ApiKeyAlreadyRevokedException("API key is already revoked");
+        }
         repository.revoke(actorId, keyId);
+        log.info("API key revoked: actorId={}, keyId={}", actorId, keyId);
     }
 
     @Transactional

@@ -21,12 +21,15 @@ const { screenshot } = require('../_helpers');
  * @returns {Promise<void>}
  */
 async function runFillLoginFormFlow(page, user) {
-  await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first().click();
-  await page.locator('[data-testid="login-email-label"]').waitFor({ timeout: 5000 });
-  await page.locator('[data-testid="login-email-label"] input').fill(user.email);
-  await page.locator('[data-testid="login-password-label"] input').fill(user.password);
+  await page.getByRole('button', { name: /log in|увійти/i }).first().click();
+  await page.getByTestId('login-email-label').waitFor({ timeout: 5000 });
+  await page.getByTestId('login-email-label').getByRole('textbox').fill(user.email);
+  await page.getByTestId('login-password-label').locator('input').fill(user.password);
   await screenshot(page, 'auth-fill-credentials-entered');
 }
+
+const SETTINGS_BUTTON = /^(settings|налаштування)$/i;
+const LOGOUT_BUTTON = /^(log out|вийти)$/i;
 
 const TAB_LABELS = {
   en: { advertisements: 'Advertisements', users: 'Users' },
@@ -42,20 +45,20 @@ const TAB_LABELS = {
  * @returns {Promise<void>}
  */
 async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
-  // Pair the wait with the click -- login triggers a full page reload, and waiting after the fact races it.
+  // waitForURL is more reliable than waitForLoadState here -- it confirms the real post-login navigation instead of racing a stale "already loaded" state on the pre-login page.
   await Promise.all([
-    page.waitForLoadState('load'),
-    page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click(),
+    page.waitForURL(() => true, { waitUntil: 'load' }),
+    page.getByRole('button', { name: /log in|увійти/i }).last().click(),
   ]);
-  await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: SETTINGS_BUTTON })).toBeVisible({ timeout: 15000 });
 
   const labels = TAB_LABELS[locale];
-  await expect(page.locator('vaadin-tab').filter({ hasText: labels.advertisements }).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('tab', { name: labels.advertisements }).first()).toBeVisible({ timeout: 15000 });
 
   if (user.role === 'MODERATOR' || user.role === 'ADMIN') {
-    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('tab', { name: labels.users }).first()).toBeVisible({ timeout: 15000 });
   } else {
-    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeHidden();
+    await expect(page.getByRole('tab', { name: labels.users }).first()).toBeHidden();
   }
 
   await screenshot(page, 'auth-submit-logged-in');
@@ -68,13 +71,13 @@ async function runSubmitLoginFlow(page, expect, user, locale = user.locale) {
  * @returns {Promise<void>}
  */
 async function runCancelLogoutFlow(page, expect) {
-  await page.locator('.header-logout-button').click();
+  await page.getByRole('button', { name: LOGOUT_BUTTON }).click();
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 8000 });
   await screenshot(page, 'auth-logout-cancel-dialog');
 
   await page.getByRole('button', { name: /cancel|скасувати/i }).click();
   await page.locator('vaadin-confirm-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
-  await expect(page.locator('.header-settings-button')).toBeVisible();
+  await expect(page.getByRole('button', { name: SETTINGS_BUTTON })).toBeVisible();
   await screenshot(page, 'auth-logout-cancel-stays-logged-in');
 }
 
@@ -85,14 +88,14 @@ async function runCancelLogoutFlow(page, expect) {
  * @returns {Promise<void>}
  */
 async function runLogoutFlow(page, expect) {
-  await page.locator('.header-logout-button').click();
+  await page.getByRole('button', { name: LOGOUT_BUTTON }).click();
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 8000 });
   await screenshot(page, 'auth-logout-confirm-dialog');
 
-  await page.getByRole('button', { name: /^log out$|^вийти$/i }).last().click();
+  await page.getByRole('button', { name: LOGOUT_BUTTON }).last().click();
 
-  await expect(page.locator('.header-settings-button')).not.toBeVisible({ timeout: 8000 });
-  await expect(page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first()).toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole('button', { name: SETTINGS_BUTTON })).not.toBeVisible({ timeout: 8000 });
+  await expect(page.getByRole('button', { name: /log in|увійти/i }).first()).toBeVisible({ timeout: 5000 });
   await screenshot(page, 'auth-logout-logged-out');
 }
 

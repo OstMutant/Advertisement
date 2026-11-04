@@ -8,9 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-/** Resolves the current session user, then delegates every authorization/ownership rule to
- *  {@link AuthorizationService} -- the single source of truth each rule is composed in, shared
- *  with this module's own id-based service-boundary checks. */
+/** Evaluates access permissions for the current user by delegating to AuthorizationService. */
 @Component
 @RequiredArgsConstructor
 public class AccessEvaluator {
@@ -38,12 +36,15 @@ public class AccessEvaluator {
         return !canOperate(ownerUserId);
     }
 
-    public boolean canNotDelete(Long ownerUserId) {
-        return !canOperate(ownerUserId);
-    }
-
     public boolean canOperate(Long ownerUserId) {
         return currentUser().map(u -> authorizationService.canOperate(u, ownerUserId)).orElse(false);
+    }
+
+    /** Strict ownership only -- no admin/moderator override, unlike {@link #canOperate}. Used
+     *  where the rule itself excludes privileged bypass (e.g. only the reviewed provider
+     *  profile's owner may reply to its own feedback). */
+    public boolean isStrictOwner(Long ownerUserId) {
+        return currentUser().map(u -> authorizationService.isOwner(u, ownerUserId)).orElse(false);
     }
 
     /** Self, admin, or moderator may open the account (view its Name/Settings/Provider Profile tabs). */
@@ -62,6 +63,11 @@ public class AccessEvaluator {
      *  and never a moderator's at all. */
     public boolean canEditRole(Long targetUserId) {
         return currentUser().map(u -> authorizationService.canEditRole(u, targetUserId)).orElse(false);
+    }
+
+    /** Delete follows the role rule: an administrator may remove any account except their own. */
+    public boolean canDeleteUserAccount(Long targetUserId) {
+        return currentUser().map(u -> authorizationService.canDeleteAccount(u, targetUserId)).orElse(false);
     }
 
     private Optional<UserDto> currentUser() {

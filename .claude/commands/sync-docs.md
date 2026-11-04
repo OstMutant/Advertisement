@@ -60,6 +60,15 @@ Use this mapping table:
 
 Print which targets are affected before proceeding.
 
+**Dispatch Step 4's Javadoc/header checks to Haiku per file/module, same standing rule as
+everywhere else — no file-count threshold.** Each changed file's Javadoc/pom.xml/infra-header
+check (Step 4's relevant rows) is a fully-specified mechanical verification once the target lines
+are known, so it goes to a `model: "haiku"` dispatch per `.claude/rules.md`'s standing rule, the
+same lever Full Audit Mode's own Step A3 already uses — this applies even to a single changed
+file, not only once there are many. When there are several, group dispatches by module/file-count
+(same-file fusion) purely as a batching optimization, not as a precondition for using Haiku at
+all.
+
 ---
 
 ## Step 3 — Read actual source
@@ -195,6 +204,12 @@ Run `bash .claude/nav/scripts/generate-adr-index.sh` and check whether it change
 (`git diff --stat .claude/nav/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
 the index was last regenerated. Include this in the Step A5 report regardless of outcome.
 
+### Step A0.5 — Regenerate the architecture model
+
+Run `bash docs/architecture/scripts/generate-architecture-model.sh` so Step A2's checks below read
+a freshly-regenerated `docs/architecture/data/architecture-model.json`, not a possibly-stale one
+left over from whenever it last ran. Include this in the Step A5 report regardless of outcome.
+
 ### Step A1 — Enumerate targets
 
 `find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md"` — `maxdepth 3`, not
@@ -225,6 +240,16 @@ discipline as everything else in this mode. This is the widest-volume part of a 
 count; Step A3's parallelization guidance below covers how to split it.
 
 ### Step A2 — Verify every claim, not just changed ones
+
+**First-pass source, where it applies:** for ADR id/title existence, README content, and
+entity/key-service/contract/table existence-and-description claims, check
+`docs/architecture/data/architecture-model.json`'s matching module node first (it carries each
+module's current `readme` text, every `intent`, and `entities`/`keyServices`/`contracts`/`tables`
+each with a real `file` path and description) — fall back to direct grep/`Read` only for what the
+JSON doesn't cover. This does **not** help with (keep doing these exactly as today, raw-file-based):
+Javadoc prose-accuracy judgment, infra/tooling file header checks (scripts/config files aren't in
+this JSON), or ADR structural-hygiene checks (numbering gaps, `Status:` vocabulary consistency — a
+cross-entry check, not a per-fact lookup).
 
 For each `DECISIONS.md`, check every ADR entry:
 - If it names a specific class, method, field, config value, CSS class, or file path — grep/read
@@ -281,7 +306,15 @@ grained split, not one agent for the whole repo's Java source. Each agent writes
 all of them directly in the coordinating context defeats the point of parallelizing in the first
 place. The coordinator reads/greps from each scratchpad file when compiling Step A4's fix list and
 Step A6's report, instead of accumulating every agent's full output in its own conversation
-context. No agent edits anything itself; the calling context reviews each scratchpad and applies
+context.
+
+Dispatch every one of these research agents with `model: "haiku"` — each one's job (open a claim's
+source location, confirm or classify it VALID/STALE/SUPERSEDED/MISSING/DONE-GOAL-NOT-MARKED) is a
+bounded, mechanical verification task with no open design decisions, the same shape
+`.claude/rules.md`'s own standing rule already reserves for Haiku dispatch. This includes Javadoc
+prose-accuracy judgment (does a method's Javadoc still describe its actual body) — still a bounded
+classification task, not open-ended judgment. No agent
+edits anything itself; the calling context reviews each scratchpad and applies
 fixes afterward, the same way a normal code-review pass would.
 
 ### Step A4 — Apply fixes
@@ -311,6 +344,10 @@ full-audit and aggregate mechanically (parse the `key: value` lines directly, th
   tasks — sum and average, `n/a` entries excluded from the average, not treated as zero.
 - `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
 - `flows_matched` yes/no/n/a tally.
+- `haiku_decomposition_used` yes/no tally, and `haiku_decomposition_rework_needed`'s aggregate
+  rework rate (sum corrections / sum total dispatches, excluding `n/a`) — real evidence for
+  whether autopilot step 2's and this command's own diff-mode Haiku-dispatch criteria are safe to
+  keep, per `.claude/rules.md`'s own explanation of that field.
 Feed the result into `.claude/nav/`'s own governing rule — no new navigation content until this data
 shows the existing layer earns its cost: this is real evidence for or against expanding/trimming
 the navigation layer, not a synthetic exercise. If too
@@ -335,5 +372,5 @@ above, and Step A5's operational self-tracking aggregate.
 - All diagrams must use Mermaid syntax
 - All conclusions must reference actual class names or file paths
 - ADR format: see `.claude/commands/record-decision.md` step 4
-- Task format: see `.claude/commands/feature.md` step 3
+- Task format: see `.claude/commands/new-task.md` step 3
 - Never duplicate tasks — update existing ones rather than creating new

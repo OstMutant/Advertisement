@@ -64,10 +64,6 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
         return steps;
     }
 
-    protected List<Component> buildBreadcrumbLinks() {
-        return buildBreadcrumbLinks(buildBreadcrumbSteps());
-    }
-
     // Reuses an already-computed steps list, avoiding a duplicate buildBreadcrumbSteps() call.
     protected List<Component> buildBreadcrumbLinks(List<BreadcrumbStep> steps) {
         return steps.stream()

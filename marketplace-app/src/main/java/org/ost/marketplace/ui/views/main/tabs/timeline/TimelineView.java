@@ -22,8 +22,8 @@ import org.ost.marketplace.ui.views.main.tabs.timeline.query.TimelineQueryBlock;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 
 import java.util.List;
-import java.util.Set;
 
+/** Paged audit timeline feed with a query bar; renders nothing for a caller who cannot view it (fail closed) or when the audit starter is absent. */
 @Slf4j
 @SpringComponent
 @UIScope
@@ -85,27 +85,25 @@ public class TimelineView extends VerticalLayout {
             return;
         }
 
-        Long currentUserId = access.getCurrentUserId();
-        if (!access.canView() && currentUserId == null) {
-            // fail closed -- empty actorIds would mean "no restriction", not "nothing"
+        if (!access.canView()) {
+            // fail closed -- this view is built for every session, but only a moderator may read the timeline
             feed.removeAll();
             paginationBar.setTotalCount(0);
             return;
         }
 
+        Long currentUserId = access.getCurrentUserId();
+
         int page = paginationBar.getCurrentPage();
         int size = paginationBar.getPageSize();
 
         TimelineQueryBlock queryBlock = (TimelineQueryBlock) queryStatusBar.getQueryBlock();
-        AuditTimelineFilterDto baseFilter = queryBlock.getFilterProcessor().getOriginalFilter();
-        AuditTimelineFilterDto filter = access.canView()
-                ? baseFilter
-                : baseFilter.toBuilder().actorIds(Set.of(currentUserId)).build();
+        AuditTimelineFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
 
         try {
             List<AuditTimelineItemDto<AuditableSnapshot>> items = auditQueryService.getTimelinePage(
-                    filter, queryBlock.getSortProcessor().getOriginalSort().getSort(), page, size);
-            paginationBar.setTotalCount(auditQueryService.countTimeline(filter));
+                    currentUserId, filter, queryBlock.getSortProcessor().getOriginalSort().getSort(), page, size);
+            paginationBar.setTotalCount(auditQueryService.countTimeline(currentUserId, filter));
             renderFeed(items);
         // single-tier by design -- AuditPort's timeline methods carry no @Valid, so ConstraintViolationException can't reach here
         } catch (Exception ex) {

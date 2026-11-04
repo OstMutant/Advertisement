@@ -1,0 +1,22 @@
+#admin-account {
+  margin: 12px 0;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+#admin-account .admin-explain {
+  margin: 4px 0;
+  color: #202124;
+}
+
+#admin-account label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-right: 12px;
+}
+
+#admin-account input {
+  padding: 4px 8px;
+  font: inherit;
+}

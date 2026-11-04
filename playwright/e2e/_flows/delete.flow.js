@@ -57,14 +57,14 @@ async function confirmDeleteDialog(page) {
  * @returns {Promise<void>}
  */
 async function runCreateSimpleAdvertisementFlow(page, { title, description, screenshotPrefix, categories = [] }) {
-  await page.locator('.add-advertisement-button').click();
+  await page.getByRole('button', { name: /add advertisement|додати оголошення/i }).click();
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
-  await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-  await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
+  await overlay.getByTestId('advertisement-overlay-field-title').getByRole('textbox').fill(title);
+  await overlay.getByTestId('advertisement-overlay-field-description').locator('.ql-editor').fill(description);
   for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
-  await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+  await overlay.getByRole('button', { name: /зберегти|save/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });
   await screenshot(page, `${screenshotPrefix}-saved`);
 }

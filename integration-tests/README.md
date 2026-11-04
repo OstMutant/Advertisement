@@ -15,7 +15,7 @@ substitute for the full e2e run before any deploy.
 - A reachable Docker daemon (Testcontainers starts a real ephemeral Postgres container per `mvn
   test` reactor run — the singleton-container pattern, see `.claude/nav/adr-index.md`)
 - Nothing else needs to be running first — unlike Playwright, this does not need the app itself,
-  MinIO, or the persistent dev Postgres container
+  SeaweedFS, or the persistent dev Postgres container
 
 ## Running
 

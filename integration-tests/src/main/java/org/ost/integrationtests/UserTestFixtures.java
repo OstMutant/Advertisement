@@ -31,10 +31,15 @@ public final class UserTestFixtures {
      * like {@code advertisement.created_by}).
      */
     public static User createTestUser(@NonNull UserRepository userRepository, @NonNull String name, @NonNull String email) {
+        return createTestUser(userRepository, name, email, Role.USER);
+    }
+
+    /** Same as {@link #createTestUser(UserRepository, String, String)}, with an explicit role instead of the {@link Role#USER} default. */
+    public static User createTestUser(@NonNull UserRepository userRepository, @NonNull String name, @NonNull String email, @NonNull Role role) {
         User user = User.builder()
                 .name(name)
                 .email(email)
-                .role(Role.USER)
+                .role(role)
                 .build();
         return userRepository.save(user);
     }

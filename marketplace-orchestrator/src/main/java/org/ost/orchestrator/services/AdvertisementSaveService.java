@@ -13,7 +13,6 @@ import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
-import org.ost.platform.taxon.model.TaxonType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -21,6 +20,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -28,7 +29,7 @@ import java.util.function.Function;
  * Application-level use case: save/delete an advertisement in one transaction, including its
  * category/city assignments, attachment gallery commit, audit capture, and owner-or-privileged
  * authorization. 2 direct domain ports (Advertisement + Audit) plus shared collaborators for the
- * Taxon/Attachment steps — see {@code marketplace-orchestrator/CLAUDE.md}'s "≤2 domain *Port
+ * Taxon/Attachment steps — see {@code .claude/rules/marketplace-orchestrator.md}'s "≤2 domain *Port
  * types per class" constraint.
  */
 @Slf4j
@@ -101,8 +102,21 @@ public class AdvertisementSaveService {
         }
     }
 
+    /** Records an update on the advertisement's audit trail after its gallery changed outside a form save, carrying the gallery's current snapshot id. */
+    public void recordMediaChange(@NonNull Long adId, @NonNull Long actorId) {
+        AdvertisementInfoDto ad = advertisementPortFactory.get().findById(adId)
+                .orElseThrow(() -> new NoSuchElementException("Advertisement " + adId + " not found"));
+        AdvertisementSnapshotDto snapshot = buildCurrentSnapshot(ad);
+        auditPortFactory.ifAvailable(p -> p.captureUpdate(adId, snapshot, actorId));
+    }
+
     public boolean isAvailable() {
         return advertisementPortFactory.findIfAvailable().isPresent();
+    }
+
+    /** Returns the advertisement's current editable state in its history-snapshot shape, empty when the id is unknown. */
+    public Optional<AdvertisementSnapshotDto> findCurrentSnapshot(@NonNull Long id) {
+        return advertisementPortFactory.get().findById(id).map(this::buildCurrentSnapshot);
     }
 
     public void delete(@NonNull Long id, @NonNull Long actorId, Long version) {
@@ -142,13 +156,9 @@ public class AdvertisementSaveService {
     // Takes the already-fetched row, not an id -- callers already hold it, avoiding a second fetch.
     private AdvertisementSnapshotDto buildCurrentSnapshot(@NonNull AdvertisementInfoDto ad) {
         List<TaxonDto> assignments = taxonLookupService.getForEntity(EntityType.ADVERTISEMENT, ad.getId(), Locale.ENGLISH);
-        List<Long> catIds = assignments.stream()
-                .filter(t -> t.getType() == TaxonType.CATEGORY)
-                .map(TaxonDto::getId).sorted().toList();
-        Long cityId = assignments.stream()
-                .filter(t -> t.getType() == TaxonType.CITY)
-                .map(TaxonDto::getId).findFirst().orElse(null);
+        CategoryAndCitySplit split = CategoryAndCitySplit.of(assignments);
+        List<Long> catIds = split.categoryIds().stream().sorted().toList();
         Long attachmentSnapshotId = attachmentSnapshotReaderService.getLatestSnapshotId(EntityType.ADVERTISEMENT, ad.getId());
-        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), ad.getAdKind(), catIds, cityId, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), ad.getAdKind(), catIds, split.cityTaxonId(), attachmentSnapshotId);
     }
 }

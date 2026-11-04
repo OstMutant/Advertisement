@@ -5,46 +5,65 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.orchestrator.services.AuthorizationService;
+import org.ost.orchestrator.services.SnapshotRestoreService;
+import org.ost.orchestrator.services.UserDeleteService;
 import org.ost.orchestrator.services.UserProfileService;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SupportedLocales;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.PageSizeLimits;
+import org.ost.platform.user.model.Role;
+import org.ost.restapi.api.audit.ActivityHistorySupport;
 import org.ost.restapi.api.concurrency.ETagUtil;
 import org.ost.restapi.api.paging.PagedResponseBuilder;
 import org.ost.restapi.api.paging.SortQueryParser;
+import org.ost.restapi.api.patch.MergePatchSupport;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
+import tools.jackson.databind.JsonNode;
 
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-/** Self-service registration (public) plus ADMIN/MODERATOR read access to the user list. */
+/** Self-service registration (public), administrator account management, and ADMIN/MODERATOR read access to the user list. */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -59,8 +78,12 @@ public class UserApiController {
 
     private final UserProfileService userProfileService;
     private final AuthorizationService authorizationService;
+    private final UserDeleteService userDeleteService;
+    private final ActivityHistorySupport activityHistorySupport;
+    private final SnapshotRestoreService snapshotRestoreService;
+    private final MergePatchSupport mergePatchSupport;
 
-    @Operation(summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
+    @Operation(operationId = "registerUser", summary = "Register a new account", description = "Public, no authentication needed. Rate-limited by client IP (5 failed attempts / 15 min). Follow up with POST /api/api-keys (Basic auth) to obtain a bearer key for the other endpoints.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
             {
               "name": "Jane Doe",
@@ -72,31 +95,111 @@ public class UserApiController {
     public UserCreatedResponse register(@RequestBody @Valid SignUpDto dto, HttpServletRequest request) {
         userProfileService.register(dto, request.getRemoteAddr());
         UserDto user = userProfileService.findByEmail(dto.getEmail()).orElseThrow();
-        return new UserCreatedResponse(user.id(), user.name(), user.email());
+        return new UserCreatedResponse(user.id(), user.name(), user.email(), user.role());
     }
 
-    @Operation(summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings).")
+    @Operation(operationId = "listUsers", summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings).")
     @GetMapping
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<UserDto>> list(@AuthenticationPrincipal Long actorId, @ModelAttribute @Valid UserFilterDto filter,
-            @RequestParam(defaultValue = "0") int page, @RequestParam(required = false) String sort, UriComponentsBuilder uriBuilder) {
+            @RequestParam(defaultValue = "0") int page, @RequestParam(required = false) String sort, HttpServletRequest httpRequest) {
         authorizationService.requireIsPrivileged(actorId);
         int size = userProfileService.resolveUsersPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
         List<UserDto> items = userProfileService.getFiltered(filter, page, size, sortObj);
         int total = userProfileService.count(filter);
-        return PagedResponseBuilder.build(uriBuilder, page, size, total, items);
+        return PagedResponseBuilder.build(httpRequest, page, size, total, items);
     }
 
-    @Operation(summary = "Get one user by id", description = "Admin/moderator only.")
+    @Operation(operationId = "getMe", summary = "Get the caller's own account", description = "Returns the account the API key belongs to, including its id. The ETag response header carries the version to send back via If-Match on PUT.")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PUT"))
+    @GetMapping("/me")
+    @SecurityRequirement(name = "bearerKey")
+    public ResponseEntity<UserDto> getMe(@AuthenticationPrincipal Long actorId) {
+        return getById(actorId, actorId);
+    }
+
+    @Operation(operationId = "getUser", summary = "Get one user by id", description = "Administrators and moderators, or the user themselves. The ETag response header carries the version to send back via If-Match on PUT.")
+    @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PUT"))
     @GetMapping("/{id}")
     @SecurityRequirement(name = "bearerKey")
-    public UserDto getById(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
-        authorizationService.requireIsPrivileged(actorId);
-        return userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+    public ResponseEntity<UserDto> getById(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
+        if (!id.equals(actorId)) {
+            authorizationService.requireIsPrivileged(actorId);
+        }
+        UserDto user = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), user.version()).body(user);
     }
 
-    @Operation(summary = "Get the caller's own paginated-list page-size preferences", description = "ETag response header carries the version to send back via If-Match on PATCH.")
+    @Operation(operationId = "getUserHistory", summary = "List a user's change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/{id}/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> history(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id) {
+        return activityHistorySupport.history(actorId, EntityType.USER, id);
+    }
+
+    @Operation(operationId = "getUserHistorySnapshot", summary = "Get one recorded state of a user",
+            description = "Returns the recorded state and its version, for a restoring update (PUT with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/{id}/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse historySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long id, @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.USER, id, snapshotId, UserSnapshotDto.class);
+    }
+
+    @Operation(operationId = "updateUser", summary = "Update a user's name and role", description = "Full replace of name and role. A user may change their own name; only an administrator may change a role, and never their own. If-Match must carry the version from the last GET /api/users/{id} ETag.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {
+              "name": "Max Moderator",
+              "role": "MODERATOR"
+            }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
+    @PutMapping("/{id}")
+    @SecurityRequirement(name = "bearerKey")
+    public ResponseEntity<UserDto> update(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestBody @Valid UserUpdateRequest request,
+            @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        userProfileService.save(new UserProfileDto(id, request.name(), request.role(), ETagUtil.requireIfMatch(ifMatch)), actorId);
+        UserDto updated = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), updated.version()).body(updated);
+    }
+
+    @Operation(operationId = "restoreUserFromSnapshot", summary = "Restore a user to a recorded state",
+            description = "Returns the user's name and role to the recorded state through the normal save path (same permissions and validation as an update); nothing else is restored. If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
+    @PostMapping("/{id}/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public ResponseEntity<UserDto> restoreFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long id,
+            @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        snapshotRestoreService.restoreUser(actorId, id, snapshotId, ETagUtil.requireIfMatch(ifMatch));
+        UserDto restored = userProfileService.findById(id).orElseThrow(NoSuchElementException::new);
+        return ETagUtil.withVersion(ResponseEntity.ok(), restored.version()).body(restored);
+    }
+
+    @Operation(operationId = "deleteUser", summary = "Delete a user", description = "Allowed for the account's owner or an administrator, as in the UI; an administrator cannot delete their own account (403). The user's advertisements, provider profile and API keys are removed first.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerKey")
+    public void delete(@AuthenticationPrincipal Long actorId, @PathVariable Long id) {
+        userDeleteService.delete(id, actorId);
+    }
+
+    @Operation(operationId = "changeMyLocale", summary = "Change the caller's own language", description = "Supported locales: en, uk. Changes the language of the caller's own account, takes {\"locale\":\"en\"|\"uk\"}, answers 204, and returns 400 for any other value.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+            {
+              "locale": "uk"
+            }""")))
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
+    @PutMapping("/me/locale")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerKey")
+    public void updateLocale(@AuthenticationPrincipal Long actorId, @RequestBody @Valid LocaleWriteRequest request) {
+        userProfileService.updateLocale(actorId, request.locale());
+    }
+
+    @Operation(operationId = "getMySettings", summary = "Get the caller's own paginated-list page-size preferences", description = "ETag response header carries the version to send back via If-Match on PATCH.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on PATCH"))
     @GetMapping("/me/settings")
     @SecurityRequirement(name = "bearerKey")
@@ -105,31 +208,64 @@ public class UserApiController {
         return ETagUtil.withVersion(ResponseEntity.ok(), settings.getVersion()).body(settings);
     }
 
-    @Operation(summary = "Update the caller's own paginated-list page-size preferences", description = "Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-            {
-              "adsPageSize": 20,
-              "usersPageSize": 20,
-              "timelinePageSize": 20,
-              "providerProfilesPageSize": 20
-            }""")))
-    @PatchMapping("/me/settings")
+    @Operation(operationId = "updateMySettings", summary = "Update the caller's own paginated-list page-size preferences",
+            description = "JSON Merge Patch (RFC 7396): send only the page sizes to change; a field left out keeps its value. null on a page size is 400, and so is an unknown field. Same validation limits as the Settings UI form. If-Match must carry the version from the last GET response's ETag.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = {
+            @Content(mediaType = "application/merge-patch+json", schema = @Schema(implementation = UserSettingsWriteRequest.class),
+                    examples = @ExampleObject(value = "{\"adsPageSize\": 30}")),
+            @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = UserSettingsWriteRequest.class),
+                    examples = @ExampleObject(value = "{\"adsPageSize\": 30}"))})
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
+    @PatchMapping(value = "/me/settings", consumes = {"application/merge-patch+json", MediaType.APPLICATION_JSON_VALUE})
     @SecurityRequirement(name = "bearerKey")
-    public UserSettingsDto updateSettings(@AuthenticationPrincipal Long actorId, @RequestBody @Valid UserSettingsWriteRequest request,
+    public UserSettingsDto updateSettings(@AuthenticationPrincipal Long actorId, @RequestBody JsonNode patch,
             @Parameter(description = "Version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
-        UserSettingsDto dto = UserSettingsDto.builder()
-                .adsPageSize(request.adsPageSize())
-                .usersPageSize(request.usersPageSize())
-                .timelinePageSize(request.timelinePageSize())
-                .providerProfilesPageSize(request.providerProfilesPageSize())
-                .version(ETagUtil.parseIfMatch(ifMatch))
+        Long version = ETagUtil.requireIfMatch(ifMatch);
+        UserSettingsDto current = userProfileService.loadSettings(actorId);
+        UserSettingsWriteRequest merged = mergePatchSupport.apply(UserSettingsWriteRequest.from(current), patch, UserSettingsWriteRequest.class);
+        UserSettingsDto dto = current.toBuilder()
+                .adsPageSize(merged.adsPageSize())
+                .usersPageSize(merged.usersPageSize())
+                .timelinePageSize(merged.timelinePageSize())
+                .providerProfilesPageSize(merged.providerProfilesPageSize())
+                .feedbackPageSize(merged.feedbackPageSize())
+                .moderationPageSize(merged.moderationPageSize())
+                .version(version)
                 .build();
-        userProfileService.saveSettings(actorId, dto);
+        userProfileService.saveSettings(actorId, actorId, dto);
+        return userProfileService.loadSettings(actorId);
+    }
+
+    @Operation(operationId = "getMySettingsHistory", summary = "List the caller's own settings change history",
+            description = "Newest first. Administrators and moderators see every entry; anyone else sees only the entries they authored.")
+    @GetMapping("/me/settings/history")
+    @SecurityRequirement(name = "bearerKey")
+    public List<ActivityHistorySupport.HistoryEntryResponse> mySettingsHistory(@AuthenticationPrincipal @NonNull Long actorId) {
+        return activityHistorySupport.history(actorId, EntityType.USER_SETTINGS, actorId);
+    }
+
+    @Operation(operationId = "getMySettingsHistorySnapshot", summary = "Get one recorded state of the caller's own settings",
+            description = "Returns the recorded state and its version, for a restoring update (PATCH with If-Match). Administrators and moderators can read any snapshot; anyone else only one from their own visible history. 403 when the snapshot is not visible to the caller, 404 when unknown.")
+    @GetMapping("/me/settings/history/{snapshotId}")
+    @SecurityRequirement(name = "bearerKey")
+    public ActivityHistorySupport.SnapshotResponse mySettingsHistorySnapshot(@AuthenticationPrincipal @NonNull Long actorId,
+            @PathVariable @NonNull Long snapshotId) {
+        return activityHistorySupport.snapshot(actorId, EntityType.USER_SETTINGS, actorId, snapshotId, SettingsSnapshotDto.class);
+    }
+
+    @Operation(operationId = "restoreMySettingsFromSnapshot", summary = "Restore the caller's own settings to a recorded state",
+            description = "Returns the page-size preferences to the recorded state through the normal save path (same validation as PATCH /api/users/me/settings). If-Match carries the current version. 403 when the snapshot is not visible to the caller, 404 when unknown, 412 when the version is stale.")
+    @ApiResponse(responseCode = "429", description = "Write limit reached")
+    @PostMapping("/me/settings/history/{snapshotId}/restore")
+    @SecurityRequirement(name = "bearerKey")
+    public UserSettingsDto restoreMySettingsFromSnapshot(@AuthenticationPrincipal @NonNull Long actorId, @PathVariable @NonNull Long snapshotId,
+            @Parameter(description = "Current version from the last GET response's ETag") @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch) {
+        snapshotRestoreService.restoreSettings(actorId, actorId, snapshotId, ETagUtil.requireIfMatch(ifMatch));
         return userProfileService.loadSettings(actorId);
     }
 
     /** The newly registered user's identity, returned after a successful {@code POST /api/users}. */
-    public record UserCreatedResponse(Long id, String name, String email) {
+    public record UserCreatedResponse(Long id, String name, String email, Role role) {
     }
 
     /** Caller-writable settings fields -- version is server-managed (If-Match header), never client-supplied here. */
@@ -137,7 +273,22 @@ public class UserApiController {
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int adsPageSize,
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int usersPageSize,
             @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int timelinePageSize,
-            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int providerProfilesPageSize
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int providerProfilesPageSize,
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int feedbackPageSize,
+            @Min(PageSizeLimits.MIN_PAGE_SIZE) @Max(PageSizeLimits.MAX_PAGE_SIZE) int moderationPageSize
     ) {
+
+        static UserSettingsWriteRequest from(@NonNull UserSettingsDto settings) {
+            return new UserSettingsWriteRequest(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize(),
+                    settings.getProviderProfilesPageSize(), settings.getFeedbackPageSize(), settings.getModerationPageSize());
+        }
+    }
+
+    /** Caller-writable user fields -- id and version are server-managed (path variable / If-Match header). */
+    public record UserUpdateRequest(@NotBlank @Size(max = SignUpDto.NAME_MAX_LENGTH) String name, @NotNull Role role) {
+    }
+
+    /** The language to switch the caller's own account to. */
+    public record LocaleWriteRequest(@NotNull @Pattern(regexp = SupportedLocales.TAG_PATTERN) String locale) {
     }
 }

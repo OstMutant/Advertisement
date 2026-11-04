@@ -30,7 +30,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
  * {@code AccountOverlay}'s Name section, View mode -- the default entry point (mirrors the
  * deleted {@code UserViewOverlayModeHandler}'s card layout). The Edit button is visible only for
  * self/admin ({@link AccessEvaluator#canEditUserAccount}); a moderator viewing another user's
- * account sees this card with no way to reach Edit mode at all (see {@code improvement-178}).
+ * account sees this card with no way to reach Edit mode at all.
  */
 @SpringComponent
 @Scope("prototype")

@@ -11,21 +11,35 @@
 #   PLAYWRIGHT_VERSION -- bump both together, never independently). --lint is a separate mode that
 #   skips the app/DB entirely -- it only syncs the same spec/flow/helper files plus
 #   eslint.config.js/package.json, installs eslint/eslint-plugin-playwright, and runs `npx eslint .`.
-# Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--lint] [--grep <pattern>]
+# Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--lint] [--grep <pattern>] [--workers <n>] [--repeat-each <n>]
 #   (no scenario)         run every *.spec.js file
-#   e2e                   run all e2e specs (skips spec 05's seed by default)
-#   e2e --full            run e2e specs including spec 05's seed
+#   e2e                   run all e2e specs (skips the --full blocks by default)
+#   e2e --full            run e2e specs including the --full blocks
 #   <spec-name>           run a single spec file by name (with or without .spec.js)
 #   --ux                  also take screenshots (embedded in the HTML report)
 #   --lint                run ESLint over e2e/ instead of running any tests -- ignores scenario/--ux/--full/--grep
+#   --shot <url>          save a full-page PNG of any web page (for example the Dagu UI at http://localhost:8082)
+#                         instead of running any tests -- needs neither the app nor the database; the PNG lands in
+#                         scripts/logs/playwright/shots/ (see Outputs). Ignores scenario/--ux/--full/--grep
+#   --shot-name <name>    file name of that PNG without extension (default: shot; letters, digits, dot, dash, underscore; exit 2 otherwise, also for --shot without a URL)
+#   --shot-click <text>   click the first button with this visible name before the PNG is taken, to capture a dialog
 #   --grep <pattern>      forwarded to Playwright's own --grep, run only matching tests
+#   --workers <n>         forwarded to Playwright's own --workers, overrides the config's worker count
+#   --repeat-each <n>     forwarded to Playwright's own --repeat-each, runs every selected test n times
 # Uses: bash, docker, curl, npx playwright (inside pw-runner), npx eslint (inside pw-runner, --lint
-#   only), scripts/deploy-and-run/reset.sh (DB reset, only when the DB actually has data),
+#   only), playwright/shot.js (inside pw-runner, --shot only), scripts/deploy-and-run/reset.sh (DB reset, only when the DB actually has data),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
 # Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
 #   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
-# Input: playwright/e2e/*.spec.js, playwright/e2e/_flows/*.js, playwright/e2e/_helpers.js,
+#   TEST_REPORTS_VOLUME (default test-reports) -- the Docker volume mounted at /reports of pw-runner.
+#   ADMIN_EMAIL, ADMIN_PASSWORD (default: the repo-root .env values) -- forwarded into the
+#   pw-runner container for the adminEn test user.
+#   PW_WORKERS (default: the repo-root .env value) -- worker count forwarded into pw-runner for
+#   playwright.config.js; the --workers flag overrides it for one run.
+#   PW_LINT_MAX_WARNINGS (default: the repo-root .env value) -- --lint fails when ESLint reports more
+#   warnings than this, so the count of raw locators can only go down.
+# Input: playwright/e2e/*.js, playwright/e2e/_flows/*.js,
 #   playwright/playwright.config.js. --lint also reads playwright/eslint.config.js/package.json,
 #   ignores playwright.config.js.
 # Outputs: HTML report (a result) at playwright/pw-report/index.html. Full raw console log (same
@@ -42,32 +56,46 @@
 #   .claude/nav/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
 #   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
 #   Restarts marketplace-app if the DB needed a reset. --lint produces no HTML report/run.log --
-#   ESLint output goes straight to stdout.
+#   ESLint output goes straight to stdout. --shot produces no HTML report/run.log either -- only
+#   scripts/logs/playwright/shots/<name>.png, a look-at-a-page image, not a test result.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
 #   the DB reset fails, or any test fails. Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON
 #   marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
 #   an AI agent reading raw script output to parse machine-readable status instead of scraping
 #   free text. --lint: 0 if ESLint reports no errors, non-zero otherwise -- same two JSON markers.
+#   --shot: 0 if the PNG was written, non-zero otherwise -- same two JSON markers.
 # ────────────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
 FULL=""
 LINT=""
+SHOT_URL=""
+SHOT_NAME=""
+SHOT_CLICK=""
+SHOT_REQUESTED=""
 SCENARIO=""
 GREP=""
-SKIP_NEXT=""
+WORKERS=""
+REPEAT_EACH=""
+NEXT_VAR=""
 for arg in "$@"; do
-  if [ -n "$SKIP_NEXT" ]; then GREP="$arg"; SKIP_NEXT=""; continue; fi
+  if [ -n "$NEXT_VAR" ]; then printf -v "$NEXT_VAR" '%s' "$arg"; NEXT_VAR=""; continue; fi
   if [ "$arg" = "--ux" ]; then UX=1;
   elif [ "$arg" = "--full" ]; then FULL=1;
   elif [ "$arg" = "--lint" ]; then LINT=1;
-  elif [ "$arg" = "--grep" ]; then SKIP_NEXT=1;
+  elif [ "$arg" = "--shot" ]; then SHOT_REQUESTED=true; NEXT_VAR=SHOT_URL;
+  elif [ "$arg" = "--shot-name" ]; then NEXT_VAR=SHOT_NAME;
+  elif [ "$arg" = "--shot-click" ]; then NEXT_VAR=SHOT_CLICK;
+  elif [ "$arg" = "--grep" ]; then NEXT_VAR=GREP;
+  elif [ "$arg" = "--workers" ]; then NEXT_VAR=WORKERS;
+  elif [ "$arg" = "--repeat-each" ]; then NEXT_VAR=REPEAT_EACH;
   else SCENARIO="$arg"; fi
 done
 
@@ -82,7 +110,7 @@ DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-experiments_user}"
 DB_NAME="${DB_NAME:-experiments}"
 
-# Playwright version must match image (see playwright/CLAUDE.md) -- one place to bump both
+# Playwright version must match image (see /app/.claude/rules/playwright.md) -- one place to bump both
 # instead of two independent literals in the same file.
 PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
@@ -97,12 +125,12 @@ PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 # container from before this mount was added won't pick it up until it's next recreated (e.g. via
 # `docker rm -f pw-runner`).
 if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
-  docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
+  docker run -d --name "$PW_CONTAINER" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
 else
   PW_STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
   if [ "$PW_STATUS" != "running" ]; then
     docker rm -f "$PW_CONTAINER"
-    docker run -d --name "$PW_CONTAINER" --network host -v test-reports:/reports "$PLAYWRIGHT_IMAGE" sleep 86400
+    docker run -d --name "$PW_CONTAINER" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
   fi
 fi
 docker exec "$PW_CONTAINER" sh -c "mkdir -p /reports/playwright-log" >/dev/null 2>&1 || true
@@ -120,7 +148,7 @@ log_orchestrator() {
   echo "$1" | docker exec -i "$PW_CONTAINER" sh -c "cat >> /reports/playwright-log/orchestrator.log" 2>/dev/null || true
 }
 
-# Copies e2e/*.spec.js, e2e/_flows/*.js and e2e/_helpers.js into pw-runner's <dest>/e2e -- shared
+# Copies e2e/*.js (specs, shared helpers, fixtures, setup) and e2e/_flows/*.js into pw-runner's <dest>/e2e -- shared
 # by both the lint path (below) and the test-run path (further down), since both need the same
 # real test source to check/execute against. Takes the destination dir so each path can use its
 # own node_modules (see --lint's own /lint below) -- sharing /tmp/node_modules between the two
@@ -131,7 +159,7 @@ log_orchestrator() {
 sync_e2e_files() {
   local dest="$1"
   docker exec "$PW_CONTAINER" bash -c "mkdir -p $dest/e2e"
-  for f in "$ROOT"/playwright/e2e/*.spec.js; do
+  for f in "$ROOT"/playwright/e2e/*.js; do
     [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":$dest/e2e/ 2>/dev/null
   done
   if [ -d "$ROOT/playwright/e2e/_flows" ]; then
@@ -140,7 +168,6 @@ sync_e2e_files() {
       [ -f "$f" ] && docker cp "$f" "$PW_CONTAINER":$dest/e2e/_flows/ 2>/dev/null
     done
   fi
-  [ -f "$ROOT/playwright/e2e/_helpers.js" ] && docker cp "$ROOT/playwright/e2e/_helpers.js" "$PW_CONTAINER":$dest/e2e/
 }
 
 # ── Lint mode — no app/DB needed, exits before any of that gets checked ──────
@@ -154,7 +181,8 @@ if [ -n "$LINT" ]; then
   docker cp "$ROOT/playwright/eslint.config.js" "$PW_CONTAINER":/lint/
   docker cp "$ROOT/playwright/package.json" "$PW_CONTAINER":/lint/
   docker exec "$PW_CONTAINER" bash -c "cd /lint && npm install --no-save -q 2>&1 | grep -v '^npm notice'"
-  docker exec "$PW_CONTAINER" bash -c "cd /lint && npx eslint ."
+  PW_LINT_MAX_WARNINGS="${PW_LINT_MAX_WARNINGS:-$(grep -E '^PW_LINT_MAX_WARNINGS=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
+  docker exec "$PW_CONTAINER" bash -c "cd /lint && npx eslint . ${PW_LINT_MAX_WARNINGS:+--max-warnings $PW_LINT_MAX_WARNINGS}"
   EXIT_CODE=$?
   if [ "$EXIT_CODE" -ne 0 ]; then
     emit_agentic_error_block "business" "false" "eslint-lint" "ESLint found lint errors (exit $EXIT_CODE) -- see output above."
@@ -164,10 +192,43 @@ if [ -n "$LINT" ]; then
   exit $EXIT_CODE
 fi
 
+# ── Shot mode — no app/DB needed, exits before any of that gets checked ──────
+# Uses its own /shot directory (own node_modules), for the same reason as /lint above.
+if [ -n "$SHOT_REQUESTED" ] && [ -z "$SHOT_URL" ]; then
+  echo "ERROR: --shot needs a URL" >&2
+  emit_agentic_error_block "validation" "false" "arg-parsing" "--shot needs a URL -- pass it as the next argument."
+  exit 2
+fi
+
+if [ -n "$SHOT_URL" ]; then
+  SHOT_NAME="${SHOT_NAME:-shot}"
+  case "$SHOT_NAME" in
+    *[!A-Za-z0-9._-]*|.*) emit_agentic_error_block "validation" "false" "arg-parsing" "--shot-name may hold only letters, digits, dot, dash and underscore, and may not start with a dot."; exit 2 ;;
+  esac
+  SHOT_DIR="$ROOT/scripts/logs/playwright/shots"
+  echo "Saving a screenshot of $SHOT_URL..."
+  docker exec "$PW_CONTAINER" bash -c "mkdir -p /shot/out && rm -f /shot/out/$SHOT_NAME.png"
+  docker cp "$ROOT/playwright/shot.js" "$PW_CONTAINER":/shot/ || { emit_agentic_error_block "transient" "true" "playwright-shot" "Could not copy shot.js into $PW_CONTAINER."; exit 1; }
+  docker exec "$PW_CONTAINER" bash -c "cd /shot && { [ -d node_modules/playwright ] || npm install --no-save -q playwright@$PLAYWRIGHT_VERSION; }" || { emit_agentic_error_block "transient" "true" "playwright-shot" "npm install of playwright failed inside $PW_CONTAINER -- see output above."; exit 1; }
+  docker exec -w /shot "$PW_CONTAINER" node shot.js "$SHOT_URL" "/shot/out/$SHOT_NAME.png" ${SHOT_CLICK:+"$SHOT_CLICK"}
+  EXIT_CODE=$?
+  if [ "$EXIT_CODE" -eq 0 ]; then
+    mkdir -p "$SHOT_DIR"
+    docker cp "$PW_CONTAINER":"/shot/out/$SHOT_NAME.png" "$SHOT_DIR/$SHOT_NAME.png" || EXIT_CODE=$?
+  fi
+  if [ "$EXIT_CODE" -ne 0 ]; then
+    emit_agentic_error_block "business" "false" "playwright-shot" "Could not save a screenshot of $SHOT_URL (exit $EXIT_CODE) -- see output above."
+  else
+    echo "Screenshot: $SHOT_DIR/$SHOT_NAME.png"
+    emit_agentic_success_block "playwright-shot"
+  fi
+  exit $EXIT_CODE
+fi
+
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
-  echo "  docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.minio.yml up -d"
+  echo "  docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d"
   echo "  docker run -d --name marketplace-app --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"
@@ -259,7 +320,10 @@ docker cp "$ROOT/playwright/playwright.config.js" "$PW_CONTAINER":/tmp/
 # ── Build run command ─────────────────────────────────────────────────────────
 # APP_URL must be forwarded explicitly -- playwright.config.js reads it from the pw-runner
 # container's own env, not this script's shell (docker exec starts a fresh environment).
-PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
+ADMIN_EMAIL="${ADMIN_EMAIL:-$(grep -E '^ADMIN_EMAIL=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(grep -E '^ADMIN_PASSWORD=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
+PW_WORKERS="${PW_WORKERS:-$(grep -E '^PW_WORKERS=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
+PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$(printf '%q' "$APP_URL") ADMIN_EMAIL=$(printf '%q' "$ADMIN_EMAIL") ADMIN_PASSWORD=$(printf '%q' "$ADMIN_PASSWORD") PW_WORKERS=$(printf '%q' "$PW_WORKERS")"
 [ -n "$UX" ]   && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
 [ -n "$FULL" ] && PW_ENV="$PW_ENV PW_FULL=1"
 
@@ -282,10 +346,13 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$APP_URL"
 # real Docker Desktop/WSL2 machine). `docker cp` itself is daemon-mediated and not subject to it.
 RUN_LOG="$ROOT/scripts/logs/playwright/run.log"
 
+EXTRA_ARGS="${WORKERS:+--workers $WORKERS} ${REPEAT_EACH:+--repeat-each $REPEAT_EACH}"
+# printf %q keeps a pattern with spaces or shell characters one argument inside the bash -c string below.
+GREP_ARG=""
+[ -n "$GREP" ] && GREP_ARG="--grep $(printf '%q' "$GREP")"
 if [ -n "$SCENARIO" ]; then
   if [ "$SCENARIO" = "e2e" ]; then
-    GREP_ARG=${GREP:+--grep "$GREP"}
-    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $SCENARIO/ $GREP_ARG --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
+    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $SCENARIO/ $GREP_ARG $EXTRA_ARGS --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
   else
     if [[ "$SCENARIO" == */* ]]; then
       SPEC_FILE="$ROOT/playwright/${SCENARIO%.spec}.spec.js"
@@ -300,12 +367,10 @@ if [ -n "$SCENARIO" ]; then
       exit 1
     fi
     SPEC_REL="${SPEC_FILE#$ROOT/playwright/}"
-    GREP_ARG=${GREP:+--grep "$GREP"}
-    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $SPEC_REL $GREP_ARG --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
+    docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $SPEC_REL $GREP_ARG $EXTRA_ARGS --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
   fi
 else
-  GREP_ARG=${GREP:+--grep "$GREP"}
-  docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $GREP_ARG --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
+  docker exec "$PW_CONTAINER" bash -c "$INSTALL_CMD && mkdir -p /reports/playwright /reports/playwright-log && cd /tmp && ($PW_ENV npx playwright test $GREP_ARG $EXTRA_ARGS --config playwright.config.js 2>&1 | tee /reports/playwright-log/run.log; exit \${PIPESTATUS[0]})"
 fi
 
 EXIT_CODE=$?
@@ -320,6 +385,7 @@ EXIT_CODE=$?
 docker cp "$PW_CONTAINER":/reports/playwright/. "$ROOT/playwright/pw-report/" 2>/dev/null && \
   echo "HTML report: $ROOT/playwright/pw-report/index.html"
 docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/scripts/logs/playwright/" 2>/dev/null
+write_session_info "$ROOT/scripts/logs/playwright" playwright
 
 if [ "$EXIT_CODE" -ne 0 ]; then
   emit_agentic_error_block "business" "false" "playwright-run" "Playwright run failed (exit $EXIT_CODE) -- one or more tests did not pass, not retryable as-is."

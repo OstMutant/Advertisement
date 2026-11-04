@@ -14,17 +14,21 @@
 # Usage: bash scripts/build-and-test/run.sh [--reset-cache] [--rebuild-image] [--unit|--no-unit]
 #   [--integration|--no-integration] [--unit-test <module-or-class>]
 #   [--integration-test <scenario-or-class>] [--sandbox] [--archunit-metrics] [--skip-vaadin]
+#   [--no-install]
 #   (no flags)           build the full reactor, then run both unit and integration tests (the
 #                         build-and-test.properties defaults, both true)
-#   --reset-cache        wipe the shared maven-cache and vaadin-cache volumes before building
-#                         (re-downloads every Maven dependency and Vaadin's own Node.js install)
+#   --reset-cache        wipe the Maven cache volume and the Vaadin cache volume (MAVEN_CACHE_VOLUME / VAADIN_CACHE_VOLUME,
+#                         defaults maven-cache / vaadin-cache) before building; stops with an error if a container still mounts one
+#                         (re-downloads every Maven dependency and Vaadin's own Node.js install);
+#                         first removes the Sonar scanner container (SONAR_SCANNER_CONTAINER, default sonar-scanner),
+#                         because that container mounts the Maven volume
 #   --rebuild-image      force-rebuild the build-and-test image even if one already exists -- the
 #                         image also auto-rebuilds without this flag whenever the Dockerfile's own
 #                         mtime is newer than the existing image's creation time
 #   --unit/--no-unit                 override build-and-test.properties' unit= default for this run
 #   --integration/--no-integration   override build-and-test.properties' integration= default for this run
 #   --unit-test <arg>                narrow RUN_UNIT to one module (query-lib/marketplace-app/
-#                                     marketplace-orchestrator) or one test class by name
+#                                     marketplace-orchestrator/marketplace-rest-api/marketplace-mcp) or one test class by name
 #   --integration-test <arg>         narrow RUN_INTEGRATION to one scenario (smoke) or one test
 #                                     class by name
 #   --no-sandbox                      disable the Docker nested-container Testcontainers
@@ -45,6 +49,9 @@
 #                                     for --unit/--integration/--archunit-metrics runs, never for a
 #                                     plain cache-priming build or anything deploy-and-run.sh/e2e
 #                                     relies on (see build.sh's own header for why)
+#   --no-install                     off by default -- skips the reactor install and tests against the
+#                                     jars an earlier build already put into the Maven cache volume;
+#                                     only for callers that ran a full build in the same pipeline just before
 # Uses: bash, docker, tar, grep, sed, scripts/utils/agentic-output.sh
 #   (emit_agentic_success_block/emit_agentic_error_block).
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
@@ -59,16 +66,23 @@
 #   TESTCONTAINERS_RYUK_DISABLED /
 #   INTEGRATION_TESTS_POSTGRES_FIXED_PORT are passed through into the container if already set in
 #   the caller's own environment -- same effect as the default/--sandbox workarounds described
-#   under Usage above. GITHUB_ACTIONS -- detected, never set by this script -- flips the
-#   workarounds' own default from on to off (a real CI runner is not usually nested the same way a
-#   local dev machine's Docker Desktop/WSL2 setup is); pass --sandbox explicitly to force them on
-#   there too, if a given CI runner ever needs it.
+#   under Usage above. A port set by the caller also wins over the --sandbox default of 25432, so
+#   two concurrent runs can use different ports. GITHUB_ACTIONS -- detected, never set by this
+#   script -- flips the workarounds' own default from on to off (a real CI runner is not usually
+#   nested the same way a local dev machine's Docker Desktop/WSL2 setup is); pass --sandbox
+#   explicitly to force them on there too, if a given CI runner ever needs it.
+#   MAVEN_CACHE_VOLUME (default maven-cache) -- name of the Docker volume mounted at /root/.m2; the CI sets its own so
+#   manual builds cannot change the jars a CI run reuses.
+#   VAADIN_CACHE_VOLUME (default vaadin-cache) -- name of the Docker volume mounted at /root/.vaadin.
+#   TEST_REPORTS_VOLUME (default test-reports) -- name of the Docker volume mounted at /reports.
+#   SONAR_SCANNER_CONTAINER (default sonar-scanner) -- name of the Sonar scanner container that --reset-cache removes.
 # Input: root build files (pom.xml, mvnw, .mvn, lombok.config, .env), scripts/build-and-test/build.sh
-#   itself (the container's own entry point), and each Maven module's own directory, per pom.xml's
-#   <module> list -- not the whole repo (see the tar step's own comment below);
+#   itself (the container's own entry point), each Maven module's own directory, per pom.xml's
+#   <module> list, and docs/api-collections (the REST API module packs the flow runner page and
+#   the Postman collection from it) -- not the whole repo (see the tar step's own comment below);
 #   scripts/build-and-test/build-and-test.properties (unit=/integration= defaults, read on the host
 #   side by this script, not tarred in).
-# Outputs: fresh jars for the whole reactor in the shared maven-cache Docker volume (never the
+# Outputs: fresh jars for the whole reactor in the Maven cache Docker volume (never the
 #   host's own ~/.m2 -- see scripts/build-and-test/README.md); marketplace-app.jar refreshed at
 #   /root/.m2/artifacts/marketplace-app.jar inside that same volume. Vaadin's own Node.js install
 #   (unrelated to Maven) persists across runs in a second named volume, vaadin-cache:/root/.vaadin --
@@ -76,13 +90,13 @@
 #   fresh build container has nothing outside its mounted volumes. With unit/integration enabled,
 #   PASSED/FAILED summary on stdout plus Surefire reports copied to
 #   scripts/build-and-test/reports/surefire/<module>/, and the full raw console log for whichever
-#   phase ran copied to scripts/build-and-test/reports/logs/ (unit-tests.log/integration-tests.log)
+#   phase ran copied to scripts/logs/build-and-test/ (unit-tests.log/integration-tests.log)
 #   -- persists the real failure detail past this run's own terminal output. Also always writes
 #   scripts/build-and-test/reports/build-info.txt (BUILD_CONTAINER_NAME, timestamp, which of
 #   RUN_UNIT/RUN_INTEGRATION/ARCHUNIT_METRICS/SKIP_VAADIN were set), so it's clear which invocation
 #   produced a given set of reports. With --archunit-metrics, also
 #   scripts/build-and-test/reports/architecture-metrics.json and
-#   reports/logs/archunit-metrics.log. With --integration, also mirrors integration-tests/reports/
+#   scripts/logs/build-and-test/archunit-metrics.log. With --integration, also mirrors integration-tests/reports/
 #   (run.log + surefire/) via its own separate `docker cp` -- keeps that directory fresh
 #   regardless of whether integration tests ran through this script or integration-tests/run.sh's
 #   own direct invocation. All of the above lands on the host via `docker cp` from a third named
@@ -103,6 +117,7 @@ SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/session-id.sh"
 BUILD_IMAGE="advertisement-build-env"
 BUILD_CONTAINER_NAME="${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 DOCKERFILE="$ROOT/scripts/build-and-test/Dockerfile"
@@ -126,6 +141,7 @@ else
 fi
 ARCHUNIT_METRICS=false
 SKIP_VAADIN=false
+NO_INSTALL=false
 UNIT_TEST_ARG=""
 INTEGRATION_TEST_ARG=""
 NEXT=""
@@ -147,6 +163,7 @@ for arg in "$@"; do
     --no-sandbox)       SANDBOX=false ;;
     --archunit-metrics) ARCHUNIT_METRICS=true ;;
     --skip-vaadin)       SKIP_VAADIN=true ;;
+    --no-install)        NO_INSTALL=true ;;
   esac
 done
 
@@ -154,16 +171,23 @@ trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; emit_agentic_error_blo
 
 if $SANDBOX; then
   TESTCONTAINERS_RYUK_DISABLED=true
-  INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432
-  echo "Applying Docker nested-container workarounds (Ryuk disabled, fixed Postgres port 25432)." \
+  INTEGRATION_TESTS_POSTGRES_FIXED_PORT="${INTEGRATION_TESTS_POSTGRES_FIXED_PORT:-25432}"
+  echo "Applying Docker nested-container workarounds (Ryuk disabled, fixed Postgres port $INTEGRATION_TESTS_POSTGRES_FIXED_PORT)." \
        "Pass --no-sandbox if your Docker setup doesn't need this."
 fi
 
 # ── Clear build caches if requested ──────────────────────────────────────────
 if $RESET_CACHE; then
-  echo "=== Clearing build caches (maven-cache, vaadin-cache) ==="
-  docker volume rm maven-cache 2>/dev/null || true
-  docker volume rm vaadin-cache 2>/dev/null || true
+  echo "=== Clearing build caches (${MAVEN_CACHE_VOLUME:-maven-cache}, ${VAADIN_CACHE_VOLUME:-vaadin-cache}) ==="
+  docker rm -f "${SONAR_SCANNER_CONTAINER:-sonar-scanner}" >/dev/null 2>&1 || true
+  docker volume rm "${MAVEN_CACHE_VOLUME:-maven-cache}" "${VAADIN_CACHE_VOLUME:-vaadin-cache}" 2>/dev/null || true
+  for volume in "${MAVEN_CACHE_VOLUME:-maven-cache}" "${VAADIN_CACHE_VOLUME:-vaadin-cache}"; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      echo "ERROR: volume $volume is still in use -- remove the containers that mount it and retry" >&2
+      docker ps -a --filter "volume=$volume" --format "  {{.Names}} ({{.Status}})" >&2
+      exit 1
+    fi
+  done
 fi
 
 # ── Ensure build image exists and is current (rebuilds if Dockerfile changed since last build,
@@ -207,9 +231,10 @@ SANDBOX_ENV=()
 
 # ── Pipe sources + build (+ optional unit/integration tests) ─────────────────
 # Tars only what this run actually needs inside the container: build.sh itself (the entry point
-# the container executes below, via bash -c), the root build files, and each module's own
-# directory -- never the whole repo (docs/, backlog/, playwright/, .claude/, etc. are never
-# touched by build.sh). .env is included even though `mvn install` itself never reads it --
+# the container executes below, via bash -c), the root build files, each module's own directory,
+# and docs/api-collections (the REST API module packs the flow runner page and the Postman
+# collection from it) -- never the whole repo.
+# .env is included even though `mvn install` itself never reads it --
 # integration-tests' own SharedEnvConfig reads it at test-runtime (POSTGRES_IMAGE for
 # Testcontainers), walking up from the JVM's working directory; missing it doesn't fail the build,
 # it fails every single integration test at startup with a hard-to-read NoClassDefFoundError/
@@ -241,23 +266,24 @@ MODULES=$(grep -oE '<module>[^<]+</module>' "$ROOT/pom.xml" | sed -E 's#</?modul
 # invocation under a different BUILD_CONTAINER_NAME (e.g. deploy-and-run.sh's own internal call,
 # which already uses a distinct name to avoid a Docker container-name collision) writes to its own
 # separate namespace in the same volume and must never wipe this one's in-progress data.
-docker run --rm -v test-reports:/reports "$BUILD_IMAGE" bash -c "rm -rf /reports/$BUILD_CONTAINER_NAME" 2>/dev/null || true
+docker run --rm -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$BUILD_IMAGE" bash -c "rm -rf /reports/$BUILD_CONTAINER_NAME" 2>/dev/null || true
 
 docker rm -f "$BUILD_CONTAINER_NAME" 2>/dev/null || true
 set +e
 tar -czf - --exclude='*/target' --exclude='marketplace-app/src/main/frontend/generated' \
-  -C "$ROOT" pom.xml mvnw .mvn lombok.config .env scripts/build-and-test/build.sh $MODULES \
+  -C "$ROOT" pom.xml mvnw .mvn lombok.config .env scripts/build-and-test/build.sh docs/api-collections $MODULES \
   | docker run -i \
       --name "$BUILD_CONTAINER_NAME" \
-      -v maven-cache:/root/.m2 \
-      -v vaadin-cache:/root/.vaadin \
-      -v test-reports:/reports \
+      -v "${MAVEN_CACHE_VOLUME:-maven-cache}:/root/.m2" \
+      -v "${VAADIN_CACHE_VOLUME:-vaadin-cache}:/root/.vaadin" \
+      -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" \
       "${DOCKER_SOCK_MOUNT[@]}" \
       -e BUILD_CONTAINER_NAME="$BUILD_CONTAINER_NAME" \
       -e RUN_UNIT="$RUN_UNIT" \
       -e RUN_INTEGRATION="$RUN_INTEGRATION" \
       -e ARCHUNIT_METRICS="$ARCHUNIT_METRICS" \
       -e SKIP_VAADIN="$SKIP_VAADIN" \
+      -e NO_INSTALL="$NO_INSTALL" \
       -e UNIT_TEST_ARG="$UNIT_TEST_ARG" \
       -e INTEGRATION_TEST_ARG="$INTEGRATION_TEST_ARG" \
       "${SANDBOX_ENV[@]}" \
@@ -291,6 +317,7 @@ fi
 # separate top-level paths inside the container specifically so each can go to its own separate
 # host destination here, without any exclusion logic.
 docker cp "$BUILD_CONTAINER_NAME":/reports/logs/"$BUILD_CONTAINER_NAME"/. "$HOST_LOGS_DEST/" 2>/dev/null || true
+write_session_info "$HOST_LOGS_DEST" build-and-test
 docker cp "$BUILD_CONTAINER_NAME":/reports/"$BUILD_CONTAINER_NAME"/. "$HOST_REPORT_DEST/" 2>/dev/null || true
 # Only attempted when integration tests actually ran -- otherwise there's nothing in the
 # container's it-mirror to copy. Same reasoning as above -- no `mkdir -p` before this `docker cp`

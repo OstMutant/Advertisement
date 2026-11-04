@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -29,6 +30,16 @@ class FailureRateLimiterTest {
         assertThatThrownBy(() -> limiter.checkAllowed("actor-2", "too many attempts"))
                 .isInstanceOf(TooManyAttemptsException.class)
                 .hasMessage("too many attempts");
+    }
+
+    @Test
+    void checkAllowed_atThreshold_exceptionCarriesWindow() {
+        FailureRateLimiter limiter = new FailureRateLimiter(1, Duration.ofMinutes(15));
+        limiter.recordFailure("actor-6");
+
+        assertThatThrownBy(() -> limiter.checkAllowed("actor-6", "too many attempts"))
+                .isInstanceOf(TooManyAttemptsException.class)
+                .satisfies(ex -> assertThat(((TooManyAttemptsException) ex).retryAfter()).contains(Duration.ofMinutes(15)));
     }
 
     @Test

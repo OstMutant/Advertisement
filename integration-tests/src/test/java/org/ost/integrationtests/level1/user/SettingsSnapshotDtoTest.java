@@ -9,16 +9,12 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Covers improvement-045 item 8: plain unit test for {@link SettingsSnapshotDto#diff}, by direct
- * analogy with {@code AdvertisementSnapshotDtoTest} — no Spring context, no DB, pure field
- * comparison with zero side effects.
- */
+/** Plain unit test (no Spring context, no DB) — {@link SettingsSnapshotDto#diff} is pure field comparison with zero side effects. */
 class SettingsSnapshotDtoTest {
 
     @Test
     void diff_noPrevious_returnsChangesForAllFields() {
-        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
 
         List<ChangeEntry> changes = current.diff(null);
 
@@ -26,13 +22,15 @@ class SettingsSnapshotDtoTest {
                 new FieldChange(SettingsSnapshotDto.Fields.adsPageSize, null, "10"),
                 new FieldChange(SettingsSnapshotDto.Fields.usersPageSize, null, "20"),
                 new FieldChange(SettingsSnapshotDto.Fields.timelinePageSize, null, "30"),
-                new FieldChange(SettingsSnapshotDto.Fields.providerProfilesPageSize, null, "40"));
+                new FieldChange(SettingsSnapshotDto.Fields.providerProfilesPageSize, null, "40"),
+                new FieldChange(SettingsSnapshotDto.Fields.feedbackPageSize, null, "50"),
+                new FieldChange(SettingsSnapshotDto.Fields.moderationPageSize, null, "60"));
     }
 
     @Test
     void diff_identicalSnapshots_returnsNoChanges() {
-        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40);
-        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40);
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -41,8 +39,8 @@ class SettingsSnapshotDtoTest {
 
     @Test
     void diff_adsPageSizeChanged_returnsSingleFieldChange() {
-        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40);
-        SettingsSnapshotDto current = new SettingsSnapshotDto(15, 20, 30, 40);
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(15, 20, 30, 40, 50, 60);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -52,8 +50,8 @@ class SettingsSnapshotDtoTest {
 
     @Test
     void diff_usersPageSizeChanged_returnsSingleFieldChange() {
-        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40);
-        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 25, 30, 40);
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 25, 30, 40, 50, 60);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -63,8 +61,8 @@ class SettingsSnapshotDtoTest {
 
     @Test
     void diff_timelinePageSizeChanged_returnsSingleFieldChange() {
-        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40);
-        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 35, 40);
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 35, 40, 50, 60);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -74,8 +72,8 @@ class SettingsSnapshotDtoTest {
 
     @Test
     void diff_providerProfilesPageSizeChanged_returnsSingleFieldChange() {
-        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40);
-        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 45);
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 45, 50, 60);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -84,9 +82,31 @@ class SettingsSnapshotDtoTest {
     }
 
     @Test
+    void diff_feedbackPageSizeChanged_returnsSingleFieldChange() {
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40, 55, 60);
+
+        List<ChangeEntry> changes = current.diff(previous);
+
+        assertThat(changes).containsExactly(
+                new FieldChange(SettingsSnapshotDto.Fields.feedbackPageSize, "50", "55"));
+    }
+
+    @Test
+    void diff_moderationPageSizeChanged_returnsSingleFieldChange() {
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40, 50, 65);
+
+        List<ChangeEntry> changes = current.diff(previous);
+
+        assertThat(changes).containsExactly(
+                new FieldChange(SettingsSnapshotDto.Fields.moderationPageSize, "60", "65"));
+    }
+
+    @Test
     void diff_allFieldsChanged_returnsAllChangedFields() {
-        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40);
-        SettingsSnapshotDto current = new SettingsSnapshotDto(11, 21, 31, 41);
+        SettingsSnapshotDto previous = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(11, 21, 31, 41, 51, 61);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -94,12 +114,14 @@ class SettingsSnapshotDtoTest {
                 new FieldChange(SettingsSnapshotDto.Fields.adsPageSize, "10", "11"),
                 new FieldChange(SettingsSnapshotDto.Fields.usersPageSize, "20", "21"),
                 new FieldChange(SettingsSnapshotDto.Fields.timelinePageSize, "30", "31"),
-                new FieldChange(SettingsSnapshotDto.Fields.providerProfilesPageSize, "40", "41"));
+                new FieldChange(SettingsSnapshotDto.Fields.providerProfilesPageSize, "40", "41"),
+                new FieldChange(SettingsSnapshotDto.Fields.feedbackPageSize, "50", "51"),
+                new FieldChange(SettingsSnapshotDto.Fields.moderationPageSize, "60", "61"));
     }
 
     @Test
     void allFields_returnsEveryFieldWithNullOldValue() {
-        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40);
+        SettingsSnapshotDto current = new SettingsSnapshotDto(10, 20, 30, 40, 50, 60);
 
         List<FieldChange> fields = current.allFields();
 
@@ -107,6 +129,8 @@ class SettingsSnapshotDtoTest {
                 new FieldChange(SettingsSnapshotDto.Fields.adsPageSize, null, "10"),
                 new FieldChange(SettingsSnapshotDto.Fields.usersPageSize, null, "20"),
                 new FieldChange(SettingsSnapshotDto.Fields.timelinePageSize, null, "30"),
-                new FieldChange(SettingsSnapshotDto.Fields.providerProfilesPageSize, null, "40"));
+                new FieldChange(SettingsSnapshotDto.Fields.providerProfilesPageSize, null, "40"),
+                new FieldChange(SettingsSnapshotDto.Fields.feedbackPageSize, null, "50"),
+                new FieldChange(SettingsSnapshotDto.Fields.moderationPageSize, null, "60"));
     }
 }

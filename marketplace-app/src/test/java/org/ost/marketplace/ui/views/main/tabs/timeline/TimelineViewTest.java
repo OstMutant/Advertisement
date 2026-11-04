@@ -16,6 +16,7 @@ import org.ost.platform.core.ComponentFactory;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,15 +39,15 @@ class TimelineViewTest {
     }
 
     @Test
-    void refresh_nonAdminWithNoResolvedActorId_rendersEmptyAndNeverQueries() {
+    void refresh_callerWhoCannotViewTheTimeline_rendersEmptyAndNeverQueriesEvenWithAResolvedActorId() {
         when(auditQueryService.isAvailable()).thenReturn(true);
         when(access.canView()).thenReturn(false);
-        when(access.getCurrentUserId()).thenReturn(null);
+        lenient().when(access.getCurrentUserId()).thenReturn(7L);
 
         view.setVisible(true);
 
-        verify(auditQueryService, never()).getTimelinePage(any(), any(), anyInt(), anyInt());
-        verify(auditQueryService, never()).countTimeline(any());
+        verify(auditQueryService, never()).getTimelinePage(any(), any(), any(), anyInt(), anyInt());
+        verify(auditQueryService, never()).countTimeline(any(), any());
         verify(paginationBar).setTotalCount(0);
     }
 }

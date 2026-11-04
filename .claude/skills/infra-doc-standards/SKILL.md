@@ -110,16 +110,16 @@ to guess where it ends from context (a blank line, the next line of code, or not
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Full prod deploy -- builds Docker image from scratch, starts all services on port 8081.
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache] [--reset-only-db] [--prune-all]
-#   --reset          wipe DB/MinIO volumes, then rebuild
+#   --reset          wipe DB/SeaweedFS volumes, then rebuild
 #   --restart-infra  restart infra containers only (no rebuild)
 #   --file           filtered console output + full log to /tmp/deploy.log
 #   --no-cache       force rebuild ignoring Docker layer cache
 #   --reset-only-db       truncate app tables (reset-clean.sql) before starting the app
 #   --prune-all      also prune stopped containers/volumes HOST-WIDE (see .claude/nav/adr-index.md)
 # Uses: bash, docker buildx, docker compose.
-# Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), MINIO_CONTAINER
-#   (advertisement-minio), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
-#   (5432), MINIO_PORT (9000), MINIO_CONSOLE_PORT (9001), APP_PORT (8081) -- all overridable, used
+# Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
+#   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
+#   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081) -- all overridable, used
 #   by scripts/ci.sh for its isolated e2e stack.
 # Input: repo source, .env (POSTGRES_IMAGE, S3_* fallback defaults).
 # Outputs: running marketplace-app container on APP_PORT.
@@ -143,7 +143,7 @@ Example — `scripts/deploy-and-run.sh`:
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache] [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all]
 #   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
 #                    tests run -- start all services on port 8081
-#   --reset          wipe DB/MinIO volumes, then rebuild
+#   --reset          wipe DB/SeaweedFS volumes, then rebuild
 #   ...
 ```
 
@@ -366,7 +366,7 @@ REM Description: Full prod deploy -- builds Docker image from scratch, starts al
 REM Usage:
 REM   scripts\deploy-and-run.bat                    -- full image rebuild + start
 REM   scripts\deploy-and-run.bat --no-cache         -- force rebuild ignoring Docker layer cache
-REM   scripts\deploy-and-run.bat --reset            -- wipe DB/MinIO volumes, then rebuild
+REM   scripts\deploy-and-run.bat --reset            -- wipe DB/SeaweedFS volumes, then rebuild
 REM   scripts\deploy-and-run.bat --restart-infra    -- restart infra containers only (no rebuild)
 REM   scripts\deploy-and-run.bat --reset-only-db         -- truncate app tables before starting the app
 REM Uses: WSL (wsl bash scripts/deploy-and-run.sh).
@@ -503,7 +503,7 @@ script-header shape.
 #### Example — a passive profile config
 
 ```yaml
-# Description: Dev-profile overrides -- localhost Postgres/MinIO, seed data enabled.
+# Description: Dev-profile overrides -- localhost Postgres/SeaweedFS, seed data enabled.
 # Usage: read automatically by the app on startup when the dev profile is active.
 # Env: None.
 spring:

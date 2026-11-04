@@ -33,7 +33,6 @@ public class AuditActivityPanel extends Div
     public static class Parameters {
         EntityRef                            entityRef;
         Long                                 userId;
-        boolean                              isPrivileged;
         boolean                              canOperate;
         LongConsumer onRestoreRequested;
     }
@@ -55,7 +54,7 @@ public class AuditActivityPanel extends Div
                 .getLastSnapshot(p.getEntityRef().entityType(), p.getEntityRef().entityId())
                 .orElse(null);
         List<AuditActivityItemDto<? extends AuditableSnapshot>> items = auditQueryService
-                .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged());
+                .getEntityActivity(p.getUserId(), p.getEntityRef().entityType(), p.getEntityRef().entityId());
         if (items.isEmpty()) {
             add(emptyState());
             return this;

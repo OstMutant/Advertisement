@@ -44,7 +44,7 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # own label (safe default, same "unprofiled still works" principle as the generic model fallback).
 # ────────────────────────────────────────────────────────────────────────────
 declare -A STEP_LABELS=(
-  ["deploy-and-run.sh:infra"]="Infra (DB/MinIO)"
+  ["deploy-and-run.sh:infra"]="Infra (DB/SeaweedFS)"
   ["deploy-and-run.sh:build"]="Build"
   ["deploy-and-run.sh:start-container"]="Start container"
   ["deploy-and-run.sh:start-application"]="Health check"
@@ -62,6 +62,7 @@ declare -A STEP_LABELS=(
   ["ci.sh:unit"]="Unit tests"
   ["ci.sh:integration"]="Integration tests"
   ["ci.sh:e2e"]="E2E (Playwright)"
+  ["ci.sh:api_flows"]="API collection flows"
   ["ci.sh:sonar"]="Sonar analysis"
   ["ci.sh:archunit_metrics"]="ArchUnit metrics"
   ["ci.sh:pipeline_metrics"]="Pipeline metrics"
@@ -94,12 +95,13 @@ declare -A STEP_IS_CONTAINER=(
   ["ci.sh:unit"]="advertisement-build-only-unit"
   ["ci.sh:integration"]="advertisement-build-only-integration"
   ["ci.sh:e2e"]="ci-marketplace-app"
+  ["ci.sh:api_flows"]="ci-api-marketplace-app"
   ["ci.sh:archunit_metrics"]="advertisement-build-only-archunit"
 )
 
 # One short line per step, same "script:step" key shape as STEP_LABELS.
 declare -A STEP_DESCRIPTIONS=(
-  ["deploy-and-run.sh:infra"]="starts/reuses the Postgres and MinIO containers, waits until both respond"
+  ["deploy-and-run.sh:infra"]="starts/reuses the Postgres and SeaweedFS containers, waits until both respond"
   ["deploy-and-run.sh:build"]="compiles and packages the reactor (reuses build-and-test.sh's shared jar unless --from-scratch)"
   ["deploy-and-run.sh:start-container"]="starts the marketplace-app container against the built jar/image"
   ["deploy-and-run.sh:start-application"]="waits for the app to log \"Started Application\""
@@ -117,7 +119,8 @@ declare -A STEP_DESCRIPTIONS=(
   ["ci.sh:unit"]="unit tests, in their own build-and-test.sh container"
   ["ci.sh:integration"]="Testcontainers-based integration tests, in their own container"
   ["ci.sh:e2e"]="deploys the isolated e2e stack and runs the Playwright suite against it"
-  ["ci.sh:sonar"]="builds, scans, and checks the quality gate"
+  ["ci.sh:api_flows"]="deploys its own isolated stack and runs the REST and MCP collection flows once per role"
+  ["ci.sh:sonar"]="waits for unit and integration, imports their coverage reports, scans and checks the quality gate"
   ["ci.sh:archunit_metrics"]="exports ArchUnit module-coupling metrics"
   ["ci.sh:pipeline_metrics"]="aggregates this run's own per-stage metrics"
   ["ci.sh:docs"]="doc-freshness checks plus architecture-model.json/architecture-map.html regen"
@@ -148,7 +151,7 @@ declare -A SCRIPT_STEP_SEQUENCE=(
   ["deploy-and-run.sh"]="infra build start-container start-application"
   ["reset.sh"]="reset"
   ["build-and-test.sh"]="build-and-test"
-  ["ci.sh"]="build-image start-ci-runner sync-source build unit integration e2e sonar archunit_metrics pipeline_metrics docs ci-run"
+  ["ci.sh"]="build-image start-ci-runner sync-source build unit integration e2e api_flows sonar archunit_metrics pipeline_metrics docs ci-run"
   ["run-all-tests.sh"]="run-all-tests"
   ["sonar.sh"]="sonar-analysis"
   ["playwright.sh"]="playwright-run"
@@ -156,13 +159,14 @@ declare -A SCRIPT_STEP_SEQUENCE=(
 
 # Step ids (space-separated, must be a contiguous run within the matching SCRIPT_STEP_SEQUENCE
 # entry) that genuinely execute in parallel with each other, not one after another -- e.g. ci.sh's
-# unit/integration/e2e/sonar/archunit_metrics Dagu steps all depend only on "build", not on each
-# other (scripts/ci/dagu/ci.yaml). render_tree() treats the whole group as one unit: every member
+# unit/integration/e2e/api_flows/archunit_metrics Dagu steps all depend only on "build", not on each
+# other, and sonar waits for unit and integration (scripts/ci/dagu/ci.yaml), so it renders as
+# running while it waits. render_tree() treats the whole group as one unit: every member
 # still incomplete renders "running" simultaneously (not just the first, the way a normal sequence
 # step would) while any member is unfinished; the group as a whole only counts as "done" and
 # advances the sequence once every member has completed.
 declare -A SCRIPT_STEP_PARALLEL_GROUPS=(
-  ["ci.sh"]="unit integration e2e sonar archunit_metrics"
+  ["ci.sh"]="unit integration e2e api_flows sonar archunit_metrics"
 )
 
 # Script basename -> profile. Every script already on the shared agentic-output.sh contract maps
@@ -188,7 +192,9 @@ declare -A STEP_STATUS=()       # step id -> pending|running|ok|warn|error
 declare -A STEP_REASON=()       # step id -> short failure/warn reason, empty when ok
 declare -A STEP_POINTER=()      # step id -> where to look for detail, empty when ok
 declare -A STEP_COMPLETED_AT=() # step id -> epoch seconds, set once a step reaches ok/error/warn
+declare -A STEP_DURATION=()     # step id -> real duration in seconds supplied by the producer; unset when only wall-clock is known
 WRAPPER_START_TIME=0            # epoch seconds, set in main() right before spawning the command
+WRAPPER_END_TIME=0              # epoch seconds, set in main() once the wrapped command exits; 0 while still running
 LAST_ACTIVITY_AT=0              # epoch seconds of the last time raw.log actually grew
 LAST_ACTIVITY=""                # most recent free-text narration line (generic-profile fallback only)
 CONTEXT_LINE=""                 # one persistent header line (e.g. a run id) set via an AGENTIC_CONTEXT: marker
@@ -266,7 +272,7 @@ record_step_history() {
   local baseline="$WRAPPER_START_TIME"
   for id in $sequence; do
     [[ "${STEP_STATUS[$id]:-}" == "ok" ]] || break
-    echo -e "${id}\t$(( STEP_COMPLETED_AT[$id] - baseline ))" >> "$WORK_DIR/history.tsv"
+    echo -e "${id}\t$(step_duration_seconds "$id" "$baseline")" >> "$WORK_DIR/history.tsv"
     baseline="${STEP_COMPLETED_AT[$id]}"
   done
 }
@@ -296,7 +302,7 @@ format_duration() {
 }
 
 mark_step() {
-  local id="$1" status="$2" reason="${3:-}" pointer="${4:-}"
+  local id="$1" status="$2" reason="${3:-}" pointer="${4:-}" duration="${5:-}"
   local found=0
   for existing in "${STEP_ORDER[@]}"; do
     [[ "$existing" == "$id" ]] && found=1 && break
@@ -305,6 +311,9 @@ mark_step() {
   STEP_STATUS["$id"]="$status"
   STEP_REASON["$id"]="$reason"
   STEP_POINTER["$id"]="$pointer"
+  if [[ -n "$duration" ]]; then
+    STEP_DURATION["$id"]="$duration"
+  fi
   case "$status" in
     ok|error|warn|skipped) STEP_COMPLETED_AT["$id"]="$(date +%s)" ;;
   esac
@@ -321,10 +330,16 @@ step_icon() {
   esac
 }
 
+# A completed step's duration: the producer's real value when given, else completion time minus the baseline.
+step_duration_seconds() {
+  local id="$1" baseline="$2"
+  echo "${STEP_DURATION[$id]:-$(( STEP_COMPLETED_AT[$id] - baseline ))}"
+}
+
 # Renders one step line: icon, label, duration/elapsed/stall marker, reason, description, pointer.
 # $1 = step id, $2 = status to render as (lets the "current" step be shown as "running" even
 # before any marker has actually set it, per the declared SCRIPT_STEP_SEQUENCE), $3 = previous
-# step's completion time (or WRAPPER_START_TIME) -- the elapsed/duration baseline.
+# step's completion time (or WRAPPER_START_TIME) -- the elapsed/duration baseline (fallback when no real duration).
 render_step_line() {
   local id="$1" status="$2" baseline="$3"
   local icon label desc reason pointer
@@ -336,7 +351,7 @@ render_step_line() {
 
   local line="${icon} ${label}"
   if [[ -n "${STEP_COMPLETED_AT[$id]:-}" ]]; then
-    line+=" ($(format_duration $(( STEP_COMPLETED_AT[$id] - baseline ))))"
+    line+=" ($(format_duration "$(step_duration_seconds "$id" "$baseline")"))"
   elif [[ "$status" == "running" ]]; then
     local elapsed=$(( $(date +%s) - baseline ))
     line+=" (running $(format_duration "$elapsed"))"
@@ -371,6 +386,16 @@ render_step_line() {
 next_step_status() {
   [[ -n "${cmd_pid:-}" ]] && ! kill -0 "$cmd_pid" 2>/dev/null && { echo "pending"; return; }
   echo "running"
+}
+
+# A step that already completed keeps its real status even when its unit is still pending (a finished member of a running parallel group); otherwise the given fallback.
+member_render_status() {
+  local id="$1" fallback="$2"
+  if [[ -n "${STEP_COMPLETED_AT[$id]:-}" ]]; then
+    echo "${STEP_STATUS[$id]}"
+  else
+    echo "$fallback"
+  fi
 }
 
 # Builds the ordered list of render units for the current script: a "unit" is either one step id,
@@ -460,19 +485,37 @@ render_tree() {
       local next_status
       next_status="$(next_step_status)"
       for m in ${members[$u]}; do
-        out+="$(render_step_line "$m" "$next_status" "$baseline")"$'\n'
+        out+="$(render_step_line "$m" "$(member_render_status "$m" "$next_status")" "$baseline")"$'\n'
       done
       current_shown=1
     else
       for m in ${members[$u]}; do
-        out+="$(render_step_line "$m" "pending" "$baseline")"$'\n'
+        out+="$(render_step_line "$m" "$(member_render_status "$m" "pending")" "$baseline")"$'\n'
       done
     fi
   done
 
   [[ -n "$LAST_ACTIVITY" ]] && out+="[${TS_LAST_ACTIVITY:-$(timestamp)}] ${LAST_ACTIVITY}"$'\n'
   [[ -n "$CONTEXT_LINE" ]] && out="${CONTEXT_LINE}"$'\n'"${out}"
+  out="$(render_run_summary_line)"$'\n'"${out}"
   printf '%s' "$out"
+}
+
+# Wall-clock start/end header line -- distinct from each step's own relative duration, so a reader
+# (human or Monitor) can tell whether a given tree.txt/raw.log is from the run just watched or a
+# stale one left over from earlier, without cross-checking file mtimes by hand.
+render_run_summary_line() {
+  local started_str
+  started_str="$(date -d "@$WRAPPER_START_TIME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+  if (( WRAPPER_END_TIME > 0 )); then
+    local finished_str
+    finished_str="$(date -d "@$WRAPPER_END_TIME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
+    printf '🕐 Started %s · Finished %s (%s)' "$started_str" "$finished_str" \
+      "$(format_duration $(( WRAPPER_END_TIME - WRAPPER_START_TIME )))"
+  else
+    printf '🕐 Started %s · running %s' "$started_str" \
+      "$(format_duration $(( $(date +%s) - WRAPPER_START_TIME )))"
+  fi
 }
 
 flush_tree() {
@@ -655,6 +698,7 @@ main() {
   if [[ -n "$in_container" ]]; then
     source "$SELF_DIR/../utils/ensure-dev-shell.sh"
     source "$SELF_DIR/../utils/sync-source.sh"
+    source "$SELF_DIR/../utils/sync-artifacts-from-dev-shell.sh"
 
     if ! ensure_dev_shell; then
       echo "ERROR: failed to start the dev-shell container (see error above)" >&2
@@ -673,7 +717,19 @@ main() {
     [[ -n "$profile_override" ]] && inner_args+=(--profile "$profile_override")
     inner_args+=(-- "${cmd[@]}")
 
-    exec docker exec "${docker_exec_flags[@]}" dev-shell bash scripts/activity-monitor.sh "${inner_args[@]}"
+    # Not `exec` -- dev-shell is disposable (self-terminates when idle, see ensure-dev-shell.sh)
+    # and has no bind mount back to the host (sync-source.sh's sync is one-way, host->container),
+    # so whatever the wrapped script wrote (Playwright's HTML report, build/sonar logs, ...) needs
+    # pulling out here, after the inner run finishes, while dev-shell is still guaranteed to be up
+    # -- an `exec` would replace this process entirely and never reach that step.
+    docker exec "${docker_exec_flags[@]}" dev-shell bash scripts/activity-monitor.sh "${inner_args[@]}"
+    local in_container_exit=$?
+    # OverlayFS (dev-shell's container filesystem) can leave a just-written file's data in dirty
+    # pages not yet visible to a separate `docker cp` read immediately after -- an explicit sync
+    # forces the flush before the copy-out below reads the same filesystem.
+    docker exec dev-shell sync
+    sync_artifacts_from_dev_shell
+    return "$in_container_exit"
   fi
 
   # Identify the wrapped script for profile lookup/naming. This project's own convention invokes
@@ -693,6 +749,9 @@ main() {
   rm -f "$WORK_DIR/exit_code"
   RAW_LOG="$WORK_DIR/raw.log"
   : > "$RAW_LOG"
+
+  # Own stdout, not $RAW_LOG -- lets a redirected caller grep the real path instead of deriving it.
+  echo "activity-monitor: tree=$WORK_DIR/tree.txt"
 
   local profile="${profile_override:-${SCRIPT_PROFILE_MAP[$script_name]:-generic}}"
   CURRENT_SCRIPT_NAME="$script_name"
@@ -731,6 +790,7 @@ main() {
 
   wait "$cmd_pid"
   local exit_code=$?
+  WRAPPER_END_TIME="$(date +%s)"
 
   local cur_size
   cur_size="$(wc -c < "$RAW_LOG" 2>/dev/null || echo 0)"

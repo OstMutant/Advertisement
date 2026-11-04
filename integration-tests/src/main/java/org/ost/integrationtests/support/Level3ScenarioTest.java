@@ -7,6 +7,9 @@ import java.lang.annotation.Target;
 import org.ost.advertisement.config.AdvertisementAutoConfiguration;
 import org.ost.apikey.config.ApiKeyAutoConfiguration;
 import org.ost.attachment.config.AttachmentAutoConfiguration;
+import org.ost.audit.config.AuditAutoConfiguration;
+import org.ost.contact.config.ContactAutoConfiguration;
+import org.ost.feedback.config.FeedbackAutoConfiguration;
 import org.ost.orchestrator.config.OrchestratorAutoConfiguration;
 import org.ost.provider.config.ProviderProfileAutoConfiguration;
 import org.ost.restapi.config.RestApiAutoConfiguration;
@@ -22,8 +25,11 @@ import org.springframework.boot.test.context.SpringBootTest;
         ApiKeyAutoConfiguration.class,
         TaxonAutoConfiguration.class,
         AttachmentAutoConfiguration.class,
+        AuditAutoConfiguration.class,
         AdvertisementAutoConfiguration.class,
         ProviderProfileAutoConfiguration.class,
+        ContactAutoConfiguration.class,
+        FeedbackAutoConfiguration.class,
         OrchestratorAutoConfiguration.class,
         RestApiAutoConfiguration.class,
         RestApiTestSupport.class,

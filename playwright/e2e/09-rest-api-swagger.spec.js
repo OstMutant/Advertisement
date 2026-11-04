@@ -6,7 +6,8 @@
  *   Swagger UI is reachable past the security filter chain. No browser needed for any check --
  *   all are plain HTTP requests.
  * Usage: run via the Playwright test runner -- `bash /app/playwright/run.sh 09-rest-api-swagger
- *   --ux`, or as part of the full e2e suite (`bash /app/playwright/run.sh e2e --ux`).
+ *   --ux` (runs alone or with any other spec), or as part of the full e2e suite
+ *   (`bash /app/playwright/run.sh e2e --ux`).
  * Uses: @playwright/test.
  * Env: None.
  * Input: ./_helpers (test, expect).

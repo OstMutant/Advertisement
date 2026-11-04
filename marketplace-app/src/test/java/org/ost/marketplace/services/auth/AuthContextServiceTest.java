@@ -1,120 +1,75 @@
 package org.ost.marketplace.services.auth;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.ost.platform.user.dto.UserDto;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.orchestrator.services.UserProfileService;
 import org.ost.platform.user.spi.AuthenticatedPrincipal;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * {@link AuthContextService#getCurrentUser} is the single source {@code AccessEvaluator} (and
- * everything downstream of it) relies on for "who is the current user". No mocking of
- * {@code SecurityContextHolder} itself needed -- it's set directly, the standard Spring Security
- * test pattern (improvement-048).
- */
+/** The current user's language: carried by a Vaadin session principal, read from the saved preferences for a REST caller who holds only an id. */
+@ExtendWith(MockitoExtension.class)
 class AuthContextServiceTest {
 
-    private final AuthContextService service = new AuthContextService();
+    @Mock private UserProfileService userProfileService;
+
+    private AuthContextService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new AuthContextService(userProfileService);
+    }
 
     @AfterEach
-    void clearContext() {
+    void tearDown() {
         SecurityContextHolder.clearContext();
     }
 
     @Test
-    void getCurrentUser_authenticatedWithAuthenticatedPrincipal_returnsUserDto() {
-        UserDto userDto = new UserDto(1L, "Name", "user@example.com", null, null, null, 0L);
-        AuthenticatedPrincipal principal = testPrincipal(userDto, "en");
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(true);
-        when(auth.getPrincipal()).thenReturn(principal);
-        SecurityContextHolder.getContext().setAuthentication(auth);
+    void restCaller_getsTheSavedLanguage() {
+        authenticateAs(42L);
+        when(userProfileService.findLocale(42L)).thenReturn(Optional.of("uk"));
 
-        Optional<UserDto> result = service.getCurrentUser();
-
-        assertThat(result).contains(userDto);
+        assertThat(service.getCurrentUserLocale()).contains("uk");
     }
 
     @Test
-    void getCurrentUserLocale_authenticatedWithAuthenticatedPrincipal_returnsLocale() {
-        UserDto userDto = new UserDto(1L, "Name", "user@example.com", null, null, null, 0L);
-        AuthenticatedPrincipal principal = testPrincipal(userDto, "uk");
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(true);
-        when(auth.getPrincipal()).thenReturn(principal);
-        SecurityContextHolder.getContext().setAuthentication(auth);
+    void restCaller_withoutASavedLanguage_hasNone() {
+        authenticateAs(42L);
+        when(userProfileService.findLocale(42L)).thenReturn(Optional.empty());
 
-        Optional<String> result = service.getCurrentUserLocale();
-
-        assertThat(result).contains("uk");
+        assertThat(service.getCurrentUserLocale()).isEmpty();
     }
 
     @Test
-    void getCurrentUserLocale_noAuthenticationInContext_returnsEmpty() {
-        Optional<String> result = service.getCurrentUserLocale();
+    void vaadinSession_usesThePrincipalsLanguage_withoutReadingPreferences() {
+        AuthenticatedPrincipal principal = mock(AuthenticatedPrincipal.class);
+        when(principal.locale()).thenReturn("en");
+        authenticateAs(principal);
 
-        assertThat(result).isEmpty();
-    }
-
-    private static AuthenticatedPrincipal testPrincipal(UserDto userDto, String locale) {
-        return new AuthenticatedPrincipal() {
-            @Override
-            public UserDto toUserDto() {
-                return userDto;
-            }
-
-            @Override
-            public String locale() {
-                return locale;
-            }
-        };
+        assertThat(service.getCurrentUserLocale()).contains("en");
+        verifyNoInteractions(userProfileService);
     }
 
     @Test
-    void getCurrentUser_noAuthenticationInContext_returnsEmpty() {
-        Optional<UserDto> result = service.getCurrentUser();
-
-        assertThat(result).isEmpty();
+    void noAuthentication_hasNoLanguage() {
+        assertThat(service.getCurrentUserLocale()).isEmpty();
+        verifyNoInteractions(userProfileService);
     }
 
-    @Test
-    void getCurrentUser_notAuthenticated_returnsEmpty() {
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(false);
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        Optional<UserDto> result = service.getCurrentUser();
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getCurrentUser_principalIsNotAuthenticatedPrincipal_returnsEmpty() {
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(true);
-        when(auth.getPrincipal()).thenReturn("anonymousUser");
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        Optional<UserDto> result = service.getCurrentUser();
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getCurrentUser_authenticationThrows_returnsEmptyNotException() {
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenThrow(new RuntimeException("boom"));
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        Optional<UserDto> result = service.getCurrentUser();
-
-        assertThat(result).isEmpty();
+    private static void authenticateAs(Object principal) {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, List.of()));
     }
 }

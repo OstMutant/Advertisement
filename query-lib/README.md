@@ -11,14 +11,14 @@ Vaadin dependency, no domain knowledge.
 org.ost.query.filter
   SqlFilterBuilder<F>        — translates a filter DTO into a WHERE clause + named params
   SqlBoundFilter<F, R>       — binds a filter DTO field to a SQL expression and a condition factory
-  SqlFilterBinding<F, R>     — @FunctionalInterface: getCondition(F filter) → SqlCondition<R>
+  SqlFilterBinding<F, R>     — interface: getCondition(F filter) → SqlCondition<R>
   SqlFilterMapping           — interface: filterProperty() + sqlExpression()
   SqlCondition<R>            — a single resolved WHERE condition (expression, param, value, operator)
   SqlOperator                — EQUALS, LIKE_IGNORE_CASE, IN, ANY_OF, GREATER_OR_EQUAL, LESS_OR_EQUAL
 
 org.ost.query.sort
-  OrderByBuilder             — converts Spring Sort into an ORDER BY clause via an alias→expression map
-  SortField                  — record consumed by OrderByBuilder's tiebreaker-aware overload
+  OrderByBuilder             — converts Spring Sort into an ORDER BY clause via a SortField list
+  SortField                  — record pairing a sort property with its SQL expression, optional default direction and tiebreakers
   PaginationSqlBuilder       — converts a Pageable into a LIMIT :limit OFFSET :offset clause + named params
   OffsetPageable             — a Pageable carrying an arbitrary row offset (not page*size-derived),
                                for callers (e.g. Vaadin's CallbackDataProvider) that already have a
@@ -48,7 +48,7 @@ private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFi
 public List<AdvertisementInfoDto> findByFilter(AdvertisementFilterDto filter, Pageable pageable) {
     var params = new MapSqlParameterSource();
     String where   = FILTER.build(params, filter, "WHERE ");
-    String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_MAP);
+    String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
     String limit   = PaginationSqlBuilder.pageLimit(params, pageable);
     return jdbcClient.sql("SELECT ... FROM advertisement a " + where + orderBy + limit)
                      .paramSource(params)
@@ -78,22 +78,20 @@ All are null-safe: return `null` when the filter value is absent; `SqlFilterBuil
 ## OrderByBuilder
 
 ```java
-private static final Map<String, String> SORT_MAP = Map.of(
-        "created_at", "a.created_at",
-        "title",      "a.title"
+private static final List<SortField> SORT_FIELDS = List.of(
+        SortField.of(SomeDto.Fields.id,        "a.id"),
+        SortField.of(SomeDto.Fields.createdAt, "a.created_at", SortField.of(SomeDto.Fields.id, "a.id"))
 );
 
-OrderByBuilder.build(sort, SORT_MAP)
-// → " ORDER BY a.created_at DESC NULLS LAST"  or  ""
+OrderByBuilder.build(sort, SORT_FIELDS)
+// → " ORDER BY a.created_at DESC NULLS LAST, a.id DESC NULLS LAST"  or  ""
 ```
 
-Looks up each `Sort.Order`'s property directly in the alias map — no case conversion happens.
-Map keys must be the exact camelCase DTO field name (e.g. via `SomeDto.Fields.xyz`), not a
-hand-converted snake_case string. Unknown sort properties are silently skipped.
-
-A second `OrderByBuilder.build(sort, List<SortField>)` overload adds stable tiebreakers (e.g. a
-row's own `id`) so paginated results stay deterministic when rows tie on the caller's sort field —
-see `.claude/rules/query-lib.md` for usage.
+Looks up each `Sort.Order`'s property directly in the `SortField` list — no case conversion happens.
+The property must be the exact camelCase DTO field name (e.g. via `SomeDto.Fields.xyz`), not a
+hand-converted snake_case string. Unknown sort properties are silently skipped. A `SortField` can
+name tiebreakers (e.g. a row's own `id`) so paginated results stay deterministic when rows tie on the
+caller's sort field — see `.claude/rules/query-lib.md` for usage.
 
 ---
 
@@ -110,7 +108,7 @@ PaginationSqlBuilder.pageLimit(params, pageable)
 
 - `spring-boot-starter-data-jdbc` / `spring-jdbc` — `Sort`, `Pageable`, `MapSqlParameterSource`;
   every public method signature in this module is built directly on these Spring Data JDBC types.
-- `lombok` — `@NonNull`/`@RequiredArgsConstructor`/`@NoArgsConstructor` on the builder classes.
+- `lombok` (optional, compile time) — null checks and generated constructors.
 - No dependency on any domain module — nothing in `org.ost.platform.*` (`platform-commons`) is
   imported anywhere in this module's own source, matching this module's own "no domain knowledge"
   goal (see `.claude/nav/adr-index.md`).

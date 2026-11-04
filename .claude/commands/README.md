@@ -1,6 +1,6 @@
 # `.claude/commands/`
 
-Slash-command definitions, each invoked directly by name (`/feature`, `/ci`, ...). Every command
+Slash-command definitions, each invoked directly by name (`/new-task`, `/ci`, ...). Every command
 here is independent — no file-to-file call chain between them, so no Flow diagram; each is its own
 self-contained entry point, described below and linked to its real file.
 
@@ -16,21 +16,28 @@ self-contained entry point, described below and linked to its real file.
   too.
 - [`/ci`](ci.md) — Run the local, isolated, parameterized CI runner (`scripts/ci.sh` ->
   `scripts/ci/run.sh`).
+- [`/optimize`](optimize.md) — Find code this repository no longer needs to maintain, measure the saving and
+  remove it only in approved batches (discover, report, apply, verify); its helper script is in
+  [`optimize/`](optimize/check-batch.sh).
+- [`/deep-research`](deep-research.md) — Research a task in depth with the `deep-researcher` agent (Opus): best
+  practices from the web, the project's own practice, a compared choice and two plans, written into a
+  topic folder under `backlog/research/`.
 - [`/deploy-and-run`](deploy-and-run.md) — Rebuild the `marketplace-app` Docker image and start a
   fresh container using the project deploy script.
-- [`/feature`](feature.md) — Scaffold a new tracked task in `backlog/tasks/` from the standard
+- [`/new-task`](new-task.md) — Scaffold a new tracked task in `backlog/tasks/` from the standard
   template, then rank it in `backlog/BACKLOG.md`'s priority table.
 - [`/new-domain`](new-domain.md) — Create a complete new UI domain in `marketplace-app` following
   the established patterns.
 - [`/playwright`](playwright.md) — Run Playwright UI tests for the marketplace app.
 - [`/record-decision`](record-decision.md) — Record a new architectural decision in the
   appropriate `DECISIONS.md` file.
-- [`/review`](review.md) — Run a full code review via the `deep-review-orchestrator` agent --
+- [`/deep-review`](deep-review.md) — Run a full code review via the `deep-review-orchestrator` agent --
   evidence-verified SOLID/DRY/KISS/YAGNI findings, never writes code itself.
 - [`/run-all-tests`](run-all-tests.md) — Run all three test suites for daily iteration:
   unit-tests, integration-tests, and Playwright.
 - [`/screenshots`](screenshots.md) — Find and read named screenshots from the last Playwright test
   run.
 - [`/sonar`](sonar.md) — Run SonarQube static analysis for the marketplace app.
+- [`/check-architecture-map`](check-architecture-map.md) — Check that the architecture map files on disk still match what the generator produces
 - [`/sync-docs`](sync-docs.md) — Analyze what changed in the codebase and update only the affected
   architecture documentation.

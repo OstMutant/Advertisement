@@ -75,7 +75,7 @@ below for whoever implements this, so it doesn't need to be re-derived from scra
       "Diffs are computed at read time via AuditableSnapshot.diff() on snapshot pairs -- no separate diff service or field-marker annotation."
     ]},
     {"domain": "Attachment", "notes": [
-      "attachment_snapshot records file-state changes for restore; StorageService is the S3-compatible backend (MinIO in dev, AWS in prod)."
+      "attachment_snapshot records file-state changes for restore; StorageService is the S3-compatible backend (SeaweedFS in dev, AWS in prod)."
     ]},
     {"domain": "Taxon", "notes": [
       "TaxonAuditHook does not exist -- both call sites of TaxonAssignmentService.replaceAssignments() already sit inside an advertisement save/delete that produces its own audit snapshot; the advertisement's own AdvertisementSnapshotDto.categoryIds captures the change instead.",

@@ -2,6 +2,211 @@
 
 ---
 
+## ADR-093: External REST API carries no hypermedia — no per-resource links, no action list; agents learn the caller from `getMe` and the operations from the MCP tool list
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api, marketplace-mcp
+
+**Context:** Single-resource responses of the external REST API are flat DTOs with no links or
+action hints, and "REST hypermedia" stood as a planned direction. The question was whether
+consumers need `_links`, an action list, or both. The MCP trial named four gaps for an agent: who
+the caller is, whether edit and delete exist, whether `totalCount` counts every match, and why the
+page size is fixed. Since then `GET /api/users/me` (`getMe`) returns the caller's `id` and `role`,
+the MCP server exposes one tool per REST operation named by its `operationId`, and tool
+descriptions state who may call and how paging works. No consumer reads links: Swagger UI reads the
+OpenAPI document, the API flow runner and the Postman collections send scripted request sequences
+and take the role from `getMe`, and the MCP server reads only `rel="next"` of the paging `Link`
+header. Published guidance points the same way: a production rule set (Zalando) lists hypermedia as
+optional and advises against it, the MCP specification builds agent discovery on the tool list,
+tool descriptions and readable tool errors, and the one measured agent study traces failures to
+parameters, descriptions and vague errors, not to missing links; the sources arguing for hypermedia
+for agents are opinion or theory without measurement.
+
+**Decision:** Responses carry no hypermedia: no `_links`, no per-caller capability flags, and no
+endpoint listing the caller's actions. The permission rule of each operation is stated in its REST
+`@Operation` description and in its MCP tool description, and must match the rule the orchestrator
+enforces. A denied attempt is a 403, which the MCP server returns as a readable tool error. Paging
+stays as decided for list endpoints (RFC 8288 `Link` + `X-Total-Count`). Reopen only when a
+consumer needs a per-resource answer, for example when observed agent runs repeatedly hit 403 by
+guessing. The design to use then is a per-caller capability object of booleans in the
+single-resource body (the pattern of GitHub's repository `permissions`), each flag computed by the
+same `AuthorizationService` check that the service's `requireCan...` call uses, and tested by
+extending the level-3 role-matrix scenario tests so that for every role the flag is true exactly
+when the operation does not answer 403.
+
+**Rejected alternatives:**
+- **An action list by role on a `me` endpoint** — repeats OpenAPI plus the role `getMe` already
+  returns, cannot express ownership of one resource (the only question left), and is a second
+  hand-kept copy of the authorization rules.
+- **Hand-built HAL `_links` per actor** — a HAL link carries no HTTP method, so `edit` cannot say
+  PUT or PATCH; `delete` is not a registered link relation; HAL is an expired individual draft; the
+  Swagger UI add-on `swagger-hal-navigator` is an unreleased two-commit snapshot; links would mirror
+  about five distinct authorization rules and add a REST-only response shape per resource, for no
+  consumer.
+- **Spring HATEOAS with HAL-FORMS affordances** — the only mature option that carries methods, but a
+  library the list-endpoint decision already rejected, and again with no consumer.
+
+**Consequences:** The permission sentence in REST and MCP descriptions is the only action hint, so
+a wrong sentence misleads agents; nothing tests it automatically. Known conflict with outside
+practice, not acted on: Zalando forbids `Link` headers with JSON bodies, which the list-endpoint
+decision chose deliberately. By Fielding's definition the API is an HTTP API described by OpenAPI,
+not hypermedia-driven REST.
+
+---
+
+## ADR-092: The MCP server is a separate module with no project dependencies that wraps the REST API over HTTP
+
+**Status:** Accepted
+
+**Verified:** 2026-11-01
+
+**Applied:** 2
+
+**Also affects:** marketplace-mcp
+
+**Context:** AI agents need to work with the marketplace through MCP. A trial run showed that a thin
+wrapper calling the REST API with the caller's key works: the endpoint runs on Spring Boot 4.1 with
+Spring AI's servlet starter, the bearer key reaches the REST call from inside a tool, paging headers
+can be copied into the tool result, and REST operation ids are valid tool names. The open question
+was where the code lives and what it may depend on. The Spring AI auto-configuration builds the
+Streamable HTTP provider without a transport security validator, so the SDK's origin check does not
+run by default.
+
+**Decision:** `marketplace-mcp` is a sibling of `marketplace-rest-api`, plugged into
+`marketplace-app` the same way. It depends on no project module (no `platform-commons`,
+`marketplace-orchestrator`, starter or Vaadin) and reaches the REST API over HTTP at
+`marketplace.mcp.rest-base-url`; `ArchitectureTest` in the module enforces this. `/mcp` has its own
+stateless `@Order(3)` chain (no CSRF, `permitAll`, since the forwarded key is checked by the REST
+API) kept disjoint from the REST `/api/**` chains and the application's catch-all chain. A tool is
+named after the REST `operationId` it wraps and returns paging as `{items, totalCount, page,
+hasMore, nextPage}`; a REST 429 or 401 reaches the agent as a readable tool error. The same chain
+checks the `Origin` header with the MCP SDK's `DefaultServerTransportSecurityValidator`
+(`McpOriginFilter`, added before `CsrfFilter`): a request without `Origin` passes (non-browser
+agents), one whose `Origin` is not in `marketplace.mcp.allowed-origins` gets 403 before any session
+opens. The default list is `http://localhost:*` and `http://127.0.0.1:*`; the allowed origins are
+never derived from the request's `Host`. The first release is read-only (11 tools); writes are a
+later wave.
+
+**Rejected alternatives:**
+- **Tools generated from the OpenAPI specification** — no generator reads springdoc output
+  specifically, and generated tools cannot carry the paging and error shaping an agent needs.
+- **A module on top of `marketplace-orchestrator`** — repeats authorization and rate limiting that
+  the REST API already enforces, and ties the agent channel to internal services instead of the
+  public contract.
+- **Running the module as a separate service** — a second deployable for no gain at this size; the
+  base address is a property, so it can still be split out later.
+- **An own transport provider bean carrying the validator** — replaces the auto-configured provider
+  and its session handling just to switch one check on; a servlet filter in the module's own chain
+  does it without that.
+- **An empty default list** — the module would answer 403 to the bundled MCP page and to local tools
+  until every deployment configures it; a local-only default is safe and works out of the box.
+- **Validating `Host`, or deriving the allowed origin from it** — an attacker controls `Host` in a
+  DNS-rebinding attack, so deriving the allowed origin from it lets the attack through.
+
+**Consequences:** A REST contract change is an MCP change. Tool names are stable by contract.
+Extending the module with write tools or an admin page does not change this shape.
+
+---
+
+## ADR-091: External REST API limits write requests per account in a bearer-chain filter
+
+**Status:** Accepted
+
+**Applied:** 2
+
+**Also affects:** marketplace-rest-api
+
+**Context:** Any account holder can issue themselves an API key (`POST /api/api-keys`, no approval), after which every create/update/delete endpoint accepted unlimited request volume. Each write costs a database write and an audit row, and media uploads cost storage. The host (Render) leaves application-level abuse to the owner and offers no route-level limit; Cloudflare Free/Pro rules count only by client IP, per-key counting is Enterprise-only. The existing limiters (failed logins, failed registrations, contact reveals, feedback writes) are per address or per viewer and do not bound what an authenticated account writes.
+
+**Decision:** `ApiWriteRateLimitFilter` sits in the `@Order(2)` bearer chain right after `ApiKeyAuthenticationFilter`. It counts every `POST`/`PUT`/`PATCH`/`DELETE` of an authenticated account (the `Long` id the key resolved to) in the shared `FailureRateLimiter`, before the handler runs and whatever its outcome, and answers 429 with `Retry-After` once the budget is used. Reads, public requests and key issuance (its own chain) are not counted. The numbers are configuration, `marketplace.rest-api.write-limit.max-requests` (60) and `.window` (1 minute) in `ApiWriteLimitProperties`; the `dev` profile and the local Docker stack raise `max-requests` so e2e seeding and API flows never provoke the limiter. `TooManyRequestsResponse` writes the 429 for this filter and `BasicLoginRateLimitFilter`, because exceptions thrown in a filter never reach `ApiExceptionHandler`. Each counted endpoint documents the 429 with `@ApiResponse`. This is a per-account volume quota, the same kind `ContactRevealService` and `FeedbackService` use; it does not conflict with the rule that the login and registration limiters count only real failures, which is about address-keyed abuse of authentication.
+
+**Rejected alternatives:** A proxy or Cloudflare rule: no route-level limit on Render, IP-only counting on Free/Pro. Bucket4j: a new dependency and a second mechanism beside `FailureRateLimiter`. Resilience4j: not keyed per caller. A `HandlerInterceptor`: Spring warns against interceptors as a security layer, and multipart is parsed before `preHandle`. A stricter budget for media upload: the real cost is stored bytes, a per-account storage cap fits better. Counting key issuance: an earlier decision deferred a per-user key cap, which fits better than a rate. The draft `RateLimit` headers: still a draft, only `Retry-After` is sent.
+
+**Consequences:** The counter is in memory, so with N instances the real limit is N times the setting; one instance is assumed. The window is fixed from the first request and check-then-count is not atomic, so a burst or a window edge can let through up to about twice the budget. Unlimited successful registration lets someone get around a per-account limit with many accounts; a registration volume cap, a per-user key cap and a storage cap remain open. A signed-in contact reveal also counts toward the write budget.
+
+---
+
+## ADR-090: An administrator cannot delete their own account
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-orchestrator, marketplace-rest-api
+
+**Context:** An administrator may not change their own role, but could delete their own account. The only administrator could therefore remove themselves; the database then held users and no administrator, and nobody could become one again because the first-account rule counts non-deleted users.
+
+**Decision:** Deleting an account follows the same rule as changing a role: an administrator never deletes their own account. It is a plain authorization rule, `AuthorizationService.canDeleteAccount` (the account-edit rule, and not an administrator acting on their own id), required first by `UserDeleteService.delete`. The user list hides the delete button on the administrator's own row and the delete confirmation checks the rule again; the REST delete answers 403. Any other administrator can still delete that account.
+
+**Rejected alternatives:** a "last administrator" guard that counts active administrators before a delete (needs locking, and two requests at the same moment can still both pass).
+
+**Consequences:** Two administrators acting at the same moment can still remove each other, by delete or by demotion; that limit is accepted and a guard against it would need locking. A test that deletes or demotes an administrator does so only to one it created itself.
+
+---
+
+## ADR-089: External REST API partial updates use JSON Merge Patch applied over the PUT write record
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-rest-api, marketplace-orchestrator
+
+**Context:** A `PUT` on an advertisement or a provider profile is a full replace, and its optional fields (`categoryIds`, `cityTaxonId`; for a profile also `about`, `phone`, `telegram`, `viber`) are cleared when the caller leaves them out, with no warning. The one existing `PATCH` (own settings) was a full replace under a `PATCH` verb and reset two of six settings on every call. A caller who wants to change one field needs a real partial update, and the way it is built becomes the pattern for every later `PATCH`.
+
+**Decision:** `PATCH` takes a JSON Merge Patch (RFC 7396). A controller reads the resource's current state in the shape the history records (`findCurrentSnapshot` in the orchestrator), maps it to its own `PUT` write record, and `MergePatchSupport` lays the patch over that record: a field left out keeps its value, `null` clears an optional field, a list is replaced whole. A member that is not a field of the record is a 400. The merged record is validated with that record's own constraints (`PatchValidationException`, a 400 with the same `fieldErrors` body as a failed `PUT`) and saved through the same path as `PUT`, so permissions, `If-Match` (412), the history entry and the transaction stay in one place. Both `application/merge-patch+json` and `application/json` are accepted; the Swagger body points at the existing write record; a response mirrors what that resource's `PUT` returns. `PUT` stays a full replace. Only resources with an optional field need a `PATCH`: advertisements, provider profiles and own settings.
+
+**Rejected alternatives:** `JsonNullable` fields (a 0.x dependency and a second request record per resource with field-by-field merging); JSON Patch, RFC 6902 (no library for the Jackson version in use, poor fit for flat resources, harder for agents); documenting "GET, then PUT" only (leaves the silent wipe); a 422 for an invalid result as RFC 5789 suggests (the API answers every validation failure with a 400, so `PATCH` would differ from `PUT` for the same mistake); ignoring unknown members (a typo would look like a change that was made).
+
+**Consequences:** A new resource with an optional field gets its `PATCH` by building its current write record and calling `MergePatchSupport`; a resource whose `PUT` has only required fields gets none. Sending `null` clears a field, so a caller who sends `null` meaning "unknown" loses it; the operation description says so.
+
+---
+
+## ADR-088: API keys tab in the account overlay — own keys only, revoked keys behind a toggle, revoke behind a confirmation, no audit entry
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** apikey-spring-boot-starter
+
+**Context:** API keys could be issued, listed and revoked only through the REST API. A user who issued keys through Swagger or a script could not see which keys exist, which are still used, or remove forgotten ones without calling REST by hand. `AccountOverlay` (ADR-074) already carries per-account sections, and ADR-087 deferred an audit log of key issuance and failures.
+
+**Decision:** `AccountOverlay` gets a fourth section, "API keys" (`ApiKeysViewModeHandler`), built like the Provider Profile section.
+- Own keys only: the tab exists only on the signed-in user's own account (not when an administrator or moderator opens someone else's) and only when the API-key module is present (`ApiKeyManagementService.isAvailable()`). The handler never takes a user id from outside; it always uses `AccessEvaluator.getCurrentUserId()`, and the revoke query is limited to the owner in the database.
+- The list shows label (or "Unnamed key"), the first 10 characters of the key and "...", created, last used, status and a revoke button; newest first, created and last used sortable, no paging, fixed height with scrolling. No key value or hash ever reaches the UI.
+- Revoked keys are hidden until "Show revoked keys" is ticked; a revoked row has no revoke button.
+- Revoking asks first through `ConfirmActionDialog`: the text names the key, says that clients get 401 Unauthorized from their next request and that it cannot be undone. A key already revoked or deleted meanwhile gives a message and a reload.
+- No audit entry (a revoke over REST writes none either). One INFO log line in `ApiKeyService.revoke` (actor id and key id, never the key, its hash or its prefix) covers REST and the app; it is a log line, not the audit log ADR-087 deferred.
+- Issuing a key in the UI stays out of scope.
+
+**Rejected alternatives:** A main tab or a separate header button and overlay: main tabs are catalogs and admin lists, and a separate overlay needs more classes for one list. An administrator read-only list or an administrator revoke: needs a new permission rule and a port change. Always showing revoked keys: revoked rows are never deleted, so the list would only grow. Paging: the service returns the whole list with no count and a user has few keys. A typed confirmation: meant for deleting a whole account, too heavy for one key. A full audit timeline entry: a new entity type, deferred with the rest of the key audit log.
+
+**Consequences:** The REST API is unchanged (no new endpoint, port or schema). The level 3 test that a foreign key cannot be revoked also checks that the owner's key keeps working. The API-key module's rules and README no longer say it is never touched by the UI.
+
+---
+
+## ADR-087: External REST API accepts HTTP Basic only on API-key issuance, in its own security chain, with a failed-login limit
+
+**Status:** Accepted
+
+**Applied:** 4
+
+**Also affects:** marketplace-rest-api
+
+**Context:** The external REST API had one security chain for `/api/**` with HTTP Basic enabled everywhere. Basic authenticates the request with an `AuthenticatedPrincipal`, while every bearer-only controller method takes `@AuthenticationPrincipal Long actorId`, so a Basic request to such an endpoint reached the controller with a null id and ended as a 500 instead of a 401. In the other direction a Bearer request to the key-issuance endpoint left its `AuthenticatedPrincipal` null. Each 401 also carried a Basic challenge, which makes browsers open their login prompt and keep sending the credentials (seen in Swagger UI). No test sent the wrong kind of credential to an endpoint, and guessing passwords at the Basic key-issuance endpoint was not limited, unlike the UI login.
+
+**Decision:** Two chains in `ApiSecurityConfig`. The first, `@Order(1)`, matches only `POST /api/api-keys`, accepts HTTP Basic, and keeps the Basic challenge. The second, `@Order(2)`, matches `/api/**`, has no Basic, keeps the bearer-key filter and the public read rules, and answers an unauthenticated request with 401 and a Bearer challenge (`realm="api"`, plus `error="invalid_token"` when a bearer header was sent but failed, per RFC 6750). A Basic header on those endpoints is ignored, so the request is anonymous and answered 401. In front of Basic on the key-issuance chain, `BasicLoginRateLimitFilter` counts failed logins in the existing in-memory `FailureRateLimiter`: one counter per client address and normalised email, 5 failures in 15 minutes, a success clears it, and a blocked caller gets 429 with `Retry-After` before the credentials are checked again.
+
+**Rejected alternatives:** One chain with Basic kept and a custom entry point: Basic would still authenticate every path, so the principal-type mismatch would remain. A request-rate library (Bucket4j, Resilience4j, Guava): they count requests, not failed logins, and cannot know the outcome before consuming; the existing limiter already is the failure counter. Three counters (address and email, email, address): more moving parts than this size needs; the accepted limits are that a changed address gives a fresh counter and that any lockout can delay a victim's key issuance, never their bearer-key requests. A 401 without any challenge header: HTTP requires a challenge on 401.
+
+**Consequences:** Deferred, not decided here: equal response time for an unknown email and a wrong password, an audit log of key issuance and failures, HTTPS on the key endpoint, trusted-proxy configuration for the client address once a reverse proxy exists, progressive lockout, and API-key hygiene (expiry, last use, per-user cap).
+
+---
+
 ## ADR-086: `AbstractEntityOverlay.applyFreshOrFallback` — defined fallback for a post-save refetch that races a concurrent delete; skip the refetch where a caller doesn't need fresh data
 
 **Status:** Accepted
@@ -170,7 +375,7 @@ pair, the view-mode-handler pair, and the form-mode-handler pair.
   the City/Category create/edit/delete/restore/discard scenarios in spec 03. One step-3 run hit an
   infra-level SIGKILL (exit 137, `pw-runner` container itself exited 0, no OOM) unrelated to the
   code — confirmed via a clean retry.
-- `/review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
+- `/deep-review` (`deep-review-orchestrator`) found no SOLID violations across all four steps and
   confirmed no missed or incorrect renames; one KISS finding (the intersection-type generic
   `getOverlay()` signature, step 1) reviewed and kept as-is, consistent with ADR-082's own
   cast-avoidance precedent. Step 2's review surfaced one pre-existing, unrelated finding
@@ -349,7 +554,9 @@ untouched. Only ADR-080's Taxon-specific mandate (its decision item 4) is revers
 
 **Status:** Accepted (Taxon-specific portion reversed by ADR-081; Advertisement/ProviderProfile portions remain Accepted)
 
-**Also affects:** marketplace-rest-api, taxon-spring-boot-starter
+**Applied:** 2
+
+**Also affects:** marketplace-rest-api, taxon-spring-boot-starter, marketplace-mcp
 
 **Context:** `GET /api/advertisements`/`GET /api/provider-profiles`/`GET /api/taxons` (shipped as part
 of the REST API infrastructure work) hardcoded an empty filter and unsorted results — no filter or
@@ -429,11 +636,14 @@ implicit" principle.
 - A future new REST list endpoint follows this same three-part shape: bind query params onto the
   existing domain `FilterDto`, validate sort against that domain's own response-DTO `Fields.*`,
   delegate response assembly to `PagedResponseBuilder`.
+- A list response carries the same DTO fields the Vaadin UI already shows to every visitor, anonymous
+  ones included, so `AdvertisementInfoDto.createdByUserEmail` (the author tooltip on the card) is
+  public over REST by design; hiding it would need a REST-only projection and is not done.
 - Verified directly: unit 255/255 (`marketplace-rest-api` 49, up from 27 — new `SortQueryParser`/
   `PageLinkHeaderBuilder`/`PagedResponseBuilder` unit tests plus extended controller tests),
   integration 186/186 (3 new `TaxonRepository` pagination/count tests against real Postgres),
   `ArchitectureRulesTest` 20/20 unaffected.
-- A `/review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
+- A `/deep-review` pass (`deep-review-orchestrator`) found and fixed one real DRY violation during this
   same implementation: the three controllers' `list()` methods duplicated the same 7-statement
   response-assembly sequence verbatim — extracted into `PagedResponseBuilder` before this ADR was
   written, so the shape described above already reflects the deduplicated version, not the
@@ -496,6 +706,10 @@ instead of build-time).
 
 **Status:** Accepted
 
+**Applied:** 1
+
+**Also affects:** marketplace-mcp
+
 **Context:** Building an external, Postman/Swagger-testable REST API (`marketplace-rest-api`) needed
 a real authentication mechanism beyond the existing Vaadin session login. The API serves
 programmatic/script access to a user's own account (external integrations, Playwright test
@@ -514,7 +728,17 @@ standard pattern in its own right, not a simplified OAuth2. Key hashing is SHA-2
 low-entropy human password against offline brute-force; it buys nothing for an already-random
 256-bit token and would add real latency to every authenticated request.
 
+The MCP server (`marketplace-mcp`) reuses this credential unchanged: an agent's connection carries
+the person's own key, the module forwards the `Authorization` header to the REST API as received,
+holds no credential of its own and never authenticates on the caller's behalf, so every tool call
+is authorized, rate-limited and audited as that account.
+
 **Rejected alternatives:**
+- **A service key held by the MCP module** — every agent would act as one shared account, losing
+  per-person ownership, limits and audit.
+- **`mcp-server-security` (community project)** — OAuth2 with JWT only, a basic API-key mode, not
+  endorsed by Spring AI, and no stated Spring Boot 4 compatibility; the forwarded key needs none
+  of it.
 - **OAuth2 client-credentials flow** — the natural fit for Postman/Swagger's native no-script
   auto-auth, but solves a different problem: delegated third-party authorization, multiple
   registered clients, short-lived token rotation. None apply here (no third-party apps, one
@@ -1100,6 +1324,8 @@ catch-all, as a discipline/process rule rather than a global switch.
 ## ADR-026: Rate limiting counts only real failures, never successful attempts
 
 **Status:** Accepted
+
+**Applied:** 1
 
 **Context:** Caffeine-based rate limiting was added to `AuthService.login()`
 (`org.ost.marketplace.services.auth` — corrected 2026-07-13; `AuthService` lives in
@@ -3206,6 +3432,8 @@ the intent.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** ADR-067 anticipated this batch as "the future Account overlay" while designing the
 stacked-history-overlay mechanism it now reuses. Separately, once Name/Settings/Provider Profile
 sections were planned to live side by side in one overlay, an inconsistency became visible: only
@@ -3297,11 +3525,11 @@ batch is that same pattern applied to Provider Profile, not a new design.
   only under `AccessEvaluator.canEditUserAccount()`. The shared confirm-dialog-plus-delete-call
   logic is factored into one `ProviderProfileDeleteUtil.confirmAndDelete()` static helper
   (`ui/views/utils`-style, reused by both call sites) rather than duplicated, found and fixed during
-  this batch's own `/review` pass.
+  this batch's own `/deep-review` pass.
 - `MainView`'s new Providers tab is gated on `providerProfileReadService.isAvailable()`, matching
   the existing Reference Data tab's `taxonCatalogService.isAvailable()` gate for the same kind of
   optional-starter (`provider-profile-spring-boot-starter` is `<scope>runtime</scope>`) —
-  found and fixed during this batch's own `/review` pass; the tab would otherwise render
+  found and fixed during this batch's own `/deep-review` pass; the tab would otherwise render
   permanently empty instead of disappearing if the starter is ever excluded from the classpath.
 
 **Consequences:** Playwright's `04-provider-profile-flow.spec.js` gained public-catalog coverage

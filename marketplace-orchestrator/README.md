@@ -27,7 +27,7 @@ allowed to perform directly against multiple domain `*Port`s.
 | `AuthorizationService` | The single source of truth for ownership/role rules (`canOperate`/`isPrivileged`/`require*`) — both `AccessEvaluator` (`marketplace-app`) and this module's own save/delete services call through it, so a REST caller and a Vaadin user get identical authorization behavior. |
 | `TaxonLookupService`/`ActorLookupService`/`TaxonAssignmentWriteService` | Shared read/write collaborators every domain's save path reuses, instead of each domain re-implementing the same `TaxonPort`/`UserPort` calls. |
 | `EntityExistenceService` | The one class allowed to hold more than two domain `*Port`s directly (all four) — pure per-`EntityType` existence-check dispatch with no cross-port composition to extract. |
-| `ApiKeyManagementService` | Wraps `ComponentFactory<ApiKeyPort>` so `marketplace-rest-api` never holds a `*Port` directly — same shape as every other `*ReadService`/`*CatalogService` here. |
+| `ApiKeyManagementService` | Wraps `ComponentFactory<ApiKeyPort>` so neither `marketplace-rest-api` nor `marketplace-app` holds a `*Port` directly; `isAvailable()` lets the UI hide its API keys tab when the starter is absent — same shape as every other `*ReadService`/`*CatalogService` here. |
 
 ## Dependencies
 

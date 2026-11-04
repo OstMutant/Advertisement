@@ -26,7 +26,7 @@ const TIMELINE_BLOCK = '.timeline-query-block';
  * Returns: Promise<void>.
  */
 async function openTimelineTab(page) {
-  await page.locator('vaadin-tab').filter({ hasText: /timeline|таймлайн/i }).click();
+  await page.getByRole('tab', { name: /timeline|таймлайн/i }).click();
   await page.locator('.activity-feed').waitFor({ timeout: 8000 });
   await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
 }
@@ -179,12 +179,12 @@ async function assertActorPickerVisible(page, expect, visible) {
  */
 async function fillEntityType(page, value) {
   const combo = page.locator(`${TIMELINE_BLOCK} vaadin-multi-select-combo-box`).nth(0);
-  await combo.locator('input').click();
+  await combo.getByRole('combobox').click();
   const overlay = page.locator('vaadin-multi-select-combo-box-overlay[opened]');
   await overlay.waitFor({ state: 'visible', timeout: 8000 });
   // Do NOT type to filter — typing empties the Vaadin overlay. Click the item by text directly.
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: value }).first().waitFor({ timeout: 5000 });
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: value }).first().click();
+  await page.getByRole('option', { name: value }).first().waitFor({ timeout: 5000 });
+  await page.getByRole('option', { name: value }).first().click();
   await page.keyboard.press('Escape');
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
@@ -197,27 +197,42 @@ async function fillEntityType(page, value) {
  */
 async function fillActionType(page, value) {
   const combo = page.locator(`${TIMELINE_BLOCK} vaadin-multi-select-combo-box`).nth(1);
-  await combo.locator('input').click();
+  await combo.getByRole('combobox').click();
   const overlay = page.locator('vaadin-multi-select-combo-box-overlay[opened]');
   await overlay.waitFor({ state: 'visible', timeout: 8000 });
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: value }).first().waitFor({ timeout: 5000 });
-  await page.locator('vaadin-multi-select-combo-box-item').filter({ hasText: value }).first().click();
+  await page.getByRole('option', { name: value }).first().waitFor({ timeout: 5000 });
+  await page.getByRole('option', { name: value }).first().click();
   await page.keyboard.press('Escape');
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 /**
- * Opens the actor picker dialog and selects the given user by name, either by scrolling the
- * virtualized grid to find the row (default) or via the dialog's own server-side search field.
- * Arguments: page, userName, { useSearch }.
+ * Types text into the open actor picker dialog's search field and waits for the filtered grid.
+ * Arguments: page, text.
  * Outputs: none.
  * Returns: Promise<void>.
  */
-async function fillActorPicker(page, userName, { useSearch = false } = {}) {
-  await page.locator('.user-picker-open').click();
+async function searchActorPicker(page, text) {
+  await page.getByPlaceholder(/actor|виконавець/i).locator('input').fill(text);
+  await page.getByRole('button', { name: /^(search|пошук)$/i }).click();
+  await waitForVaadin(page);
+}
+
+/**
+ * Opens the actor picker dialog and selects the given user by name, either by scrolling the
+ * virtualized grid to find the row (default) or via the dialog's own server-side search field.
+ * `narrowTo` first searches that text and then scrolls the narrowed grid to the row.
+ * Arguments: page, userName, { useSearch, narrowTo }.
+ * Outputs: none.
+ * Returns: Promise<void>.
+ */
+async function fillActorPicker(page, userName, { useSearch = false, narrowTo } = {}) {
+  await page.getByRole('button', { name: /search user|знайти користувача/i }).click();
   const dialog = page.locator('vaadin-dialog-overlay[opened]');
   await dialog.waitFor({ state: 'visible', timeout: 5000 });
-  const cell = page.locator('vaadin-grid-cell-content').filter({ hasText: new RegExp(`^${userName}$`) });
+  const cell = page.getByRole('gridcell', { name: new RegExp(`^${userName}$`) });
+
+  if (narrowTo) await searchActorPicker(page, narrowTo);
 
   if (useSearch) {
     // Server-side filter via the dialog's own search field narrows the grid to a handful of
@@ -230,11 +245,8 @@ async function fillActorPicker(page, userName, { useSearch = false } = {}) {
     // so a `dialog.locator(...)`-scoped search times out even though the field is on screen.
     // Only one `vaadin-text-field` exists on screen while the picker dialog is open (the rest of
     // the query panel behind it uses combo-boxes/date fields, not a plain text field).
-    await page.locator('vaadin-text-field input').fill(userName);
-    await page.locator('vaadin-text-field vaadin-button').click();
-    // The search is a server-side filter round-trip -- without this, the cell lookup below can
-    // grab a pre-filter row that gets detached mid-action once the filtered grid re-renders.
-    await waitForVaadin(page);
+    // The search is a server-side filter round-trip, so the helper waits for the re-render before the lookup below.
+    await searchActorPicker(page, userName);
   } else {
     // The grid virtualizes rows and lazy-loads beyond its first data-provider page (Vaadin's
     // default page size is 50) — a target further down the name-sorted list won't be in the DOM
@@ -268,7 +280,7 @@ async function fillActorPicker(page, userName, { useSearch = false } = {}) {
  */
 async function removeActorChip(page, userName) {
   const chip = page.locator('.user-picker-chip').filter({ hasText: userName });
-  await chip.locator('.user-picker-chip-remove').click();
+  await chip.getByRole('button', { name: /^(remove|видалити)$/i }).click();
   // Removal is a server round-trip (CustomField.setModelValue -> re-render), same as any other
   // Vaadin button click -- without this the immediately-following chip-count read can observe
   // stale DOM, unlike fillActorPicker's selection which already waits on the dialog closing.

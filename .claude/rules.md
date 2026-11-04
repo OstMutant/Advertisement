@@ -1,6 +1,6 @@
 ## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
 Before executing any tool call — re-read this entire file. No exceptions. This explicitly includes
-the start of every `/command` or Skill invocation (`/autopilot`, `/code-review`, `/feature`, etc.)
+the start of every `/command` or Skill invocation (`/autopilot`, `/code-review`, `/new-task`, etc.)
 — re-`Read` this file fresh at that point, not just once at the top of a long session.
 
 Not rules.md alone: re-`Read` the root `/app/CLAUDE.md` plus every module `CLAUDE.md` the task
@@ -230,16 +230,53 @@ unconditional rather than triggered by first noticing a choice exists.
 > real file's header rewritten to the new convention) — just don't pair each one with what it used
 > to look like.
 
+> ## ⛔ Well-specified mechanical implementation work defaults to a Haiku-model agent
+> Once a change is fully specified — exact files, exact edits, exact resulting behavior, no open
+> design decisions left — prefer dispatching it to a Haiku-model `Agent` call instead of writing
+> the code directly in the main thread or reaching for a stronger model. Do the investigation,
+> design, and exact technical plan yourself first (per the Approval Rule's technical layer); only
+> the mechanical "apply this exact change" step is delegated. When a step still requires judgment
+> calls, ambiguity resolution, or the exact diff can't be stated up front, implement it directly
+> (or use a stronger model) instead — Haiku executes an already-fully-decided plan, it doesn't
+> decide one.
+>
+> **Why:** a Haiku-model agent is cheaper and faster, and the Approval Rule already requires a
+> fully fleshed-out technical plan before any execution — once that plan exists in full, applying
+> it is mechanical and doesn't need a stronger model's judgment.
+>
+> **How to apply:** after presenting and getting approval for a technical-layer plan with exact
+> file paths and exact changes, dispatch via `Agent` with `model: "haiku"` and a fully
+> self-contained prompt (a fresh agent has no conversation context) — never `subagent_type: "fork"`
+> for this (forks always inherit the parent model, ignoring any model override). Verify the result
+> afterward — review the actual diff, run the relevant tests — same as any other agent's output.
+
 ## Approval Rule
-**Every action must be approved by the user before execution — no exceptions.**
+**Every action must be approved by the user before execution — no exceptions.** This covers every
+file-touching edit, every `Skill`/slash-command invocation, and every `Agent` dispatch (a code
+review, a script run, any subagent call) — not just multi-step technical plans — including a
+corrective action that merely fixes a mistake inside an already-approved step; a corrective fix
+states its own plain-language + technical layer and waits for its own confirmation, same as any
+other action.
 
 Before doing anything, present the plan in two layers, in this order:
 
 1. **Plain-language layer (first):** why this is being done and what the outcome will be, in
    words a non-technical reader could follow — no file paths, no method signatures yet.
-2. **Technical layer (after):** the exact instruction you would give yourself to execute the
-   action — full file paths, exact changes (method signatures, SQL, config values, field names),
-   any side-effects or follow-up steps.
+2. **Technical layer (after):** stated as this literal template, every field labeled exactly as
+   shown:
+   - **Summary:** the exact instruction you would give yourself to execute the action — full file
+     paths, exact changes (method signatures, SQL, config values, field names), any side-effects
+     or follow-up steps.
+   - **Agent:** yes/no — whether this action is dispatched to an `Agent` call at all.
+   - **Model:** the model name (e.g. `haiku`, `sonnet`) if Agent is yes; `—` if Agent is no.
+     Default to `Agent: yes` with `Model: haiku` whenever the standing Haiku-dispatch rule below
+     is satisfied (the change is fully specified — exact files, exact edits, exact resulting
+     behavior, no open design decisions left). Direct execution is the exception, chosen only when
+     that same rule's own exception applies — the step still requires judgment calls, ambiguity
+     resolution, or the exact diff can't be stated up front — never merely because the change
+     feels small or because the content happens to already be in context.
+   - **Input:** the file(s)/current state the action reads or starts from.
+   - **Result:** what the file(s) will contain/look like afterward.
 
 Present both layers, then **STOP and wait for explicit confirmation** before executing.
 
@@ -255,13 +292,28 @@ message is a directive rather than a direct answer to that exact question, treat
 not granted; ask the specific question again if needed.
 
 Example format:
-> Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
-> approved a change. Fixing it so the correct reviewer's name always shows."
+> **Plain-language:** The activity tab shows the wrong reviewer, so admins can't tell who actually
+> approved a change. Fixing it so the correct reviewer's name always shows.
 >
-> Technical: "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with
-> `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
+> **Summary:** Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with
+> `merge(Long userId, List<ActivityItemDto> baseItems)`.
+> **Agent:** yes
+> **Model:** haiku
+> **Input:** current `getMediaActivity(Long userId)` method body in `/full/path/File.java`.
+> **Result:** method renamed to `merge(Long userId, List<ActivityItemDto> baseItems)` with the new
+> parameter folded in — do it?
 
 Wait for explicit confirmation before making any change.
+
+**Hook-level enforcement mechanic:** `.claude/settings.json`'s `PreToolUse` hook on
+`Write|Edit|NotebookEdit|Agent|Skill` treats an affirmative reply to a presented plan as valid for
+every subsequent matching tool call until the user's next message that doesn't itself read as an
+approval — a `UserPromptSubmit` hook sets a session-scoped marker on an affirmative-sounding
+message and clears it on anything else, and the `PreToolUse` hook allows without re-prompting
+while that marker is present. This changes only the mechanical re-prompt at the tool-permission
+layer, not the obligation above: each sub-change still needs its own plan presented and its own
+literal question asked before acting — the hook merely stops forcing a second confirmation click
+for actions that are already part of an approved answer.
 
 A broad, already-approved task does not exempt each distinct sub-change within it from its own
 concrete plan — scope-level approval is not a blanket pass to skip the technical-layer detail for
@@ -388,7 +440,7 @@ subdirectory, which belongs to that one group alone.
 
 ## Task Lifecycle
 
-Before filing a new ADR (`/record-decision`) or a new backlog task (`/feature`), consult
+Before filing a new ADR (`/record-decision`) or a new backlog task (`/new-task`), consult
 `.claude/nav/adr-index.md` (if present) for an already-decided overlapping ADR — mandatory, not
 best-effort. See `.claude/nav/README.md` for what the file is and how it stays current.
 
@@ -400,6 +452,8 @@ When filing a **new** task in `backlog/tasks/`:
 
 When a task in `backlog/tasks/` is resolved (fix is implemented and committed):
 - Move the file to `backlog/completed/tasks/` — **immediately, in the same operation as the fix**
+- Add 1 to `**Applied:**` in every ADR listed in its `adrs_referenced` that the task did not itself
+  create (see "Final reports record real operational data"), then regenerate `.claude/nav/adr-index.md`
 - Do not leave resolved tasks in `backlog/tasks/`
 - Remove its row from `backlog/BACKLOG.md` and add a one-line `✅ Done` entry to
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
@@ -425,8 +479,10 @@ Keep the report human: what was done in plain terms, test results (counts, not j
 and review-finding decisions. Skip the enumerated file-changes section entirely.
 
 ### Final reports record real operational data in a fixed, mechanically-parseable block
-Whenever completing a task, append an `## Operational notes` block to that task file — real
-observations from the real task just done, not a synthetic exercise, and not free-form prose (a
+Every task file carries an `## Operational notes` block from the moment it is created (`/new-task`
+writes it with `n/a`/`none` values). Update its lines during the work as each fact becomes known
+— an ADR that shaped a decision, an Agent call, a script run — never reconstructed from memory at
+the end. Entries are real observations from the real task, not a synthetic exercise, and not free-form prose (a
 later aggregate pass greps/parses this across many task files, the same way `## ADR-NNN:` +
 `**Status:**` makes `DECISIONS.md` mechanically indexable — inconsistent formatting defeats that).
 Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply to this task:
@@ -443,6 +499,10 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 - flows_situation: <short phrase describing the situation, or n/a>
 - flows_chosen: <the command/skill actually used, or n/a>
 - flows_matched: <yes/no/n/a — did it match .claude/nav/flows.md's recommendation for that situation>
+- haiku_decomposition_used: <yes/no/n/a — did this run's implementation phase (autopilot step 2) or /sync-docs diff-mode's parallelization dispatch Haiku per the eligibility criteria in those commands, or n/a if neither applies>
+- haiku_decomposition_dispatch_count: <N Haiku dispatches used for this purpose, or n/a>
+- haiku_decomposition_rework_needed: <N dispatches whose output needed a correction after verification> / <N total such dispatches>, or n/a
+- adrs_referenced: <ADR-NNN (module), ADR-MMM (module), ... every ADR that actually shaped a decision or was followed in this task, in that exact key shape, or none — merely reading an ADR does not count>
 
 ### Agent calls
 - <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
@@ -476,6 +536,27 @@ Compute it honestly from the real counts of that run, not a rounded guess. The p
 just for the review process as a whole — an angle that's consistently expensive and low-yield
 across many tasks is a candidate to drop or narrow; an angle that keeps finding real bugs
 regardless of cost stays. Never drop an angle from one run's data alone.
+
+**`haiku_decomposition_rework_needed`** exists to answer, over time, whether dispatching Haiku
+per-unit for autopilot's step 2 (or `/sync-docs` diff-mode's parallelization) — no count or size
+threshold, per the standing Haiku-dispatch rule — is actually safe to keep doing with no gate at
+all: a high rework rate (corrections needed after verification) would be real evidence that a
+threshold is needed after all (some dispatches are getting work that still needed judgment); a
+low/zero rate confirms per-unit dispatch with no threshold is working as intended. Compute honestly
+per run, same discipline as `review_signal_ratio` — never skip recording a rework event just
+because it was caught and fixed quickly.
+
+**`adrs_referenced`** exists to answer, over time, which ADRs are actually load-bearing — applied
+in real work — versus ones nobody has used since they were written. `/record-decision` appends the
+ADR it creates to the current task's line itself and writes `**Applied:** 1` into that new ADR. When
+a task is closed, whoever closes it adds 1 to the `**Applied:** N` line of every ADR in the task's
+`adrs_referenced` (adding `**Applied:** 1` right after `**Status:**` where the line is absent),
+except an ADR this very task created, already counted at creation — one count per task, however
+many times it is cited. `.claude/nav/scripts/generate-adr-index.sh` only
+collects that line into an `Applied` column on the generated index (blank when absent, never 0); a consistently-zero count across many tasks is a
+signal that ADR is a candidate for lower-priority upkeep (not automatic deletion — some decisions
+are rarely touched specifically because they're settled), while a high count marks one worth
+keeping especially precise and current.
 
 **Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
 task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use

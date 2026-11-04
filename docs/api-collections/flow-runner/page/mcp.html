@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>API flow runner</title>
+<link rel="stylesheet" href="css/diagram.css">
+<link rel="stylesheet" href="css/step.css">
+<link rel="stylesheet" href="css/flow-map.css">
+<link rel="stylesheet" href="css/flow-detail.css">
+<link rel="stylesheet" href="css/templates.css">
+<link rel="stylesheet" href="css/admin-account.css">
+<link rel="stylesheet" href="css/catalog.css">
+<link rel="stylesheet" href="css/page-tabs.css">
+</head>
+<body>
+<h1>API flow runner</h1>
+<p>Served by the running app when <code>marketplace.dev-tools.enabled</code> is on.</p>
+<nav class="page-tabs" role="tablist" aria-label="API">
+<a role="tab" href="index.html" aria-selected="false">REST API</a>
+<a role="tab" href="mcp.html" aria-selected="true">MCP</a>
+</nav>
+<p><a href="postman/marketplace-mcp.postman_collection.json">Postman collection (MCP)</a></p>
+<div class="page-tabs" role="tablist" aria-label="Section">
+<button type="button" role="tab" aria-selected="false" data-panel="tools-panel">Tools</button>
+<button type="button" role="tab" aria-selected="true" data-panel="flows-panel">Flows</button>
+</div>
+<div id="tools-panel" role="tabpanel" hidden>
+<section id="catalog"></section>
+</div>
+<div id="flows-panel" role="tabpanel">
+<section id="templates"></section>
+<section id="admin-account"></section>
+<div id="flow-map"></div>
+<section id="flow-detail" hidden></section>
+<div id="run-bar">
+<button id="run-button" type="button" disabled>Run selected</button>
+<button id="clear-button" type="button" disabled>Clear</button>
+</div>
+<p id="admin-note" role="status" hidden></p>
+<div id="diagram"></div>
+</div>
+<dialog id="step-card"></dialog>
+<dialog id="confirm-dialog"></dialog>
+<script type="module" src="js/mcp-page.js"></script>
+</body>
+</html>

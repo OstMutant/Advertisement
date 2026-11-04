@@ -12,7 +12,7 @@ Runs scripts/build-and-test.sh --unit --integration (installs the whole reactor 
 unit+integration tests in parallel against it -- see .claude/nav/adr-index.md) in
 parallel with a deploy-and-run.sh + playwright.sh sequence: deploy-and-run.sh always clears app
 data first (--reset-only-db by default -- fast, truncate-only; --reset when --reset is passed to
-this command -- full DB/MinIO volume wipe, only needed when the schema itself changed), then
+this command -- full DB/SeaweedFS volume wipe, only needed when the schema itself changed), then
 playwright.sh runs once that succeeds, so it always tests a freshly-rebuilt marketplace-app
 container against guaranteed-clean data (see playwright/CLAUDE.md's own "Always deploy with a
 clean database" rule -- this is what enforces it automatically). unit/integration and Playwright

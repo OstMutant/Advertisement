@@ -1,0 +1,10 @@
+{
+  "source": "mcp",
+  "baseUrl": "http://localhost:8081",
+  "mcpPath": "/mcp",
+  "collectionFile": "../postman/marketplace-mcp.postman_collection.json",
+  "referenceCollectionFile": "../postman/marketplace-rest-api.postman_collection.json",
+  "allowListFile": "mcp-coverage-allowlist.txt",
+  "hostPlaceholder": "{{host}}",
+  "stepMetadata": { "maxLabelLength": 24, "kinds": ["required", "optional"] }
+}

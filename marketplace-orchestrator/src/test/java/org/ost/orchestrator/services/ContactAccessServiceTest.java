@@ -1,0 +1,165 @@
+package org.ost.orchestrator.services;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.platform.contact.dto.ContactInfoDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileDto;
+import org.ost.platform.contact.dto.ContactViewCountDto;
+import org.ost.platform.contact.model.ContactChannel;
+import org.ost.platform.contact.spi.ContactPort;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityType;
+
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/** Unit tests for {@link ContactAccessService}, focused on resolving an advertisement to its owner's PROVIDER_PROFILE contact. */
+@ExtendWith(MockitoExtension.class)
+class ContactAccessServiceTest {
+
+    @Mock private ComponentFactory<ContactPort> contactPortFactory;
+    @Mock private ContactPort contactPort;
+    @Mock private AdvertisementOwnerProfileLookupService advertisementOwnerProfileLookupService;
+    @Mock private AuthorizationService authorizationService;
+    @Mock private ProviderProfileReadService providerProfileReadService;
+
+    private ContactAccessService service;
+
+    private static final ContactInfoDto PROFILE_CONTACT = new ContactInfoDto(
+            2L, EntityType.PROVIDER_PROFILE, 99L, "+380502222222", null, null, null, 0L);
+
+    @BeforeEach
+    void setUp() {
+        service = new ContactAccessService(contactPortFactory, advertisementOwnerProfileLookupService, authorizationService, providerProfileReadService);
+        lenient().when(contactPortFactory.findIfAvailable()).thenReturn(Optional.of(contactPort));
+        lenient().doAnswer(inv -> {
+            Consumer<ContactPort> consumer = inv.getArgument(0);
+            consumer.accept(contactPort);
+            return null;
+        }).when(contactPortFactory).ifAvailable(any());
+    }
+
+    @Test
+    void resolveContact_advertisement_returnsOwnerProfileContactWithoutReadingAnAdvertisementRow() {
+        when(advertisementOwnerProfileLookupService.findOwnerProfileId(10L)).thenReturn(Optional.of(99L));
+        when(contactPort.find(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(Optional.of(PROFILE_CONTACT));
+
+        assertThat(service.resolveContact(EntityType.ADVERTISEMENT, 10L)).contains(PROFILE_CONTACT);
+        verify(contactPort, never()).find(EntityType.ADVERTISEMENT, 10L);
+    }
+
+    @Test
+    void resolveContact_advertisementOwnerHasNoProfile_returnsEmpty() {
+        when(advertisementOwnerProfileLookupService.findOwnerProfileId(10L)).thenReturn(Optional.empty());
+
+        assertThat(service.resolveContact(EntityType.ADVERTISEMENT, 10L)).isEmpty();
+    }
+
+    @Test
+    void resolveContact_providerProfile_neverLooksUpAnOwner() {
+        when(contactPort.find(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(Optional.of(PROFILE_CONTACT));
+
+        assertThat(service.resolveContact(EntityType.PROVIDER_PROFILE, 99L)).contains(PROFILE_CONTACT);
+        verify(advertisementOwnerProfileLookupService, never()).findOwnerProfileId(any());
+    }
+
+    @Test
+    void resolveContact_otherEntityType_throws() {
+        assertThatThrownBy(() -> service.resolveContact(EntityType.USER, 1L))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void resolveContact_contactStarterAbsent_returnsEmpty() {
+        when(contactPortFactory.findIfAvailable()).thenReturn(Optional.empty());
+
+        assertThat(service.resolveContact(EntityType.PROVIDER_PROFILE, 99L)).isEmpty();
+    }
+
+    @Test
+    void recordView_delegatesToPort() {
+        service.recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L, "+380501111111");
+
+        verify(contactPort).recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L, "+380501111111");
+    }
+
+    @Test
+    void recordView_contactStarterAbsent_doesNothing() {
+        doNothing().when(contactPortFactory).ifAvailable(any()); // overrides setUp()'s "always invoke" stub -- ObjectProvider-absent shape.
+
+        service.recordView(EntityType.ADVERTISEMENT, 10L, ContactChannel.PHONE, 5L, "+380501111111");
+
+        verify(contactPort, never()).recordView(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void delete_delegatesToPort() {
+        service.delete(EntityType.PROVIDER_PROFILE, 99L);
+
+        verify(contactPort).delete(EntityType.PROVIDER_PROFILE, 99L);
+    }
+
+    @Test
+    void delete_contactStarterAbsent_doesNothing() {
+        doNothing().when(contactPortFactory).ifAvailable(any());
+
+        service.delete(EntityType.PROVIDER_PROFILE, 99L);
+
+        verify(contactPort, never()).delete(any(), any());
+    }
+
+    @Test
+    void isAvailable_reflectsPortFactory() {
+        assertThat(service.isAvailable()).isTrue();
+    }
+
+    @Test
+    void countViewsThisMonth_ownerOrPrivileged_returnsCounts() {
+        List<ContactViewCountDto> counts = List.of(new ContactViewCountDto(ContactChannel.PHONE, 3L));
+        when(contactPort.countViewsThisMonth(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(counts);
+
+        assertThat(service.countViewsThisMonth(5L, EntityType.PROVIDER_PROFILE, 99L, 99L)).isEqualTo(counts);
+    }
+
+    @Test
+    void countViewsThisMonth_notAllowed_throwsAndNeverReadsCounts() {
+        doThrow(new AccessDeniedException("no")).when(authorizationService).requireCanOperate(5L, 99L);
+
+        assertThatThrownBy(() -> service.countViewsThisMonth(5L, EntityType.PROVIDER_PROFILE, 99L, 99L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(contactPort, never()).countViewsThisMonth(any(), any());
+    }
+
+    @Test
+    void countProfileViewsThisMonth_resolvesOwnerAndChecksAccess() {
+        when(providerProfileReadService.findById(99L)).thenReturn(Optional.of(ProviderProfileDto.builder().id(99L).actorId(40L).build()));
+        List<ContactViewCountDto> counts = List.of(new ContactViewCountDto(ContactChannel.PHONE, 3L));
+        when(contactPort.countViewsThisMonth(EntityType.PROVIDER_PROFILE, 99L)).thenReturn(counts);
+
+        assertThat(service.countProfileViewsThisMonth(40L, 99L)).isEqualTo(counts);
+        verify(authorizationService).requireCanOperate(40L, 40L);
+    }
+
+    @Test
+    void countProfileViewsThisMonth_unknownProfile_throwsNotFound() {
+        when(providerProfileReadService.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.countProfileViewsThisMonth(40L, 99L)).isInstanceOf(NoSuchElementException.class);
+        verify(contactPort, never()).countViewsThisMonth(any(), any());
+    }
+}

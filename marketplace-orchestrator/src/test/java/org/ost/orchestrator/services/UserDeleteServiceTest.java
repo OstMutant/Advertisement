@@ -153,9 +153,20 @@ class UserDeleteServiceTest {
 
     @Test
     void delete_deniedByAuthorization_throwsAndNeverCascadesOrDeletes() {
-        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanEditAccount(ACTOR_ID, USER_ID);
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanDeleteAccount(ACTOR_ID, USER_ID);
 
         assertThatThrownBy(() -> service.delete(USER_ID, ACTOR_ID))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(advertisementPortFactory, never()).ifAvailable(any());
+        verify(apiKeyPortFactory, never()).ifAvailable(any());
+        verify(accountPort, never()).delete(any(), any());
+    }
+
+    @Test
+    void delete_administratorDeletingOwnAccount_isDeniedAndNothingIsCalled() {
+        doThrow(new AccessDeniedException("denied")).when(authorizationService).requireCanDeleteAccount(USER_ID, USER_ID);
+
+        assertThatThrownBy(() -> service.delete(USER_ID, USER_ID))
                 .isInstanceOf(AccessDeniedException.class);
         verify(advertisementPortFactory, never()).ifAvailable(any());
         verify(apiKeyPortFactory, never()).ifAvailable(any());

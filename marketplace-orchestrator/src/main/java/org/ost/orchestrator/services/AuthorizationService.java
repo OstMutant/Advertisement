@@ -33,6 +33,11 @@ public class AuthorizationService {
         return authorizationPort.isOwner(user, ownerId);
     }
 
+    /** Service-boundary overload -- resolves the actor, then delegates to {@link #isOwner(UserDto, Long)}. */
+    public boolean isOwner(@NonNull Long actingUserId, @NonNull Long ownerId) {
+        return actorLookupService.findById(actingUserId).map(u -> isOwner(u, ownerId)).orElse(false);
+    }
+
     // ── Rule composition (UserDto in hand -- the single source of truth for each rule) ────────
 
     /** True if actor is admin, moderator, or owns ownerId. ownerId == null reduces this to
@@ -55,6 +60,11 @@ public class AuthorizationService {
         return isAdmin(actor) && !actor.id().equals(targetUserId);
     }
 
+    /** Delete follows the role rule: an administrator may remove any account except their own. */
+    public boolean canDeleteAccount(@NonNull UserDto actor, @NonNull Long targetUserId) {
+        return canEditAccount(actor, targetUserId) && !(isAdmin(actor) && actor.id().equals(targetUserId));
+    }
+
     // ── Service-boundary checks (id-only callers, no UserDto in hand -- resolve, then delegate above) ─
 
     public boolean canOperate(@NonNull Long actingUserId, Long ownerId) {
@@ -67,6 +77,10 @@ public class AuthorizationService {
 
     public boolean canEditRole(@NonNull Long actingUserId, @NonNull Long targetUserId) {
         return actorLookupService.findById(actingUserId).map(u -> canEditRole(u, targetUserId)).orElse(false);
+    }
+
+    public boolean canDeleteAccount(@NonNull Long actingUserId, @NonNull Long targetUserId) {
+        return actorLookupService.findById(actingUserId).map(u -> canDeleteAccount(u, targetUserId)).orElse(false);
     }
 
     /** Alias for {@code canOperate(actingUserId, null)} -- self-documents the no-ownership-concept
@@ -96,6 +110,12 @@ public class AuthorizationService {
     public void requireCanEditRole(@NonNull Long actingUserId, @NonNull Long targetUserId) {
         if (!canEditRole(actingUserId, targetUserId)) {
             throw new AccessDeniedException("User " + actingUserId + " may not change the role of account " + targetUserId);
+        }
+    }
+
+    public void requireCanDeleteAccount(@NonNull Long actingUserId, @NonNull Long targetUserId) {
+        if (!canDeleteAccount(actingUserId, targetUserId)) {
+            throw new AccessDeniedException("User " + actingUserId + " may not delete account " + targetUserId);
         }
     }
 

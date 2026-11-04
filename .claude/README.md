@@ -6,7 +6,7 @@ themselves live in `.claude/rules.md`; this file covers the loading *mechanism*,
 
 ## What's here
 
-- `commands/*.md` — slash-command definitions (`/feature`, `/deploy-and-run`, etc.)
+- `commands/*.md` — slash-command definitions (`/new-task`, `/deploy-and-run`, etc.)
 - `skills/*/SKILL.md` — skill definitions, invoked via the Skill tool
 - `rules.md` — the main standing behavioral rules file, `@`-imported by root `CLAUDE.md`
 - `rules/*.md` — path-scoped rule files, one per module; see `rules/README.md` for their own

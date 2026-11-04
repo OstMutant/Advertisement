@@ -1,0 +1,43 @@
+# ── Header ──────────────────────────────────────────────────────────────────
+# Description: AI developer container -- runs the opencode CLI itself, for working on this
+#   Java 25 project. Supports switching between multiple opencode logins on the same mounted
+#   project directory (chat history/context preserved, only the auth config differs per login)
+#   -- see scripts/opencode.bat.
+# Usage: docker build [--build-arg BASE_IMAGE=<image>] [--build-arg NODE_MAJOR=<n>]
+#   [--build-arg OPENCODE_VERSION=<version|latest>] [--build-arg OPENCODE_REFRESH=<new value>]
+#   -f Dockerfile.opencode -t opencode-j25-dev . -- run from the repo root; built automatically by
+#   scripts/opencode.bat (which passes a fresh OPENCODE_REFRESH on --update), rarely invoked
+#   directly.
+# Uses: ${BASE_IMAGE} base image, apt (curl/git/maven/postgresql-client/docker.io),
+#   Node.js ${NODE_MAJOR} + npm (opencode-ai).
+# Env: ARG BASE_IMAGE (default eclipse-temurin:25-jdk-jammy), ARG NODE_MAJOR (default 24 -- must
+#   satisfy the opencode-ai package's engines.node, if it ever declares one), ARG OPENCODE_VERSION
+#   (default latest), ARG OPENCODE_REFRESH (default 0 -- change it to force a fresh opencode
+#   install). Account-specific auth config is mounted at `docker run` time by
+#   scripts/opencode.bat, not read from a build-time ENV.
+# Input: None -- installs tools only, does not COPY repo source.
+# Outputs: an interactive container image with the `opencode` CLI as its entrypoint, working
+#   directory /app (repo mounted here at `docker run` time).
+# Returns: N/A -- entrypoint is an interactive CLI, not a build/test command with its own exit code.
+# ────────────────────────────────────────────────────────────────────────────
+
+ARG BASE_IMAGE=eclipse-temurin:25-jdk-jammy
+FROM ${BASE_IMAGE}
+
+# Install Node.js (for opencode CLI), Maven (for testing) and Git
+ARG NODE_MAJOR=24
+RUN apt-get update && apt-get install -y curl git maven postgresql-client docker.io \
+    && curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Changing OPENCODE_REFRESH forces a fresh opencode install on --update.
+ARG OPENCODE_VERSION=latest
+ARG OPENCODE_REFRESH=0
+RUN echo "opencode refresh: ${OPENCODE_REFRESH}" && npm install -g --engine-strict opencode-ai@${OPENCODE_VERSION} && opencode --version
+
+# Set the working directory where the local code will be mounted
+WORKDIR /app
+
+# Run opencode CLI as the main container process
+ENTRYPOINT ["opencode"]
