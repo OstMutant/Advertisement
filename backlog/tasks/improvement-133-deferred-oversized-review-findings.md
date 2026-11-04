@@ -144,20 +144,6 @@ gap, not a documented one. Needs a decision: guard the button behind `isAvailabl
 make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
 "create with no taxon starter" means to callers) — not sized here.
 
-### 12. `scripts/build-and-test/run.sh`'s header doesn't explain its own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
-
-`playwright/run.sh`'s and `scripts/sonar/run.sh`'s own headers explain why they use `docker cp` instead of a volume
-mount ("volume mounts don't work when the caller is itself a container") — but
-`scripts/build-and-test/run.sh`'s explanation exists only as a body comment further down the file, not in its structured header. Surfaced while applying
-`infra-doc-standards` to the root `scripts/` directory: the root `scripts/README.md` used to carry
-a "Docker socket constraint" section aggregating this fact across all three scripts, removed as a
-duplication violation once the skill's "one fact, one canonical home" rule was strengthened this
-same session to explicitly cover shared-constraint content — but removing it exposed that some of the
-referenced files never had this reason in their own header to begin with. Not fixed inline: the
-file lives outside this run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
-add one sentence to its `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
-matching `playwright/run.sh`'s existing pattern.
-
 ### 13. Repo-wide prose references to old per-module `<module>/CLAUDE.md` paths went stale after path-scoped migration (found during improvement-168 Phase 2.2, 2026-08-25)
 
 All 13 module `CLAUDE.md` files moved to `.claude/rules/<module>.md` — root `CLAUDE.md`'s own
@@ -255,16 +241,6 @@ an arbitrary one — see `improvement-124`'s Part 1 item 4). Needs a real produc
 fix — the narrow fix actually shipped for the immediate bug was `RadioButtonGroup.setItemEnabledProvider`
 (keep `SUPPORT` in the item list — disabled, not hidden — when it's already the actor's current
 value, so the field stays representable without granting the actor a way to freshly select it).
-
-### 18. Four `.claude/rules/*.md` files still point at the deprecated README "Key classes" table (found during improvement-183 item 11 repo-wide rollout, 2026-09-09)
-
-`.claude/rules/advertisement-spring-boot-starter.md`, `audit-spring-boot-starter.md`,
-`user-spring-boot-starter.md`, and `attachment-spring-boot-starter.md` each still direct readers to
-their module's README "Key classes" table for the class list — that table no longer exists once
-`module-readme-standards`' current shape (`What it provides`/`Data flow`/`Dependencies`) was applied
-to all 4 modules during item 11's repo-wide pass. Mechanical fix (update each pointer to name the
-current section instead), deferred only because it touches 4 files outside that item's approved
-Java/pom.xml/README-only scope.
 
 ### 21. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
 

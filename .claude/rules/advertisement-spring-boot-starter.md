@@ -12,8 +12,11 @@ Java package root: `org.ost.advertisement`
 
 ## What it owns
 
-See `advertisement-spring-boot-starter/README.md`'s "Key classes" table for the class list and
-one-line roles — not restated here. One constraint worth stating locally since it's not just a
+The class list and one-line roles (entities, key services, contracts) are generated from the code:
+see the `advertisement-spring-boot-starter` node on the module page of
+[`architecture-map.html`](../../docs/architecture/architecture-map.html) and in
+[`architecture-model.json`](../../docs/architecture/data/architecture-model.json), not restated here.
+One constraint worth stating locally since it's not just a
 class role: `AdvertisementService` owns only advertisement-domain CRUD and query-time category/city
 filter resolution — it does not clear or write taxon assignments, does not enrich display fields
 (category/city names, author name/email, media summary), and does not cascade-clean attachments on
