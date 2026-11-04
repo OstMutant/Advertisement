@@ -522,8 +522,8 @@ Show this same block in the chat final report too, not only in the task file —
 file alone is invisible to the user unless they go open that file themselves. Include it verbatim
 (or immediately adjacent to) the rest of the completion report, every time, not just when a number
 happens to look interesting.
-Token totals are never a full accounting — no tool reports main-thread token usage, state that as
-context if asked, not inside the block itself (keep the block just the key: value lines, nothing
+Token totals are never a full accounting — the main thread's own token usage is not collected into
+this block, state that as context if asked, not inside the block itself (keep the block just the key: value lines, nothing
 else, so parsing stays trivial). See `.claude/commands/sync-docs.md`'s Full Audit Mode for where
 this data gets aggregated and acted on.
 
@@ -562,10 +562,10 @@ keeping especially precise and current.
 task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use
 it verbatim, don't estimate. Scripts (`build-and-test.sh`, `deploy-and-run.sh`, `playwright.sh`, etc.) are not
 LLM calls and have no token cost of their own — never invent one; only record their real wall-clock
-duration and pass/fail result. Main-thread (this conversation's own) token usage has no reporting
-tool at all — not a policy choice, a real gap, confirmed via `ToolSearch` finding no matching tool
-before writing this rule (2026-08-08) — do not estimate it either; the `token_cost_*` fields above
-stay Agent-only for this reason.
+duration and pass/fail result. Main-thread (this conversation's own) token usage is recorded per
+request in the session transcript (`message.usage` in `~/.claude/projects/<project>/<session>.jsonl`)
+and in Claude Code's opt-in OpenTelemetry export, but nothing sums it per task — do not estimate
+it; the `token_cost_*` fields above stay Agent-only for this reason.
 
 ### Review-skill effort level — default stays put; deviation allowed only when obvious, always disclosed
 A review-style skill's effort level defaults to whatever it defaults to when the user doesn't name

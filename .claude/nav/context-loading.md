@@ -1,10 +1,10 @@
 # Context loading by task type
 
 What to consult beyond what's already loaded, for a given kind of task. Scope is deliberately
-narrow: root and module `CLAUDE.md` are unconditionally `@`-imported into every session by root
-`CLAUDE.md` regardless of task type — that isn't a choice this table can influence, so it isn't
+narrow: root `CLAUDE.md` (with `.claude/rules.md`) is loaded into every session, and a module's
+`.claude/rules/<module>.md` loads whenever a file in that module is read, regardless of task type — that isn't a choice this table can influence, so it isn't
 listed below. The `deep-review-orchestrator` agent's `all`/`module` scope (per-module subagents,
-each given that module's own `CLAUDE.md`/`DECISIONS.md`) and `.claude/commands/sync-docs.md` (its own changed-file→doc-target
+each given that module's own `.claude/rules/<module>.md`/`DECISIONS.md`) and `.claude/commands/sync-docs.md` (its own changed-file→doc-target
 mapping) already have their own internal context strategy — this table complements them for
 everyday work that goes through neither, it does not redefine either.
 
@@ -23,9 +23,9 @@ handful of known ids out of a file that can run to thousands of lines.
 | Bug fix, single module | filter [adr-index.md](adr-index.md) by module first, then `--extract` just the matching id(s); `backlog/completed/tasks/` for a prior fix of the same shape | other modules' `DECISIONS.md`, `docs/architecture/` |
 | Local refactor, single class/package | same module's `DECISIONS.md` — filter the index, `--extract` the matching id(s) | cross-module docs |
 | Feature, single module | filter the index for related ADRs and `--extract` them if only a few match, `backlog/BACKLOG.md` for related open work | `docs/architecture/` unless the feature touches a documented bounded-context boundary |
-| Cross-module feature | `adr-index.md` filtered to every touched module + `platform-commons`, `docs/architecture/architecture-map.html` (Diagrams › Bounded Contexts) | — |
-| Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) | `platform-commons/DECISIONS.md` in full, `docs/architecture/architecture-map.html` (Module Dependencies, SPI Map, Database ERD), `ArchitectureRulesTest` | — |
-| Architecture audit / repo-wide review | dispatch the `deep-review-orchestrator` agent directly with scope `all` (see [flows.md](flows.md)) — do not hand-load module `CLAUDE.md`/`DECISIONS.md` yourself, it already does this per module | — |
+| Cross-module feature | `adr-index.md` filtered to every touched module + `platform-commons`, the touched domains' `*Port`/`*Hook` interfaces under `platform-commons/src/main/java/org/ost/platform/<domain>/spi/` | — |
+| Architectural change (new SPI, new `*Port`/`*Hook`, schema change touching ownership/FKs) | `platform-commons/DECISIONS.md` in full, `ArchitectureRulesTest`, the touched modules' `pom.xml` for dependencies, the owning starter's Liquibase changelog under `<starter>/src/main/resources/db/<name>-changelog/` for table ownership and FKs | — |
+| Architecture audit / repo-wide review | dispatch the `deep-review-orchestrator` agent directly with scope `all` (see [flows.md](flows.md)) — do not hand-load module `.claude/rules/<module>.md`/`DECISIONS.md` yourself, it already does this per module | — |
 | Resuming a research or a planning run (a folder under `backlog/research/`) | `backlog/research/<topic>/brief.md`, then `bash backlog/research/tools/scripts/show-status.sh <topic>`; `notes.md` and `sources.md` only for the part being continued | the topic's other files, raw sources |
 
 See [flows.md](flows.md) for *which command/skill* handles a given situation — this table only
