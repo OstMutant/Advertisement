@@ -3,6 +3,7 @@
 #   bash integration-tests/run.sh                          — run every test in the module
 #   bash integration-tests/run.sh smoke                     — run PostgresContainerSmokeTest only
 #   bash integration-tests/run.sh AdvertisementRepositoryTest — run one test class by name
+#   bash integration-tests/run.sh ClassA ClassB             — run several test classes by name
 #   bash integration-tests/run.sh --sandbox                 — apply this sandbox's Docker
 #                                                               workarounds (Ryuk disabled, fixed
 #                                                               Postgres port); NOT needed on a
@@ -53,7 +54,7 @@ for arg in "$@"; do
   elif [ "$arg" = "--no-check" ]; then
     NO_CHECK=1
   else
-    SCENARIO="$arg"
+    SCENARIO="${SCENARIO:+$SCENARIO,}$arg"
   fi
 done
 

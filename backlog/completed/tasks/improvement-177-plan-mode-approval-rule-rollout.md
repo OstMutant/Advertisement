@@ -2,9 +2,8 @@
 
 **Type:** improvement — architectural/process, carved out of `improvement-176` finding 4
 **Module:** `.claude/rules.md` (the "Approval Rule" section)
-**Priority:** low — real doubt now attached, see "Reverted precondition" below; not urgent
-**When:** independent, no hard blocker, but its own working precondition no longer holds — see
-below before picking this up
+**Priority:** closed 2026-11-04 as won't do (was low — real doubt now attached, see "Reverted precondition" below; not urgent)
+**When:** closed 2026-11-04, see `## Closure`
 
 ## Reverted precondition (2026-08-28)
 
@@ -132,3 +131,23 @@ trusting it as the new standing default.
   sequenced to land first.
 - `improvement-160` (closed) — `D3-6`, the original unimplemented idea this issue and
   `improvement-176` finding 4 both trace back to.
+
+## Closure (2026-11-04)
+
+Closed as won't do, by the user's decision. The narrow instance this rollout was meant to generalize from was reverted the same day it landed, because `ExitPlanMode`'s plan file is chosen by the harness and cannot point at the task file where this project keeps its plans, and the same conflict would apply project-wide. The Approval Rule in `.claude/rules.md` stays as it is. Reopen only if Plan Mode gains a way to write the plan to a chosen path.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: n/a
+- haiku_decomposition_dispatch_count: n/a
+- haiku_decomposition_rework_needed: n/a
+- adrs_referenced: none

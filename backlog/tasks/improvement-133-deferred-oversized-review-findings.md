@@ -38,18 +38,6 @@ item 25), not encoded in the type system. Surfaced by the same Altitude pass. Po
 a `SqlOperator`-level cardinality marker, or splitting the factory method shapes — needs a design
 decision, not a mechanical fix.
 
-### 3. `integration-tests/run.sh` silently drops all but the last test-class scenario argument (found during Batch I, 2026-07-30)
-
-`run.sh`'s arg-parsing loop (`for arg in "$@"; do ... else SCENARIO="$arg"; fi; done`) overwrites
-`SCENARIO` on every non-flag argument instead of accumulating them, so
-`bash scripts/integration-tests.sh --sandbox ClassA ClassB ClassC` silently runs only `ClassC` —
-`ClassA`/`ClassB` are dropped with no warning or error. Confirmed directly during Batch I: a run
-intended to cover 5 attachment-domain test classes only ran the last one named; had to be redone
-with a single comma-joined `-Dtest=...`-style argument instead (which the script does forward
-correctly as one opaque `SCENARIO` string). Fix is small and mechanical (join extra positional args
-with a comma instead of overwriting) but touches a shared script used by every batch's test cycle,
-so it's deferred here for a deliberate pass rather than a rushed inline fix.
-
 ### 4. Unify entity→DTO simple-mapping convention across all modules (decided during Batch C, 2026-07-30)
 
 **Convention adopted:** when a DTO is built by pure field copy with no join/enrichment (no locale,
@@ -89,19 +77,6 @@ be a new dependency addition, not a small fix — out of proportion here. Revisi
 starter accumulates enough of these simple mappings that a `@Mapper` interface would clearly pay
 for the added dependency.
 
-### 5. `UserFormOverlayModeHandler` repeats the same field-copy block, same shape improvement-132 Batch F just fixed for advertisements (found during Batch F review, 2026-07-30)
-
-`marketplace-app/.../users/overlay/modes/UserFormOverlayModeHandler.java` inline-duplicates the
-same two-field (`name`, `role`) copy lambda at `loadRestored()` and `discardChanges()` — the exact
-shape `improvement-132` Batch F's item 14 just extracted into `copyEditFields()` for
-`AdvertisementFormOverlayModeHandler`. Surfaced by Batch F's own `/code-review` reuse-angle finder
-while reviewing the item 14 fix; left untouched since it's a different class outside Batch F's
-approved scope (items 13/14/15/17, all in `AdvertisementFormOverlayModeHandler`/buttons/fields/
-`AccessEvaluator`). Fix is mechanical and small — extract a `copyEditFields(src, tgt)` method
-mirroring the same precedent (`TaxonFormOverlayModeHandler.copyLocaleFields()`) — but is deferred
-here rather than expanded into Batch F, since touching a second, unrelated form handler mid-batch
-would have widened the reviewed diff beyond what was approved.
-
 ### 6. `integration-tests`: `@EnableJdbcAuditing` still copy-pasted alongside `@RepositoryTestAutoConfig` in all 5 locations (found during Batch K review, 2026-07-31)
 
 Batch K (item 31) centralized the 8-class `@ImportAutoConfiguration` array into one composed
@@ -124,23 +99,9 @@ Batch K (out of the approved item-31 scope) — needs a design decision (a secon
 `@TestConfiguration` bean bag alongside `RepositoryTestSupport`? a builder-style test fixture?)
 before it can be sized as a mechanical fix.
 
-### 8. `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure duplication (from improvement-132 Batch E, 2026-07-29)
+### 9. `docs/architecture/scripts/DECISIONS.md`: ADR-003 and ADR-024 are UI/layout churn that shouldn't have been separate ADRs (found 2026-08-07)
 
-Every method, field, and control-flow path in `TaxonFormOverlayModeHandler.java` and
-`CityFormOverlayModeHandler.java` matches line-for-line — a pure mechanical rename of each other.
-`marketplace-app/DECISIONS.md` ADR-065's stated reason for not sharing a generic base (`TaxonOverlay`
-is a `@UIScope` singleton needing distinct bean instances per simultaneous tab) applies to the
-`*Overlay` classes, not to these two `@Scope("prototype")` handlers, which by construction get a
-fresh instance per lookup regardless of parameterization — so ADR-065's exception doesn't actually
-cover this case. Real risk already realized per ADR-065/066's own "fixed in one copy, not the
-sibling" bug history. Needs a design decision (shared prototype-scoped base class vs. extending
-ADR-065's stated exception to cover handlers too) before it can be sized as a mechanical fix — not
-picked up as part of improvement-132's Batch E since every other batch there was a same-file
-mechanical edit and this one isn't.
-
-### 9. `scripts/architecture/DECISIONS.md`: ADR-003 and ADR-024 are UI/layout churn that shouldn't have been separate ADRs (found 2026-08-07)
-
-`scripts/architecture/DECISIONS.md` (1556 lines / 21 ADRs) documents `architecture-map.html`'s own
+`docs/architecture/scripts/DECISIONS.md` (1556 lines / 21 ADRs) documents `architecture-map.html`'s own
 generator (`generate-architecture-model.sh`, 2955 lines) — already the direct motivation for
 `improvement-145`'s on-demand ADR extraction. Auditing all 21 entries against
 `.claude/commands/decision.md`'s worthiness gate (tightened in the same conversation to explicitly
@@ -165,35 +126,6 @@ same conversation this was found in). Needs its own explicit go-ahead and a deci
 (delete outright vs. fold into a neighboring ADR's Consequences vs. mark `Status: Superseded`)
 before touching it.
 
-### 10. `spi_call_flow_examples_json()`'s 3 hand-typed narrative call traces have drifted stale after this session's Hook-relocation/orchestrator-extraction work (found during improvement-149, 2026-08-11)
-
-`scripts/architecture/generate-architecture-model.sh`'s `spi_call_flow_examples_json()` — 3
-hand-typed narrative call traces "carried over verbatim from the retired 02-spi-map.md", the only
-part of the SPI Map screen with no mechanical/live source — have gone stale in all 3 entries after
-this same session's Hook-relocation and marketplace-orchestrator-extraction work:
-
-- **"Create Advertisement with Audit"** cites `org.ost.marketplace.spi.AuditDomainHookImpl.on(CREATED,
-  ...)`. Wrong on two counts: `AuditDomainHookImpl` moved to `org.ost.orchestrator.spi` this
-  session (no longer in `marketplace-app`), and its real methods are `resolveNames`/
-  `findExisting`/`resolveDisplayName`/`castIfKnown` — there is no `.on(CREATED, ...)` method at
-  all. The step before it (`AdvertisementService.save()` calling `DefaultAuditPort.captureCreation()`
-  directly) is also wrong — that composition now happens in `marketplace-orchestrator`'s
-  `AdvertisementSaveService`, not inside the starter's own `AdvertisementService`.
-- **"Upload Media to Advertisement"** cites `AdvertisementService.enrichWithMediaSummary()` — no
-  longer exists; the real enrichment step is `marketplace-orchestrator`'s
-  `AdvertisementDisplayEnrichmentService`.
-- **"Enrich Audit Activity"** cites `AuditActivityFieldsHook.fields()` and
-  `org.ost.marketplace.spi.AdvertisementActivityFieldsHookImpl` — both deleted from the codebase
-  entirely this same session (the whole `AuditActivityFieldsHook` interface and its four per-domain
-  implementations were removed, see `platform-commons/DECISIONS.md` ADR-029's third refinement).
-
-Not fixed inline when found (during the Bounded Contexts payload-column fix, see
-`scripts/architecture/DECISIONS.md` ADR-029's latest refinement) — rewriting all 3 accurately
-needs its own scoped pass, re-verifying each full call chain end to end from scratch (class names,
-method names, and the real current owning module for each step), which is bigger than the payload
-fix that surfaced it. No design decision needed here, just careful re-tracing — a mechanical fix
-once picked up.
-
 ### 11. `TaxonManagementView`/`CityManagementView` render the "Add" button unconditionally even when `taxon-spring-boot-starter` is absent (found during improvement-147 review, 2026-08-08)
 
 `refresh()` in both views constructs and adds the "Add category"/"Add city" button unconditionally,
@@ -211,23 +143,6 @@ generically for every optional starter, so this isn't a direct rule violation ei
 gap, not a documented one. Needs a decision: guard the button behind `isAvailable()` (simplest), or
 make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
 "create with no taxon starter" means to callers) — not sized here.
-
-### 12. `scripts/sonar/run.sh` / `scripts/build-and-test/run.sh` headers don't explain their own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
-
-`playwright/run.sh`'s own header already explains why it uses `docker cp` instead of a volume
-mount ("volume mounts don't work when the caller is itself a container") — but
-`scripts/sonar/run.sh`'s structured header says nothing about this (checked directly, no mention
-in `Input`/`Outputs`/`Uses`), and `scripts/build-and-test/run.sh`'s explanation exists only as a
-body comment further down the file, not in its structured header. Surfaced while applying
-`infra-doc-standards` to the root `scripts/` directory: the root `scripts/README.md` used to carry
-a "Docker socket constraint" section aggregating this fact across all three scripts, removed as a
-duplication violation once the skill's "one fact, one canonical home" rule was strengthened this
-same session to explicitly cover shared-constraint content — but removing it exposed that 2 of the
-3 referenced files never had this reason in their own header to begin with. Not fixed inline: both
-files live in different directories (`scripts/sonar/`, `scripts/build-and-test/`), outside this
-run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
-add one sentence to each file's `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
-matching `playwright/run.sh`'s existing pattern.
 
 ### 13. Repo-wide prose references to old per-module `<module>/CLAUDE.md` paths went stale after path-scoped migration (found during improvement-168 Phase 2.2, 2026-08-25)
 
@@ -279,9 +194,7 @@ kind of cross-file fact in this repo. Regenerate `.claude/nav/adr-index.md` in t
 Liquibase master changelog + change file, and every Java class to always carry a header/Javadoc —
 no "self-explanatory, skip it" exception for any of them. The rule was written into the skill but
 never applied to the real files: the 11 real `pom.xml` files, the real Liquibase master changelogs,
-and Java classes across the repo currently don't comply. One specific known violation, found during
-improvement-170's own research but not fixed: `attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentCleanupService.java`
-carries a 5-line Javadoc block citing an issue number ("improvement-049 item 4").
+and Java classes across the repo currently don't comply.
 
 Not fixed inline: this is a repo-wide sweep (11 `pom.xml` files + Liquibase changelogs + Java
 classes across every module), far bigger than improvement-170's own scope (which only designed the
@@ -329,34 +242,6 @@ fix — the narrow fix actually shipped for the immediate bug was `RadioButtonGr
 (keep `SUPPORT` in the item list — disabled, not hidden — when it's already the actor's current
 value, so the field stays representable without granting the actor a way to freshly select it).
 
-### 18. Four `.claude/rules/*.md` files still point at the deprecated README "Key classes" table (found during improvement-183 item 11 repo-wide rollout, 2026-09-09)
-
-`.claude/rules/advertisement-spring-boot-starter.md`, `audit-spring-boot-starter.md`,
-`user-spring-boot-starter.md`, and `attachment-spring-boot-starter.md` each still direct readers to
-their module's README "Key classes" table for the class list — that table no longer exists once
-`module-readme-standards`' current shape (`What it provides`/`Data flow`/`Dependencies`) was applied
-to all 4 modules during item 11's repo-wide pass. Mechanical fix (update each pointer to name the
-current section instead), deferred only because it touches 4 files outside that item's approved
-Java/pom.xml/README-only scope.
-
-### 19. Two Liquibase changelogs missing their mandatory file-level header (found during improvement-183 item 11, 2026-09-09)
-
-`taxon-spring-boot-starter/db/taxon-changelog/master.xml` and
-`audit-spring-boot-starter/db/audit-changelog/audit-changelog-master.xml` (plus that module's
-`changes/01-audit-schema.xml`) lack the `<!-- Description: ... -->` header `module-doc-standards`
-requires on every master changelog and change file. Deferred only because Liquibase changelogs were
-outside item 11's approved scope (Java/pom.xml/README.md only), not because the header shape for a
-change file is settled — `module-doc-standards` itself flags the change-file header shape as "not
-yet designed."
-
-### 20. `attachment-spring-boot-starter/pom.xml` declares two dependencies with zero real references (found during improvement-183 item 11, 2026-09-09)
-
-`query-lib` and `jackson-datatype-jsr310` are both declared as dependencies in this module's
-`pom.xml` but neither is imported or used anywhere in `attachment-spring-boot-starter/src`. Likely
-dead — needs a grep-confirmed removal pass (same shape as `query-lib/pom.xml`'s own 3-dependency
-cleanup earlier this session), deferred only because it wasn't part of item 11's approved
-Java/pom.xml-comment/README scope (this is a dependency-removal, not a comment fix).
-
 ### 21. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
 
 Two inline comments were trimmed during item 11's Javadoc/comment pass per the repo's ticket-number
@@ -367,22 +252,6 @@ an unbounded id set) that `module-doc-standards`' own "Where comment rationale t
 actually goes" table says belongs in that module's `DECISIONS.md` — which doesn't have an entry for
 either yet. Needs a `/record-decision` pass to actually preserve the rationale, not just a one-line
 pointer with nothing on the other end.
-
-### 22. `04-provider-profile-flow.spec.js` has 34 `waitForTimeout(300)` calls, violating this project's own "no waitForTimeout" rule (found during improvement-195, 2026-09-18)
-
-`playwright/e2e/04-provider-profile-flow.spec.js` calls `page.waitForTimeout(300)` 34 times —
-confirmed by direct grep — a real, repo-wide violation of `.claude/rules.md`'s standing rule
-against `waitForTimeout` in Playwright specs. `improvement-195`'s own Related section had
-incorrectly claimed this was "already tracked" by `improvement-063`; checked directly, `063` never
-mentioned this file or this pattern at all (it was about an unrelated async-init "ready signal"
-concern, since closed as invalid) — this violation was never actually tracked anywhere, in any
-task or in this bucket, until now.
-
-Not fixed inline: 34 call sites, each presumably guarding a different UI-settling condition (a
-combo-box repaint, a debounced field, an overlay transition) — replacing them with real Playwright
-waits (`toBeVisible()`, `waitForSelector`, locator auto-waiting, network-idle, etc.) requires
-inspecting what each site is actually waiting for individually, not a blind global
-find-and-replace. Needs sizing (one pass vs. incremental) once picked up.
 
 ### 23. `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
 
@@ -399,8 +268,8 @@ service, not a reflexive DRY pass.
 ### 24. `integration-tests`: no global HikariCP pool-size cap across `@SpringBootTest` contexts risks Postgres `max_connections` exhaustion (found during improvement-199 Checkpoint 1, 2026-09-24)
 
 Every distinct `@SpringBootTest(classes = {...})` signature in `integration-tests` gets its own
-cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, no
-override anywhere in the repo); Spring's `DefaultContextCache` keeps every distinct context alive
+cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, overridden to 2
+only on a few test classes); Spring's `DefaultContextCache` keeps every distinct context alive
 for the rest of the `mvn test` run (default cache size 32, well above the ~18 distinct signatures
 today), so their connection pools accumulate rather than being released between test classes.
 Confirmed directly: adding `contact-spring-boot-starter`'s two new test classes (one more distinct
@@ -409,9 +278,7 @@ unrelated, pre-existing `ProviderProfileRepositoryTest` with `FATAL: sorry, too 
 already`. Scoped fix applied to the new contact tests only (`spring.datasource.hikari.maximum-pool-size=2`
 via `@TestPropertySource`, since they don't need concurrency) — the systemic gap (no cap for any
 of the other ~18 contexts) remains and can recur the next time a new starter's own repository test
-is added. Needs a design decision before sizing: a lower default pool size across the whole
-`RepositoryTestAutoConfig` allow-list vs. a per-context opt-in like the one used here vs. raising
-the Testcontainers Postgres image's own `max_connections`.
+is added. The Testcontainers Postgres container now starts with `max_connections=300`, which covers today's ~18 contexts; a global default pool size across the `RepositoryTestAutoConfig` allow-list is still undecided.
 
 ### 25. No existing mechanism for entity-existence-based orphan cleanup, needed by `improvement-200` Phase 5 (found 2026-10-05)
 
@@ -532,12 +399,6 @@ is made on how that should look. Entries 6 and 7 are the same kind of duplicatio
 `FeedbackEditPolicy.MAX_EDIT_AGE` (48 hours) has passed. A REST scenario cannot move the clock. Options:
 a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
 with a record whose `created_at` is older than the window. It needs a design decision before sizing.
-
-### 33. `marketplace-mcp` declares `org.jetbrains:annotations`, which nothing in the module uses (found during improvement-232, 2026-11-03)
-
-`marketplace-mcp/pom.xml` lists the dependency but no class in the module imports from
-`org.jetbrains.annotations`. It may still arrive through another dependency, so removing it needs a
-build of the reactor and a check of what else breaks; low risk, no behavior change expected.
 
 ### 34. The MCP endpoint path `/mcp` is written in `McpSecurityConfig` and again in `application.yml` (found during improvement-232, 2026-11-03)
 

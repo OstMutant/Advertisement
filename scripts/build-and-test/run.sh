@@ -79,7 +79,10 @@
 # Input: root build files (pom.xml, mvnw, .mvn, lombok.config, .env), scripts/build-and-test/build.sh
 #   itself (the container's own entry point), each Maven module's own directory, per pom.xml's
 #   <module> list, and docs/api-collections (the REST API module packs the flow runner page and
-#   the Postman collection from it) -- not the whole repo (see the tar step's own comment below);
+#   the Postman collection from it) -- not the whole repo
+#   (sources go into the build container through a tar pipe and results come back through
+#   `docker cp`, not a bind mount, because host-path mounts fail when the caller is itself a
+#   container and hit the Docker Desktop/WSL bind-mount problem);
 #   scripts/build-and-test/build-and-test.properties (unit=/integration= defaults, read on the host
 #   side by this script, not tarred in).
 # Outputs: fresh jars for the whole reactor in the Maven cache Docker volume (never the

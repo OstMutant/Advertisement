@@ -2,8 +2,8 @@
 
 **Type:** bug — REST API correctness
 **Module:** `marketplace-rest-api`, `advertisement-spring-boot-starter`, `provider-profile-spring-boot-starter`, `taxon-spring-boot-starter`
-**Priority:** 🟡 High/medium ROI — real, reproducible contract bugs; proportionate fix effort
-**When:** independent, no blockers
+**Priority:** closed 2026-11-04 (was 🟡 High/medium ROI)
+**When:** closed 2026-11-04, all three phases done or decided, see `## Closure`
 
 ## Current state
 
@@ -25,7 +25,7 @@ concerns — see each phase's failure scenario.
 header navigation (this project's own chosen pagination mechanism, per `improvement-182`) actually
 points callers at the right resource.
 
-**Phase 1 is done.** Option (a) was taken: `If-Match` is required on the advertisement, provider profile, taxon and user `PUT`/`DELETE` (a missing header is a 400, a stale one a 412); the `*MatrixScenarioTest` classes in `integration-tests` cover both cases per operation. Phase 2 (the `Link` header path) is still open.
+**Phase 1 is done.** Option (a) was taken: `If-Match` is required on the advertisement, provider profile, taxon and user `PUT`/`DELETE` (a missing header is a 400, a stale one a 412); the `*MatrixScenarioTest` classes in `integration-tests` cover both cases per operation.
 
 ## Approach — Phase 1: omitting the optional `If-Match` header always fails, never succeeds
 
@@ -152,3 +152,25 @@ MockMvc-only assertion once.
   bug is in that mechanism's own implementation, not the design choice itself.
 - [improvement-196](improvement-196-rest-api-rate-limiting.md) — a separate, unrelated REST API
   finding from the same general delta-audit effort (per-API-key rate limiting), filed the same day.
+
+## Closure (2026-11-04)
+
+- Phase 1: `If-Match` is required on the advertisement, provider profile, taxon and user `PUT`/`DELETE`; a missing header is a 400, a stale one a 412, covered per operation by the `*MatrixScenarioTest` classes.
+- Phase 2: the `Link` header of a paged list carries the resource path and the filters.
+- Phase 3: the author's email in the public advertisement list is public by design, because the UI shows it to every visitor.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: n/a
+- haiku_decomposition_dispatch_count: n/a
+- haiku_decomposition_rework_needed: n/a
+- adrs_referenced: none

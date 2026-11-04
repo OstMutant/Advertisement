@@ -12,8 +12,10 @@ Java package root: `org.ost.audit`
 
 ## What it owns
 
-See `audit-spring-boot-starter/README.md`'s "Key classes" table for the class list and one-line
-roles — not restated here.
+The class list and one-line roles (entities, key services, contracts) are generated from the code:
+see the `audit-spring-boot-starter` node on the module page of
+[`architecture-map.html`](../../docs/architecture/architecture-map.html) and in
+[`architecture-model.json`](../../docs/architecture/data/architecture-model.json), not restated here.
 
 **Autoconfiguration entry point:** `AuditAutoConfiguration`
 
