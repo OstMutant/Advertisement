@@ -98,12 +98,40 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🔵 | 235 | improvement-235 — featured placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; research how it fits the architecture and how to show it, no code; research done and decisions taken, building waits for improvement-236 |
+| Top | 🟡 | 236 | improvement-236 — a REST list called without `sort` has no `ORDER BY`, so pages can repeat or skip items (the UI always sends one), and every edit bumps an advertisement to the top of the default order; research which lists are affected, settle one default order and the bump question, and fix them so REST and MCP match the UI, with an integration test per list |
+| Top | 🟡 | 238 | improvement-238 — a profile owner can review their own provider profile (`FeedbackWriteService.create` never compares author and owner); block it at creation so every door refuses it and the rating, and the featured strip built on it, reflects other people only |
+| Top | 🔵 | 237 | improvement-237 — a purchase as a reason for featuring: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
 | Deferred (trigger) | ⚪ | 003, 017, 021, 038, 053, 055, 086, 109 | each waits for its own trigger, listed in the Deferred section below: data volume (038, 053), the thumbnail refactor (017), concurrent gallery editing (021), a PostgreSQL bump (086), a UI consistency pass (055, 109), per-item triggers (003) |
 | Nice to have | — | 036, 112, 191, 039, 118 | the lowest-priority tasks: anything that lands here is picked up after everything above. improvement-036 — actuator and structured JSON logs; the plan is researched and approved, execution not started. improvement-112 — a failing enrichment port blanks the advertisement list; the plan is researched, four decisions (edit and save paths, link-preview cache, REST/MCP note, other gaps) are unanswered, nothing implemented. improvement-191 — UI/UX modernization map (Query Block, Header/Tabs, surfaces, typography, dialogs, Timeline, User UI, attachments, Provider Profile); first step is a document, not code, and it waits on the open design questions of improvement-129; deliberately parked at the user's request. improvement-039 — dark mode: Dark mode — a real implementation attempt failed (UI wiring confirmed broken); deprioritized to the very bottom 2026-09-16 pending a decision on whether the feature is even wanted, not just how to build it. improvement-118 — manual check of the Open Graph preview in real Facebook and Telegram: F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-235
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-235](tasks/improvement-235-featured-placement-mechanism.md) | New (from the private product notes, reframed by the user 2026-11-05; the user asked for it at the top) | Featured placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; research how it fits the architecture and how to show it; no code |
+
+### Top priority — improvement-236
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-236](tasks/improvement-236-list-order-and-edit-bump-rest-mcp-ui-parity.md) | New (found by the research for improvement-235, 2026-11-05; the user asked for it at the top) | A paged REST list without a `sort` has no `ORDER BY` (pages can repeat or skip items) and every edit bumps an advertisement to the top of the default order; research the affected lists, settle one default order and the bump question, fix REST and MCP to match the UI, prove it with integration tests |
+
+### Top priority — improvement-238
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-238](tasks/improvement-238-block-self-review-of-provider-profile.md) | New (found by the research for improvement-235, decided with the user 2026-11-05) | `FeedbackWriteService.create` only checks that the profile exists, so its owner can review it; refuse it at creation in the orchestrator, hide the form in the UI, document the REST response, cover with the feedback matrix test and a Playwright check |
+
+### Top priority — improvement-237
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-237](tasks/improvement-237-purchase-reason-and-payment-module.md) | New (split out of improvement-235 at the user's request, 2026-11-05; ranked right after 236 because the user asked for it) | A purchase as a reason for featuring: manual selling first, a payment starter with a hosted checkout and a signed, idempotent webhook, the advertising-law label and the cash-register question for card payments; waits for the featured placement mechanism |
 
 ### Nice to have — no internal priority order
 
