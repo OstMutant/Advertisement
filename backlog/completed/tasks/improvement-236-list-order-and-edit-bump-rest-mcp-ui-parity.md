@@ -35,6 +35,27 @@ Research first, in this order:
 3. **Decide the bump on edit.** Options: keep it (editing refreshes an advertisement, as on many classifieds), sort the default by `createdAt` instead, or add a separate "bumped at" that edits do not touch. Whatever is chosen is a product decision with a recorded reason.
 4. **Fix and prove parity.** The REST operation text, the OpenAPI description, the MCP tool descriptions and the UI agree on the default; an integration test per list pages through a set larger than one page and checks that nothing repeats or is missing; the Postman collections and flow runner are updated where they assume an order.
 
+## Research result (2026-11-05, step 1 done from the code)
+
+- `OrderByBuilder.build` already supports a default order: a `SortField` created with a direction is appended after the caller's sort, and its tiebreakers after it. Only the audit timeline and the moderation queue use it; their lists are safe.
+- Four paged lists have no default and no unique final key, so an unsorted REST or MCP call has no `ORDER BY`: advertisements, provider profiles, users, taxons (`SORT_FIELDS` in each repository). The taxon REST list is not paged and orders by `id`, so it is not affected.
+- A caller-chosen sort on a non-unique column (`title`, `description`, `kind`, `name`, `email`, `role`) has no tiebreaker in those four lists either, so ties page unstably. Only `createdAt` and `updatedAt` end in `id`.
+- The feedback list per profile orders by `created_at DESC` alone; ties are possible, with no `id`.
+- The UI always sends `updatedAt desc, createdAt desc` (advertisements, providers, users) or `createdAt desc` (timeline, moderation), so it never meets the problem.
+- The MCP list tools forward `sort` unchanged and say nothing about the default, so their behaviour is the REST behaviour.
+
+## Plan (decided with the user, 2026-11-05)
+
+Repositories are not touched. The default order lives in the REST controllers, as the audit and moderation controllers already do; MCP wraps REST and inherits it.
+
+1. `SortQueryParser.parse(sort, allowed, defaultSort)`: uses `defaultSort` when no `sort` is given and always ends the order with `id` descending (unless `id` is already present), so non-unique sorts such as `title` page stably.
+2. The advertisement, provider profile and user list controllers declare `DEFAULT_SORT` (`updatedAt` descending, then `createdAt` descending), the same order the Vaadin views send, and call the new overload.
+3. The REST operation descriptions and the MCP `sort` parameter descriptions of those three lists state the default order.
+4. Tests: `SortQueryParserTest` covers the new overload; the three controller tests expect the default sort; a repository-level paging test proves no repeat or skip across pages.
+5. Bump on edit: kept as it is (the default stays `updatedAt`); revisit when visibility is sold.
+
+Not covered here: the taxon list needs no change (its REST list is not paged and always orders by `id`); the per-profile feedback list keeps its tie key in the repository, which this task does not touch.
+
 ## Related
 
 - [improvement-235](improvement-235-featured-placement-mechanism.md) — the research that found this; a paid placement design should not start before the default order is settled.
@@ -47,12 +68,19 @@ Research first, in this order:
 - token_cost_verification: n/a
 - review_signal_ratio: n/a
 - context_loading_task_type: n/a
-- context_loading_consulted: n/a
+- context_loading_consulted: no
 - context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
-- flows_matched: n/a
+- flows_situation: running the maximum local CI and syncing its artifacts back
+- flows_chosen: scripts/ci.sh (the ci command) then scripts/ci/run.sh --sync-artifacts
+- flows_matched: yes
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
 - adrs_referenced: none
+
+### Script/command runs
+- scripts/build-and-test.sh --unit --integration --sandbox | duration_s=583 | mode=background | result=pass
+- scripts/build-and-test.sh --no-unit --integration --sandbox | duration_s=410 | mode=background | result=fail (one wrong test assumption, fixed)
+- scripts/ci.sh (maximum run) | duration_s=1344 | mode=background | result=pass
+- scripts/ci.sh (maximum run, after the new scenario tests) | duration_s=n/a | mode=background | result=pass
+- scripts/ci/run.sh --sync-artifacts | duration_s=191 | mode=foreground | result=pass

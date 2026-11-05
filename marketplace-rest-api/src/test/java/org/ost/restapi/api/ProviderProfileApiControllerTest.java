@@ -140,7 +140,7 @@ class ProviderProfileApiControllerTest {
     void list_delegatesToReadServiceAndSetsTotalCountHeader() throws Exception {
         ProviderProfileDto info = ProviderProfileDto.builder().id(1L).build();
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.unsorted()))).thenReturn(List.of(info));
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt", "id")))).thenReturn(List.of(info));
         when(readService.count(eq(filter))).thenReturn(1);
 
         mockMvc.perform(get("/api/provider-profiles"))
@@ -151,12 +151,12 @@ class ProviderProfileApiControllerTest {
     @Test
     void list_withSortParam_parsesIntoSort() throws Exception {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")))).thenReturn(List.of());
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt", "id")))).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
         mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,desc")).andExpect(status().isOk());
 
-        verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt")));
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt", "id")));
     }
 
     @Test

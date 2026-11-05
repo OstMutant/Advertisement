@@ -228,4 +228,42 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
         for (int i = 1; i <= 12; i++) expected.add("About Provider%02d".formatted(i));
         org.assertj.core.api.Assertions.assertThat(collected).containsExactlyInAnyOrderElementsOf(expected);
     }
+
+    private java.util.List<String> collectField(String url, String field, String apiKey, String sort, String extraParam, String extraValue, int pages) throws Exception {
+        java.util.List<String> collected = new java.util.ArrayList<>();
+        for (int page = 0; page < pages; page++) {
+            var request = get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).param("page", String.valueOf(page));
+            if (sort != null) request = request.param("sort", sort);
+            if (extraParam != null) request = request.param(extraParam, extraValue);
+            String response = mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            java.util.List<Object> values = com.jayway.jsonpath.JsonPath.parse(response).read("$[*]." + field);
+            values.forEach(v -> collected.add(String.valueOf(v)));
+        }
+        return collected;
+    }
+
+    private RegisteredUser readerWithPageSize5() throws Exception {
+        RegisteredUser reader = registerUserAndIssueApiKey("Reader");
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + reader.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":5}"""))
+                .andExpect(status().isOk());
+        return reader;
+    }
+
+    @Test
+    void noSortParam_pagesInUiDefaultOrderWithoutRepeatOrGap() throws Exception {
+        RegisteredUser reader = readerWithPageSize5();
+        java.util.List<String> expected = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            createProvider("Provider%02d".formatted(i), "MASTER", null, null);
+            expected.add(0, "About Provider%02d".formatted(i));
+        }
+
+        java.util.List<String> abouts = collectField("/api/provider-profiles", "about", reader.rawApiKey(), null, null, null, 3);
+
+        org.assertj.core.api.Assertions.assertThat(abouts).containsExactlyElementsOf(expected);
+    }
 }

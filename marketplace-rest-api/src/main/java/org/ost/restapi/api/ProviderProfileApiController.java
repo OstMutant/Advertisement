@@ -77,6 +77,8 @@ public class ProviderProfileApiController {
     private static final Set<String> SORTABLE_FIELDS = Set.of(
             ProviderProfileDto.Fields.createdAt, ProviderProfileDto.Fields.updatedAt);
 
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, ProviderProfileDto.Fields.updatedAt, ProviderProfileDto.Fields.createdAt);
+
     private final ProviderProfileSaveService saveService;
     private final ProviderProfileReadService readService;
     private final ProviderProfileDisplayEnrichmentService enrichmentService;
@@ -107,14 +109,14 @@ public class ProviderProfileApiController {
         return enrich(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
+    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers. Default order when sort is omitted: most recently changed first, then most recently created, then id.")
     @GetMapping
     public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
             HttpServletRequest httpRequest) {
         int size = userProfileService.resolveProviderProfilesPageSize(actorId);
-        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
+        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS, DEFAULT_SORT);
         List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj);
         items = enrichmentService.enrichWithCategoriesAndCity(items, Locale.forLanguageTag(locale));
         items = enrichmentService.enrichWithActorInfo(items);

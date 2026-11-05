@@ -61,7 +61,7 @@ public class UserTools {
             @McpToolParam(required = false, description = "Only accounts updated at or before this ISO-8601 date-time") String updatedAtEnd,
             @McpToolParam(required = false, description = "Only accounts with an id at or after this value") Long startId,
             @McpToolParam(required = false, description = "Only accounts with an id at or before this value") Long endId,
-            @McpToolParam(required = false, description = "Sort as field,direction with field id, name, email, role, createdAt or updatedAt and direction asc or desc, for example name,asc") String sort) {
+            @McpToolParam(required = false, description = "Sort as field,direction with field id, name, email, role, createdAt or updatedAt and direction asc or desc, for example name,asc; without it the newest changes come first, then the newest created, then id") String sort) {
         int pageNumber = page == null ? 0 : page;
         String path = RestPath.of("/api/users")
                 .param("page", pageNumber)

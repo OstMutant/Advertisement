@@ -78,6 +78,8 @@ public class AdvertisementApiController {
     private static final Set<String> SORTABLE_FIELDS = Set.of(
             AdvertisementInfoDto.Fields.title, AdvertisementInfoDto.Fields.createdAt, AdvertisementInfoDto.Fields.updatedAt);
 
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, AdvertisementInfoDto.Fields.updatedAt, AdvertisementInfoDto.Fields.createdAt);
+
     private final AdvertisementSaveService saveService;
     private final AdvertisementReadService readService;
     private final AdvertisementDisplayEnrichmentService enrichmentService;
@@ -106,14 +108,14 @@ public class AdvertisementApiController {
         return enrichmentService.enrichSingle(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(operationId = "listAdvertisements", summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
+    @Operation(operationId = "listAdvertisements", summary = "List/filter/sort advertisements", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers. Default order when sort is omitted: most recently changed first, then most recently created, then id.")
     @GetMapping
     public ResponseEntity<List<AdvertisementInfoDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid AdvertisementFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
             HttpServletRequest httpRequest) {
         int size = userProfileService.resolveAdsPageSize(actorId);
-        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
+        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS, DEFAULT_SORT);
         List<AdvertisementInfoDto> items = readService.getFiltered(filter, page, size, sortObj);
         items = enrichmentService.enrichWithCategoriesAndCity(items, Locale.forLanguageTag(locale));
         items = enrichmentService.enrichWithActorInfo(items);

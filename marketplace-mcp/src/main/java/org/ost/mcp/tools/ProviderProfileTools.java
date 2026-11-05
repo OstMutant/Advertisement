@@ -38,7 +38,7 @@ public class ProviderProfileTools {
             @McpToolParam(required = false, description = "Only these kinds: MASTER, SHOP, SUPPORT") List<String> kinds,
             @McpToolParam(required = false, description = "Only profiles in any of these category ids (from listTaxons with type CATEGORY)") List<Long> categoryIds,
             @McpToolParam(required = false, description = "Only profiles in this city taxon id (from listTaxons with type CITY)") Long cityTaxonId,
-            @McpToolParam(required = false, description = "Sort as field,direction with field createdAt or updatedAt and direction asc or desc, for example updatedAt,desc") String sort,
+            @McpToolParam(required = false, description = "Sort as field,direction with field createdAt or updatedAt and direction asc or desc, for example updatedAt,desc; without it the newest changes come first, then the newest created, then id") String sort,
             @McpToolParam(required = false, description = "Language tag for category and city names, for example en or uk") String locale) {
         int pageNumber = page == null ? 0 : page;
         String path = RestPath.of("/api/provider-profiles")
