@@ -958,7 +958,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('provider owner writes, edits and deletes the single reply to a review — a second attempt shows no trigger, the composer is gone once a reply exists, deleting it brings the trigger back', async ({ pageAs, createUser, adminKey, request, unique }) => {
+  test('provider owner writes, edits and deletes the single reply to a review — the owner sees no add-feedback form on their own profile, a second attempt shows no trigger, the composer is gone once a reply exists, deleting it brings the trigger back', async ({ pageAs, createUser, adminKey, request, unique }) => {
     const category = await createCategory(request, adminKey, unique, 'Vehicles');
     const city = await createCity(request, adminKey, unique, 'Lviv');
     const master = await createOwnerWithProfile(request, createUser, profileBody({
@@ -974,6 +974,11 @@ test.describe('Provider Profile flow', () => {
 
     const feedbackPanel = feedbackPanelIn(ownOverlay);
     const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
+
+    // The owner cannot review their own profile -- no add-feedback trigger or form.
+    await expect(feedbackPanel.locator('.feedback-entry').first()).toBeVisible({ timeout: 5000 });
+    await assertAbsent(expect, feedbackPanel.getByRole('button', { name: 'Add feedback' }));
+    await assertAbsent(expect, feedbackPanel.locator('.feedback-form'));
 
     await replyPanel.getByRole('button', { name: 'Reply', exact: true }).click();
     const replyField = replyPanel.getByTestId('feedback-reply-field-text').locator('textarea');

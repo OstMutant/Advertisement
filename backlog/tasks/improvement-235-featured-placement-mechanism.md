@@ -3,7 +3,7 @@
 **Type:** feature — one mechanism that marks provider profiles (advertisements later) as featured and presents them to searchers first; the reason for featuring is pluggable (today a rating rule, later a purchase); research done, design decided, building not started
 **Module:** `platform-commons` (a port and the DTOs), a new starter or an existing one that owns the featured state, `marketplace-orchestrator` (composition with ratings and display), `advertisement-spring-boot-starter` and `provider-profile-spring-boot-starter` (what can be featured), `feedback-spring-boot-starter` (`feedback_aggregate` as the first criterion), `marketplace-app` (the featured display in the catalog and the Providers view), `marketplace-rest-api` and `marketplace-mcp` (a featured list in step with the UI)
 **Priority:** 🔵 top at the user's request — a larger feature that needs a design decision; the long-term plan is to earn from it, so the structure matters more than the first rule
-**When:** the design is settled; building can start: [improvement-236](../completed/tasks/improvement-236-list-order-and-edit-bump-rest-mcp-ui-parity.md) settled the default list order; it should follow [improvement-238](improvement-238-block-self-review-of-provider-profile.md) (the self-review guard) before the strip goes live
+**When:** the design is settled; building can start: [improvement-236](../completed/tasks/improvement-236-list-order-and-edit-bump-rest-mcp-ui-parity.md) settled the default list order and [improvement-238](../completed/tasks/improvement-238-block-self-review-of-provider-profile.md) added the self-review guard the rating rule relies on
 
 ## Current state
 
@@ -258,7 +258,7 @@ estimate is mine and not measured.
 ## Decisions taken (user, 2026-11-05)
 
 1. **Threshold:** a provider profile is "Top rated" at an average of at least 4.8 from at least 5 visible reviews; both are settings.
-2. **Self-review:** a profile owner is blocked from reviewing their own profile when the review is created; done as its own task, [improvement-238](improvement-238-block-self-review-of-provider-profile.md), not as a step of this one.
+2. **Self-review:** a profile owner is blocked from reviewing their own profile when the review is created; done as its own task, [improvement-238](../completed/tasks/improvement-238-block-self-review-of-provider-profile.md), not as a step of this one.
 3. **Duplicates:** a featured profile also stays in its normal place in the list, so the list, its total count and its paging do not change.
 4. **Strip size:** at most 4 cards, picked at random among the qualifying profiles that match the caller's filter, first page only, no automatic rotation. A later idea: a "show all top rated" filter chip.
 5. **Label:** "Top rated" / "Високий рейтинг" with a "Why these?" / "Чому ці?" line stating the rule; a paid reason later gets its own strip labelled "Реклама" / "Advertising".
@@ -748,7 +748,7 @@ as they are.
 
 ## Related
 
-- [improvement-238](improvement-238-block-self-review-of-provider-profile.md) — the self-review guard the rating rule relies on.
+- [improvement-238](../completed/tasks/improvement-238-block-self-review-of-provider-profile.md) — the self-review guard the rating rule relies on.
 - [improvement-237](improvement-237-purchase-reason-and-payment-module.md) — the purchase as one more reason for featuring, with the payment module; out of scope here, it plugs into this mechanism later.
 - The private product notes (outside version control): the roadmap and the promoted-listings feature spec; read them as input, not as the decision.
 - [improvement-236](../completed/tasks/improvement-236-list-order-and-edit-bump-rest-mcp-ui-parity.md) — the default list order and the free bump on edit, found by this task's research; settle it before any placement design.

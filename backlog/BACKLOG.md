@@ -99,7 +99,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
 | Top | 🔵 | 235 | improvement-235 — featured placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; research how it fits the architecture and how to show it, no code; research done and decisions taken, building can start |
-| Top | 🟡 | 238 | improvement-238 — a profile owner can review their own provider profile (`FeedbackWriteService.create` never compares author and owner); block it at creation so every door refuses it and the rating, and the featured strip built on it, reflects other people only |
 | Top | 🔵 | 237 | improvement-237 — a purchase as a reason for featuring: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
@@ -113,12 +112,6 @@ Details, links, and per-batch rationale below.
 | Task | Origin | What |
 |---|---|---|
 | [improvement-235](tasks/improvement-235-featured-placement-mechanism.md) | New (from the private product notes, reframed by the user 2026-11-05; the user asked for it at the top) | Featured placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; research how it fits the architecture and how to show it; no code |
-
-### Top priority — improvement-238
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-238](tasks/improvement-238-block-self-review-of-provider-profile.md) | New (found by the research for improvement-235, decided with the user 2026-11-05) | `FeedbackWriteService.create` only checks that the profile exists, so its owner can review it; refuse it at creation in the orchestrator, hide the form in the UI, document the REST response, cover with the feedback matrix test and a Playwright check |
 
 ### Top priority — improvement-237
 
