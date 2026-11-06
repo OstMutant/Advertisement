@@ -200,7 +200,7 @@ yet — not zero.
 | ADR-007 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Verified:** 2026-10-19 **Applied:** 2 |  |  | Service-boundary authorization lives in `marketplace-orchestrator`, not per-starter or UI-only |
 | ADR-006 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the exception type it throws is superseded by ADR-009 (`StaleWriteException` instead of `OptimisticLockingFailureException`); the guard placement/rationale itself stands |  |  | Stale-id-during-concurrent-delete guard in `AdvertisementSaveService`/`ProviderProfileSaveService` |
 | ADR-001 (marketplace-orchestrator) | marketplace-orchestrator | Accepted — the "never depends on a starter jar" consequence is superseded by ADR-004; the module-extraction decision itself stands |  |  | Extract a dedicated Application/BFF module instead of moving orchestration into marketplace-app |
-| ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
+| ADR-002 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  | 1 | `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step |
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Applied:** 1 |  |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
@@ -212,7 +212,7 @@ yet — not zero.
 | ADR-035 (platform-commons) | feedback-spring-boot-starter | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
 | ADR-035 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
 | ADR-035 (platform-commons) | promotion-spring-boot-starter | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-034 (platform-commons) | platform-commons | Accepted |  |  | `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement` |
+| ADR-034 (platform-commons) | platform-commons | Accepted |  | 1 | `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement` |
 | ADR-033 (platform-commons) | platform-commons | Accepted |  |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
 | ADR-032 (platform-commons) | platform-commons | Accepted |  |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-032 (platform-commons) | advertisement-spring-boot-starter | Accepted |  |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
@@ -239,8 +239,8 @@ yet — not zero.
 | ADR-023 (platform-commons) | platform-commons | Accepted |  |  | `Class<T> targetClass` type-token added to `AuditPort.getSnapshotContent()` / `AuditDomainHook.castIfKnown()` |
 | ADR-024 (platform-commons) | platform-commons | Accepted |  |  | Snapshot schema versioning — a real `schemaVersion` field everywhere, no reflection |
 | ADR-025 (platform-commons) | platform-commons | Accepted |  |  | Batch G governance cleanup — DTO boundary, Hook→Port rename |
-| ADR-026 (platform-commons) | platform-commons | Accepted |  |  | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
-| ADR-026 (platform-commons) | user-spring-boot-starter | Accepted |  |  | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
+| ADR-026 (platform-commons) | platform-commons | Accepted |  | 1 | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
+| ADR-026 (platform-commons) | user-spring-boot-starter | Accepted |  | 1 | One starter, multiple `*Port` interfaces — `UserPort` split into 4 |
 | ADR-027 (platform-commons) | platform-commons | Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every other divergence below remains Accepted) |  |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
 | ADR-027 (platform-commons) | provider-profile-spring-boot-starter | Accepted (the `city_taxon_id`-is-a-plain-column portion reversed by ADR-031; every other divergence below remains Accepted) |  |  | `ProviderProfilePort` added — F-04 Batch B, `provider-profile-spring-boot-starter` |
 | ADR-028 (platform-commons) | platform-commons | Accepted |  |  | `AdvertisementPort`/`ProviderProfilePort` drop `Locale` from `getFiltered`/`findById`/`findByActorId` |

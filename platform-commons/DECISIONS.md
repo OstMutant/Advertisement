@@ -54,6 +54,8 @@ unchanged.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** F-06 (reviews & ratings) needed a rating+text feedback entry attachable to either a
 `PROVIDER_PROFILE` or an `ADVERTISEMENT`. An earlier draft of the design denormalized the
 aggregate avg-rating/count directly onto `provider_profile`/`advertisement` (one column each),
@@ -722,6 +724,8 @@ findings, grouped together since both touch this module's own naming/package rul
 ## ADR-026: One starter, multiple `*Port` interfaces — `UserPort` split into 4
 
 **Status:** Accepted
+
+**Applied:** 1
 
 **Also affects:** user-spring-boot-starter
 

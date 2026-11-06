@@ -3,7 +3,7 @@
 **Type:** feature — one mechanism that marks provider profiles (advertisements later) as promoted and presents them to searchers first; the reason for promoting is pluggable (today a rating rule, later a purchase); research done, design decided and built as one list with a badge, a filter and a sort
 **Module:** `platform-commons` (a port and the DTOs), a new starter or an existing one that owns the promotion state, `marketplace-orchestrator` (composition with ratings and display), `advertisement-spring-boot-starter` and `provider-profile-spring-boot-starter` (what can be promoted), `feedback-spring-boot-starter` (`feedback_aggregate` as the first criterion), `marketplace-app` (the promoted display in the catalog and the Providers view), `marketplace-rest-api` and `marketplace-mcp` (a promoted list in step with the UI)
 **Priority:** 🔵 top at the user's request — a larger feature that needs a design decision; the long-term plan is to earn from it, so the structure matters more than the first rule
-**When:** built; closed once the user's review has no open questions
+**When:** closed
 
 ## Current state
 
@@ -899,10 +899,15 @@ as they are.
 - context_loading_task_type: n/a
 - context_loading_consulted: n/a
 - context_loading_matched: n/a
-- flows_situation: n/a
+- flows_situation: closing a built task after the user's review
 - flows_chosen: n/a
 - flows_matched: n/a
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: ADR-035 (platform-commons)
+- adrs_referenced: ADR-035 (platform-commons), ADR-034 (platform-commons), ADR-026 (platform-commons), ADR-002 (marketplace-orchestrator)
+
+### Script/command runs
+- bash scripts/ci.sh --foreground (via activity-monitor) | duration_s=1645 | mode=background | result=pass
+- bash scripts/deploy-and-run.sh --from-scratch --reset-only-db | duration_s=275 | mode=background | result=pass
+- bash scripts/build-and-test.sh (negative enforcer check, a starter depending on a starter) | duration_s=32 | mode=foreground | result=fail (expected: the enforcer banned the dependency)
