@@ -3,7 +3,7 @@
 **Type:** bug and decision — an API list that can repeat or skip items between pages, and a default order that rewards editing; research first, then fix
 **Module:** `advertisement-spring-boot-starter` (`AdvertisementRepository`, its `SORT_FIELDS`), `query-lib` (`OrderByBuilder`, `SortField`), `marketplace-rest-api` (`AdvertisementApiController`, `SortQueryParser`, and the other list controllers), `marketplace-mcp` (the list tools), `marketplace-app` (`AdvertisementQueryConfig`, `AdvertisementSortMeta`)
 **Priority:** 🟡 top — a real defect in the public API that is independent of every other task; the UI is not affected today, so it is cheap to keep the UI as the reference
-**When:** independent, no blockers; found by the research for [improvement-235](improvement-235-featured-placement-mechanism.md), which it also unblocks
+**When:** independent, no blockers; found by the research for [improvement-235](improvement-235-promotion-mechanism.md), which it also unblocks
 
 ## Current state
 
@@ -58,7 +58,7 @@ Not covered here: the taxon list needs no change (its REST list is not paged and
 
 ## Related
 
-- [improvement-235](improvement-235-featured-placement-mechanism.md) — the research that found this; a paid placement design should not start before the default order is settled.
+- [improvement-235](improvement-235-promotion-mechanism.md) — the research that found this; a paid placement design should not start before the default order is settled.
 - `marketplace-app/DECISIONS.md` and `.claude/nav/adr-index.md` — the decisions on REST list endpoints, paging and parity with the UI (read them before changing the contract).
 - `.claude/rules/marketplace-rest-api.md` and `.claude/rules/marketplace-mcp.md`.
 

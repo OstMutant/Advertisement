@@ -2,6 +2,54 @@
 
 ---
 
+## ADR-035: Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** marketplace-orchestrator, marketplace-app, marketplace-rest-api, marketplace-mcp, feedback-spring-boot-starter, provider-profile-spring-boot-starter, promotion-spring-boot-starter
+
+**Context:** Searchers should see a few standout provider profiles first, for a reason that can
+change over time: a rating rule now, a purchase later. Three mechanisms were compared: (m1) evaluate
+the rule on every read, (m2) a job that rebuilds one table from scratch, (m3) a table of placements
+with one writer per reason. The reason must be pluggable without touching the domain tables, and a
+promoted entry must be clearly marked and stay in the one list the caller filters and sorts.
+
+**Decision:** Mechanism m3. A new `promotion-spring-boot-starter` owns table `promotion_placement`
+(`entity_type`, `entity_id`, `reason`, `valid_from`, `valid_until`), keyed by `EntityRef` plus a
+`PromotionReason` value, with no FK, like `audit_log` and `contact_info`. It is reached only through
+`PromotionPlacementPort` in `platform-commons`. Each reason has exactly one writer. The first,
+`TOP_RATED`, is a rule in `marketplace-orchestrator` that reads the rating through `FeedbackPort`
+(average at least 4.8 from at least 5 visible reviews, both settings) and keeps only its own
+reason's rows. Every reason is one `PromotionRule` bean and any process reports a change with one
+explicit call to `PromotionRefreshService`, so the placement follows a review change immediately;
+a deletion removes the entity's placements in the same transaction, and a recount at start-up
+heals anything missed. Promoted entries have no block of their own: a list of the
+entity type carries a badge on each promoted entry (the reason for everyone, the details for
+privileged users), one filter "promoted only" over every reason and one sort "promoted", on by
+default, which puts promoted entries first, a paid reason above an earned one, and then the caller's
+own order. Changing the sort merges them into the ordinary list, and the list total changes only when
+the filter is on. The orchestrator turns the filter and the sort into a scope handed to the owning
+domain's port, so the domain starter never learns that promotion exists; UI, REST and MCP behave the
+same. The first version covers provider profiles only; the table is generic over entity type, so advertisements can be added
+later without a schema change.
+
+**Rejected alternatives:** the rule evaluated on every read (a rating query per list request, and no
+place for a purchase reason); a job-rebuilt table shared by all reasons (a rebuild would erase a paid
+grant); a hidden rank boost inside the list (unlabelled, and the caller cannot change it); a separate
+strip above the list (looks foreign beside a vertical list and needs an endpoint and a tool of its
+own); interleaved slots in the list (annoys searchers, unstable paging); a column on
+`provider_profile`/`advertisement` (couples two starters to an optional feature).
+
+**Consequences:** a purchase adds a `PromotionReason` value, a label, a single-grant port method (the
+payment module as its only writer, audited), ranked above the earned reason, with the badge wording
+settled against the advertising law; nothing else changes, since it uses the same filter, sort and
+badge. The starter is optional like every other: with it absent, nothing is promoted and the list is
+unchanged.
+
+---
+
 ## ADR-034: `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement`
 
 **Status:** Accepted
@@ -34,7 +82,8 @@ aggregate table.
 **Consequences:** `feedback-spring-boot-starter` is fully independent — it can be added or removed
 from the classpath without any other starter's schema or code changing. A future reviewable entity
 type (e.g. adding feedback to a new domain) only needs a new `EntityType` value and no schema
-change to this starter at all.
+change to this starter at all. The promotion rule for provider profiles is the first reader of the
+aggregate beyond the entity's own page; it reads it through `FeedbackPort`, as this decision allows.
 
 ---
 

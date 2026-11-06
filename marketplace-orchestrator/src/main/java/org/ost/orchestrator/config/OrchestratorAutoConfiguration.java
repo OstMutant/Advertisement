@@ -13,10 +13,11 @@ import org.springframework.scheduling.support.CronTrigger;
 
 import java.util.TimeZone;
 
+/** Registers every orchestrator service by scanning its own package, binds the cleanup and promotion settings and schedules the retention purge of deleted accounts. */
 @Slf4j
 @AutoConfiguration
 @ComponentScan("org.ost.orchestrator")
-@EnableConfigurationProperties(CleanupProperties.class)
+@EnableConfigurationProperties({CleanupProperties.class, PromotionTopRatedProperties.class})
 @EnableScheduling
 public class OrchestratorAutoConfiguration {
 

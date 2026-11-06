@@ -20,6 +20,9 @@
  *   - "anonymous visitor browses the public Providers catalog": four own profiles (SHOP, SUPPORT,
  *     MASTER, SHOP), own-category scope, kind/category/city filters, Updated/Created sort cycles,
  *     date-range filters.
+ *   - "anonymous visitor sees promoted profiles inside the Providers list": no badge before the fifth review,
+ *     promoted profiles first with a badge after it, Promoted only, the Promotion sort turned off, badge details
+ *     for an administrator only.
  *   - "administrator edits other users' provider profiles from the catalog": card Edit button,
  *     overlay Edit button, the administrator's own review and its edit, no reply trigger for a non-owner.
  *   - "provider owner writes, edits and deletes the single reply to a review".
@@ -693,7 +696,7 @@ test.describe('Provider Profile flow', () => {
     const bothCategories = [vehicles, electronics];
     await applyCatalogFilter(page, { categories: bothCategories });
 
-    const container = page.locator('.provider-profile-container');
+    const container = page.getByTestId('provider-profile-container');
     const cards = providerProfileCard(container);
     await expect(cards).toHaveCount(4, { timeout: 10000 });
     await expect(container.locator('.provider-profile-kind-badge--shop')).toHaveCount(2);
@@ -850,6 +853,84 @@ test.describe('Provider Profile flow', () => {
 
     await test.step('created/updated date-range filters — reuses the shared verifyDateRangeFilters helper (today holds at least the own four)', async () => {
       await verifyDateRangeFilters(page, CATALOG_BLOCK, 'provider', 4);
+    });
+  });
+
+  test('anonymous visitor sees promoted profiles inside the Providers list — no badge and the plain order before the fifth review, after it the top-rated profiles lead with a badge, Promoted only keeps just them, turning the Promotion sort off merges them back, an administrator sees the badge details', async ({ page, pageAs, adminAccount, request, createUser, adminKey, unique }) => {
+    test.setTimeout(240_000);
+    const category = await createCategory(request, adminKey, unique, 'Promo');
+    const rated = await createOwnerWithProfile(request, createUser, profileBody({
+      kind: 'MASTER', about: 'Master with the top rating.', categories: [category],
+    }), { name: unique('Rated') });
+    const few = await createOwnerWithProfile(request, createUser, profileBody({
+      kind: 'MASTER', about: 'Master with too few reviews.', categories: [category],
+    }), { name: unique('Few') });
+    const alsoRated = await createOwnerWithProfile(request, createUser, profileBody({
+      kind: 'MASTER', about: 'Second master with the top rating.', categories: [category],
+    }), { name: unique('AlsoRated') });
+    for (let i = 0; i < 3; i++) await reviewViaApi(request, await createUser(), few.profileId, 5, 'Great work.');
+    for (let i = 0; i < 4; i++) await reviewViaApi(request, await createUser(), rated.profileId, 5, 'Great work.');
+
+    const container = page.getByTestId('provider-profile-container');
+    const titles = container.getByTestId('provider-profile-card-title');
+    const badges = container.getByTestId('provider-profile-promotion-badge');
+    const promotionIcon = page.locator('.provider-profile-query-block .query-inline-row')
+      .filter({ has: page.locator('.query-inline-label-sort', { hasText: 'Promotion' }) })
+      .locator('.sort-icon');
+
+    await page.goto('/');
+    await openProvidersTab(page);
+    await applyCatalogFilter(page, { categories: [category] });
+
+    await test.step('before the fifth review nothing is promoted — no badge, the newest profile first', async () => {
+      await expect(providerProfileCard(container)).toHaveCount(3, { timeout: 10000 });
+      await expect(badges).toHaveCount(0);
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(few.owner.name), named(rated.owner.name)]);
+    });
+
+    await reviewViaApi(request, await createUser(), rated.profileId, 4, 'Good work.');
+    for (let i = 0; i < 5; i++) await reviewViaApi(request, await createUser(), alsoRated.profileId, 5, 'Great work.');
+    await page.reload();
+    await openProvidersTab(page);
+    await applyCatalogFilter(page, { categories: [category] });
+
+    await test.step('after it the two top-rated profiles lead, each with a badge, the other profile follows without one', async () => {
+      await expect(providerProfileCard(container)).toHaveCount(3, { timeout: 10000 });
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(rated.owner.name), named(few.owner.name)]);
+      await expect(badges).toHaveCount(2);
+      await expect(badges.first()).toHaveText('Top rated');
+      await expect(providerProfileCard(container).nth(2).getByTestId('provider-profile-promotion-badge')).toHaveCount(0);
+      await expect(badges.first()).not.toHaveAttribute('title', /.+/);
+      await screenshot(page, 'providers-promoted-first-with-badge');
+    });
+
+    await test.step('Promoted only keeps just the promoted profiles', async () => {
+      await openCatalogQuery(page);
+      await page.getByRole('checkbox', { name: 'Promoted only' }).check();
+      await applyFilter(page, CATALOG_BLOCK);
+      await expect(providerProfileCard(container)).toHaveCount(2, { timeout: 10000 });
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(rated.owner.name)]);
+      await screenshot(page, 'providers-promoted-only');
+      await page.getByRole('checkbox', { name: 'Promoted only' }).uncheck();
+      await applyFilter(page, CATALOG_BLOCK);
+      await expect(providerProfileCard(container)).toHaveCount(3, { timeout: 10000 });
+    });
+
+    await test.step('turning the Promotion sort off merges the promoted profiles back into the ordinary order', async () => {
+      await expect(promotionIcon).toHaveAttribute('aria-label', 'Descending');
+      await promotionIcon.click();
+      await expect(promotionIcon).toHaveAttribute('aria-label', 'No sorting');
+      await applyFilter(page, CATALOG_BLOCK);
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(few.owner.name), named(rated.owner.name)], { timeout: 10000 });
+      await expect(badges).toHaveCount(2);
+    });
+
+    await test.step('an administrator also sees the details of the badge, an anonymous visitor does not', async () => {
+      const adminPage = await pageAs(adminAccount);
+      await openProvidersTab(adminPage);
+      await applyCatalogFilter(adminPage, { categories: [category] });
+      const adminBadge = adminPage.getByTestId('provider-profile-container').getByTestId('provider-profile-promotion-badge').first();
+      await expect(adminBadge).toHaveAttribute('title', /Top rated/, { timeout: 10000 });
     });
   });
 

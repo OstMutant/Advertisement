@@ -125,6 +125,9 @@ helper, keep spec/test-specific logic local otherwise.
   `RepositoryTestSupport` doesn't provide) applies `@RepositoryTestAutoConfig` too, instead of
   redeclaring the allow-list — see `AttachmentRepositoryTest`/`AttachmentServiceTransactionTest`/
   `AttachmentSnapshotRepositoryTest`/`AuditLogRepositoryTest` for the pattern.
+- `org.ost.integrationtests.support.PromotionTestSupport` — a `@TestConfiguration` that wires the promotion
+  starter plus the orchestrator beans `FeedbackAccessService` depends on, for level-2 contexts that list
+  orchestrator beans one by one instead of loading `OrchestratorAutoConfiguration`.
 - `org.ost.integrationtests.support.TestDataCleaner.cleanAll(jdbcClient)` — deletes every row from
   every table this module currently knows about, across every domain, in one FK-safe order. Every
   `@SpringBootTest` reuses its cached ApplicationContext (and database) across all test methods in

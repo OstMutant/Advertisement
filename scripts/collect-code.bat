@@ -1,30 +1,46 @@
 @echo off
 REM ---------------------------------------------------------------------------
-REM Description: Collects every source file across the whole project (by extension --
-REM   .java/.css/.yml/.properties/.xml/.sql/.imports/.bat/.json/.js/.sh/.md/.html, plus fixed
-REM   root files and every .claude/ operating-context file -- rules.md, DECISIONS.md, and every
-REM   rules/commands/skills/agents/nav *.md) into a single all-code.txt, with a table of
-REM   contents and a per-extension summary -- useful for AI analysis. --claude-only skips the
-REM   whole-project scan and bundles just the Claude-facing operating context instead.
-REM Usage: scripts\collect-code.bat [--claude-only]
-REM   (no flags)      full project bundle -> all-code.txt (every extension above + root files)
+REM Description: Collects source files into one text file with a table of contents and a
+REM   per-extension summary -- useful for AI analysis. By default it bundles only what the
+REM   running application is made of (every module's src\main tree plus every pom.xml,
+REM   Dockerfile and lombok.config) into core-code.txt. --all bundles every source file of the
+REM   whole project (by extension .java/.css/.yml/.properties/.xml/.sql/.imports/.bat/.json/.js/
+REM   .sh/.md/.html, plus fixed root files and the .claude/ operating-context files) into
+REM   all-code.txt. --claude-only bundles just the Claude-facing operating context instead.
+REM Usage: scripts\collect-code.bat [--all | --claude-only]
+REM   (no flags)      minimal bundle -> core-code.txt (src\main of every module + pom.xml files)
+REM   --all           full project bundle -> all-code.txt (every extension above + root files)
 REM   --claude-only   .claude/ rules+commands+skills + every CLAUDE.md (root + per-module) +
 REM                   private/claude/memory/ only -> claude-context.txt
 REM Uses: cmd.exe (dir/findstr/type/find only, no external tools).
 REM Env: None.
-REM Input: repo source -- recursive scan excluding target/node_modules/.git/.idea/.claude/
-REM   generated/frontend/generated/etc (see the :FindFiles label's own exclusion list); with
-REM   --claude-only, only .claude/, every CLAUDE.md, and private/claude/memory/ are read.
-REM Outputs: all-code.txt in the current directory, with a console summary (file counts per
-REM   extension, presence check for a fixed list of root files); with --claude-only,
-REM   claude-context.txt instead, with a shorter claude-only-scoped summary.
+REM Input: repo source -- recursive scan excluding the paths in the EXCLUDES variable below
+REM   (target, node_modules, generated output, report folders, completed backlog tasks, ...);
+REM   the default mode additionally keeps only paths under src\main (plus pom.xml files);
+REM   --claude-only reads only .claude/, every CLAUDE.md, and private/claude/memory/.
+REM Outputs: core-code.txt, all-code.txt or claude-context.txt in the current directory,
+REM   with a console summary (file counts per extension; --all also checks a fixed list of
+REM   root files).
 REM Returns: 0 always.
 REM ---------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0.."
 
 set "CLAUDE_ONLY=0"
-if /I "%~1"=="--claude-only" set "CLAUDE_ONLY=1"
+set "ALL=0"
+for %%A in (%*) do (
+    if /I "%%~A"=="--claude-only" set "CLAUDE_ONLY=1"
+    if /I "%%~A"=="--all" set "ALL=1"
+)
+
+:: What each mode collects -- the one place to add an extension or a root file
+set "CORE_EXTS=java css yml properties xml sql imports js html"
+set "ALL_EXTS=java css yml properties xml sql imports bat json js sh md html"
+set "CORE_ROOT_FILES=Dockerfile lombok.config"
+set "ALL_ROOT_FILES=Dockerfile Dockerfile.claude Dockerfile.opencode lombok.config mvnw mvnw.cmd .env"
+
+:: Paths :FindFiles and :FindFilesIn never list (findstr patterns, space separated)
+set "EXCLUDES=\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\frontend\\index\.html \\bundles\\ \\screenshots\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ \\ci\\reports\\ \\unit-tests\\reports\\ \\run-all-tests\\reports\\ \\build-and-test\\reports\\ \\sonar\\report\\ \\backlog\\completed\\tasks\\ package\.json package-lock\.json tsconfig\.json collect-code\.bat"
 
 goto :main
 
@@ -43,7 +59,14 @@ goto :main
 :: still mid-execution of that same file is a known-fragile self-read pattern in cmd.exe and can
 :: silently truncate the output - this script's source is always available locally anyway, no
 :: need to have it re-dump itself into all-code.txt.
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\frontend\\index\.html \\bundles\\ \\screenshots\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ \\ci\\reports\\ \\unit-tests\\reports\\ \\run-all-tests\\reports\\ \\build-and-test\\reports\\ \\sonar\\report\\ \\backlog\\completed\\ package\.json package-lock\.json tsconfig\.json collect-code\.bat" ') do (
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "%EXCLUDES%"') do (
+    echo %%A >> "%FILE_LIST%"
+)
+goto :EOF
+
+:FindFilesIn
+:: Like :FindFiles, but keeps only paths containing the substring in %~2 (a findstr pattern).
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "%EXCLUDES%" ^| findstr /I "%~2"') do (
     echo %%A >> "%FILE_LIST%"
 )
 goto :EOF
@@ -53,15 +76,6 @@ goto :EOF
 set "count=0"
 for /f %%A in ('type "%FILE_LIST%" 2^>nul ^| find /C /I "%~1"') do set "count=%%A"
 echo %~2: %count%
-goto :EOF
-
-:CheckRootFile
-:: Checks the physical presence of a file in the current directory
-if exist "%~1" (
-    echo [YES] %~1
-) else (
-    echo [NO]  %~1
-)
 goto :EOF
 
 :: ==========================================
@@ -74,8 +88,10 @@ goto :EOF
 :: silently overwrite each other.
 if "%CLAUDE_ONLY%"=="1" (
     set "OUT=claude-context.txt"
-) else (
+) else if "%ALL%"=="1" (
     set "OUT=all-code.txt"
+) else (
+    set "OUT=core-code.txt"
 )
 echo Preparing %OUT%...
 
@@ -83,34 +99,40 @@ echo Preparing %OUT%...
 set "FILE_LIST=temp_files_list.tmp"
 type nul > "%FILE_LIST%"
 
-if "%CLAUDE_ONLY%"=="0" (
-    REM 2. Collect files by extension across the entire project, including all modules
-    REM The :FindFiles function automatically ignores target, node_modules, etc.
-    call :FindFiles "*.java"
-    call :FindFiles "*.css"
-    call :FindFiles "*.yml"
-    call :FindFiles "*.properties"
-    call :FindFiles "*.xml"
-    call :FindFiles "*.sql"
-    call :FindFiles "*.imports"
-    call :FindFiles "*.bat"
-    call :FindFiles "*.json"
-    call :FindFiles "*.js"
-    call :FindFiles "*.sh"
-    call :FindFiles "*.md"
-    call :FindFiles "*.html"
+if "%CLAUDE_ONLY%"=="0" if "%ALL%"=="0" (
+    REM Default bundle -- only what the running application is made of: every module's
+    REM src\main tree, plus every pom.xml and the core root files.
+    set "SCAN_EXTS=%CORE_EXTS%"
+    set "ROOT_FILES=%CORE_ROOT_FILES%"
+    for %%E in (%CORE_EXTS%) do call :FindFilesIn "*.%%E" "\\src\\main"
+    call :FindFiles "pom.xml"
+)
 
-    REM 3. Add specific root-level files -- only ones with no extension already covered by a
-    REM FindFiles pattern above -- README.md/CLAUDE.md/mvn.bat/docker-compose*.yml are already
-    REM collected via *.md/*.bat/*.yml, so listing them again here would duplicate their content.
-    for %%F in (Dockerfile Dockerfile.claude Dockerfile.opencode lombok.config mvnw mvnw.cmd .env) do (
-        if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
-    )
+if "%CLAUDE_ONLY%"=="0" if "%ALL%"=="1" (
+    REM --all: every file of each extension across the whole project; README.md, CLAUDE.md and
+    REM docker-compose*.yml are already covered by the *.md and *.yml extensions.
+    set "SCAN_EXTS=%ALL_EXTS%"
+    set "ROOT_FILES=%ALL_ROOT_FILES%"
+    for %%E in (%ALL_EXTS%) do call :FindFiles "*.%%E"
+)
+
+if "%CLAUDE_ONLY%"=="0" (
+    for %%F in (%ROOT_FILES%) do if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
 :: 3b. Add .claude/ rules, commands, skills, path-scoped rules, agents, and nav docs (all
 :: excluded from FindFiles by pattern) -- runs in both modes, since it's exactly what
 :: --claude-only mode needs too.
+if "%ALL%%CLAUDE_ONLY%"=="00" goto :after_claude_context
+for %%F in (.claude\rules.md .claude\DECISIONS.md) do (
+    if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
+)
+for %%D in (commands skills rules agents nav) do (
+    for /f "delims=" %%A in ('dir /S /B ".claude\%%D\*.md" 2^>nul') do (
+        echo %%A >> "%FILE_LIST%"
+    )
+)
+:after_claude_context
 for %%F in (.claude\rules.md .claude\DECISIONS.md) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
@@ -129,6 +151,7 @@ for /f "delims=" %%A in ('dir /S /B ".claude\agents\*.md" 2^>nul') do (
 for /f "delims=" %%A in ('dir /S /B ".claude\nav\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )
+:after_claude_context
 
 if "%CLAUDE_ONLY%"=="1" (
     REM 3c. Add every CLAUDE.md across the project, root plus every module -- the full-project
@@ -167,41 +190,16 @@ if "%CLAUDE_ONLY%"=="1" (
     call :CountFiles "CLAUDE.md" "CLAUDE.md files (root + per-module)"
     call :CountFiles "private\claude\memory" "Claude memory files"
 ) else (
-    call :CountFiles ".java" "Java files"
-    call :CountFiles ".xml" "XML files (includes pom.xml)"
+    for %%E in (%SCAN_EXTS%) do call :CountFiles ".%%E" "%%E files"
     call :CountFiles "pom.xml" "  of which POM files"
-    call :CountFiles ".css" "CSS files"
-    call :CountFiles ".yml" "YAML files"
-    call :CountFiles ".properties" "Properties files"
-    call :CountFiles ".sql" "SQL files"
-    call :CountFiles ".imports" "Spring AutoConfig files"
-    call :CountFiles ".bat" "Batch scripts"
-    call :CountFiles ".json" "JSON files"
-    call :CountFiles ".js" "JS files (Playwright)"
-    call :CountFiles ".sh" "Shell scripts"
-    call :CountFiles ".md" "Markdown files"
-    call :CountFiles ".html" "HTML files"
-
     echo.
-    echo Check root files:
-    call :CheckRootFile "README.md"
-    call :CheckRootFile "CLAUDE.md"
-    call :CheckRootFile "Dockerfile"
-    call :CheckRootFile "Dockerfile.claude"
-    call :CheckRootFile "Dockerfile.opencode"
-    call :CheckRootFile ".env"
-    call :CheckRootFile "scripts\deploy-and-run\docker-compose.app.yml"
-    call :CheckRootFile "scripts\deploy-and-run\docker-compose.db.yml"
-    call :CheckRootFile "scripts\deploy-and-run\docker-compose.seaweedfs.yml"
-    call :CheckRootFile "lombok.config"
-    call :CheckRootFile "scripts\deploy-and-run\reset-clean.sql"
-    call :CheckRootFile ".claude\skills\module-doc-standards\SKILL.md"
-    call :CheckRootFile ".claude\agents\review\deep-review-orchestrator.md"
+    echo Root files:
+    for %%F in (README.md CLAUDE.md %ROOT_FILES%) do if exist "%%F" (echo [YES] %%F) else (echo [NO]  %%F)
 )
 
 :: Clean up the temporary file
 del "%FILE_LIST%"
 
 echo.
-echo Done! All code saved to %OUT%.
+echo Done! Code saved to %OUT%.
 goto :EOF

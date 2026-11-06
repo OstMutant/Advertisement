@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Owns rating+text feedback entries attached to any owning entity (PROVIDER_PROFILE or
@@ -32,6 +33,9 @@ public interface FeedbackPort {
 
     /** Zero-value aggregate ({@code avgRating=0}, {@code reviewCount=0}) when no feedback exists yet. */
     FeedbackAggregateDto getAggregate(@NonNull EntityType entityType, @NonNull Long entityId);
+
+    /** Entities of this type whose visible-review average (as stored, one decimal) and review count reach both thresholds. */
+    Set<Long> findEntityIdsWithRatingAtLeast(@NonNull EntityType entityType, double minAverage, int minReviews);
 
     /** The single reply to one feedback entry, if any. */
     Optional<FeedbackCommentDto> findCommentByFeedback(@NonNull Long feedbackId);

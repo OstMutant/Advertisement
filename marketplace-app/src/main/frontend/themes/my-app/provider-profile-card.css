@@ -110,4 +110,22 @@
   border-left: 3px solid var(--app-accent-violet);
 }
 
+.provider-profile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.provider-profile-promotion-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7a4b00;
+  background: #fff1cf;
+  border: 1px solid #f0c56b;
+}
+
 }

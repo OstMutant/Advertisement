@@ -1,10 +1,10 @@
 # improvement-238: A profile owner can review their own provider profile — block it when the review is created
 
 **Status:** done 2026-11-05
-**Type:** bug — a gap in the rating that any rating-based feature (the featured strip of improvement-235 first of all) relies on
+**Type:** bug — a gap in the rating that any rating-based feature (the promotion strip of improvement-235 first of all) relies on
 **Module:** `marketplace-orchestrator` (`FeedbackWriteService.create`), `marketplace-app` (`FeedbackPanel`), `marketplace-rest-api` (`FeedbackApiController` response documentation), `marketplace-mcp` (tool description if it lists errors), the language files, `integration-tests` (`FeedbackMatrixScenarioTest`), `playwright/e2e`
-**Priority:** 🟡 top — a real hole in the rating: a profile owner can write reviews of their own profile, which would let them qualify for the featured strip alone
-**When:** independent, no blockers; should be done before the featured strip of [improvement-235](improvement-235-featured-placement-mechanism.md) goes live
+**Priority:** 🟡 top — a real hole in the rating: a profile owner can write reviews of their own profile, which would let them qualify for the promotion strip alone
+**When:** independent, no blockers; should be done before the promotion strip of [improvement-235](improvement-235-promotion-mechanism.md) goes live
 
 ## Current state
 
@@ -16,7 +16,7 @@ Verified against the code on 2026-11-05:
 
 ## Why change
 
-A rating is only worth showing, ranking or featuring if the owner cannot write it. With a minimum of five reviews for the featured strip, one owner's own review is a fifth of the qualification.
+A rating is only worth showing, ranking or promoting if the owner cannot write it. With a minimum of five reviews for the promotion strip, one owner's own review is a fifth of the qualification.
 
 ## Expected benefit
 
@@ -39,13 +39,13 @@ Technical plan (verified against the code 2026-11-05):
 - `FeedbackApiController.createProviderProfileFeedback`: add `@ApiResponse(responseCode = "403", description = "The caller owns the reviewed profile")`.
 - Tests: owner case in `FeedbackWriteServiceTest`, `FeedbackMatrixScenarioTest` and a Playwright check.
 
-Rejected: leaving the review in place and ignoring it only in the featured rule — more code, and the owner would still see a review of themselves counted on their own page.
+Rejected: leaving the review in place and ignoring it only in the promoted rule — more code, and the owner would still see a review of themselves counted on their own page.
 
 Reviews that already exist from an owner on their own profile are not checked here; whether any exist in the data is for the integration or seed data check during the work.
 
 ## Related
 
-- [improvement-235](improvement-235-featured-placement-mechanism.md) — the featured strip whose rating rule needs this guard.
+- [improvement-235](improvement-235-promotion-mechanism.md) — the promotion strip whose rating rule needs this guard.
 - `.claude/rules/feedback-spring-boot-starter.md` and `.claude/rules/marketplace-orchestrator.md`.
 
 ## Operational notes

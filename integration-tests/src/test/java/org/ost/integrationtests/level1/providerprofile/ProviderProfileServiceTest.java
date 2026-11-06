@@ -9,6 +9,7 @@ import org.ost.integrationtests.support.ProviderProfileServiceTestSupport;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
@@ -19,6 +20,7 @@ import org.ost.provider.services.ProviderProfileService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -136,9 +138,9 @@ class ProviderProfileServiceTest {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
         PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
 
-        service.getFiltered(filter, 0, 10, Sort.unsorted());
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), ProviderProfileScope.ALL);
 
-        verify(repository).findByFilter(filter, pageable, Set.of(10L, 20L));
+        verify(repository).findByFilter(filter, pageable, new ProviderProfileScope(Set.of(10L, 20L), List.of(), false));
     }
 
     @Test
@@ -151,8 +153,64 @@ class ProviderProfileServiceTest {
                 .categoryIds(Set.of(1L)).cityTaxonId(7L).build();
         PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
 
-        service.getFiltered(filter, 0, 10, Sort.unsorted());
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), ProviderProfileScope.ALL);
 
-        verify(repository).findByFilter(filter, pageable, Set.of(20L));
+        verify(repository).findByFilter(filter, pageable, new ProviderProfileScope(Set.of(20L), List.of(), false));
+    }
+
+    @Test
+    void getFiltered_scopeOnlyIds_areIntersectedWithTheTaxonFilterIds() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, null, 7L)).thenReturn(Optional.of(Set.of(20L, 30L)));
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), new ProviderProfileScope(Set.of(10L, 20L), List.of(), false));
+
+        verify(repository).findByFilter(filter, pageable, new ProviderProfileScope(Set.of(20L), List.of(), false));
+    }
+
+    @Test
+    void getFiltered_scopeWithoutOnlyIds_usesTheTaxonFilterIdsAndKeepsThePinnedGroups() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, null, 7L)).thenReturn(Optional.of(Set.of(20L, 30L)));
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+        List<Set<Long>> pinned = List.of(Set.of(30L));
+
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), new ProviderProfileScope(null, pinned, true));
+
+        verify(repository).findByFilter(filter, pageable, new ProviderProfileScope(Set.of(20L, 30L), pinned, true));
+    }
+
+    @Test
+    void getFiltered_scopeWithoutTaxonFilter_passesTheScopeUnchanged() {
+        ProviderProfileService service = newService();
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().build();
+        PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(1L), List.of(Set.of(1L)), false);
+
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), scope);
+
+        verify(repository).findByFilter(filter, pageable, scope);
+    }
+
+    @Test
+    void count_usesTheMergedScope() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, null, 7L)).thenReturn(Optional.of(Set.of(20L, 30L)));
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        when(repository.countByFilter(any(), any())).thenReturn(1L);
+
+        int count = service.count(filter, new ProviderProfileScope(Set.of(10L, 20L), List.of(), false));
+
+        assertThat(count).isEqualTo(1);
+        verify(repository).countByFilter(filter, new ProviderProfileScope(Set.of(20L), List.of(), false));
     }
 }

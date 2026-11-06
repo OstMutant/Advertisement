@@ -37,6 +37,10 @@ Tables: `provider_profile`
 ## Key constraints
 
 - `ProviderProfilePort` lives in `platform-commons`.
+- The list and its count take a `ProviderProfileScope` from the caller: ids to limit the list to and
+  groups of ids to list before (or after) everything else. The starter never learns why; the scope is
+  merged with the category/city filter ids by intersection, and the filter's `promoted` field is ignored
+  by the SQL filter (the orchestrator resolves it).
 - `@EnableJdbcRepositories(basePackages = "org.ost.provider.repository")` declared in
   `ProviderProfileAutoConfiguration`.
 - `ProviderProfilePortImpl` is pure delegation — no business logic inside the port.

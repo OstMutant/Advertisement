@@ -10,18 +10,19 @@ city, and a sanitized "about" write-up, shown on the public Providers catalog.
   actor's first "become a provider" save rather than eagerly at registration. `cityTaxonId` is not
   a row field — it is a `taxon_assignment` entry, same as `categoryIds`.
 - Filtered/paginated/sorted reads (`kind`, `createdAt`/`updatedAt` range, plus query-time
-  category/city filters both resolved via `TaxonPort.findEntityIdsWithAnyTaxon()`) for the public
-  Providers catalog.
+  category/city filters both resolved via `TaxonPort.resolveCategoryAndCityFilter()`) for the public
+  Providers catalog, limited and ordered by a caller-given scope (ids to limit the list to, groups of
+  ids to list before or after every other profile) that the starter applies without knowing why.
 - Sanitizes the `about` rich-text field via `html-sanitizer-lib`'s `HtmlSanitizer.sanitize()`, the
   same pattern `advertisement-spring-boot-starter` uses for its own description field.
 - Enforces the one authorization-shaped rule this starter checks server-side: only a privileged
   acting actor may save a profile with `kind == SUPPORT`.
-- A purge-safety check (`findOwnerIds`), queried by `user-spring-boot-starter` before deleting a
+- A purge-safety check (`findOwnerIds`), queried by `marketplace-orchestrator`'s `UserPurgeEligibilityService` before deleting a
   user account, that blocks the purge while a profile still exists.
 - An existence check (`findExistingIds`), queried by `marketplace-orchestrator`'s
   `EntityExistenceService` when validating a set of referenced entity ids.
 - **SPI implementation:** `ProviderProfilePort` (called by `marketplace-orchestrator`'s
-  `ProviderProfileSaveService`/`ProviderProfileReadService`/`ProviderProfileDisplayEnrichmentService`/
+  `ProviderProfileSaveService`/`ProviderProfileReadService`/`AdvertisementOwnerProfileLookupService`/
   `EntityExistenceService`).
 
 ## Data flow
@@ -38,10 +39,11 @@ the module's only business-logic class.
 - **Read:** `findById`/`findByActorId` → `ProviderProfileRepository`'s matching `JdbcClient` query,
   mapped by its `RowMapper` into a `ProviderProfileDto`.
 - **Filtered listing:** `getFiltered`/`count` → `ProviderProfileService` resolves `categoryIds` and
-  `cityTaxonId` filters independently into two allow-lists of profile ids via
-  `TaxonPort.findEntityIdsWithAnyTaxon()` and intersects them (short-circuiting to an empty result
-  once either lookup returns none), then `ProviderProfileRepository.findByFilter`/`countByFilter`
-  build the `WHERE`/`ORDER BY`/pagination clauses via `query-lib`'s `SqlFilterBuilder`/`OrderByBuilder`.
+  `cityTaxonId` filters into one allow-list of profile ids via
+  `TaxonPort.resolveCategoryAndCityFilter()`, intersects the result with the scope's ids when it has any, then
+  `ProviderProfileRepository.findByFilter`/`countByFilter` build the `WHERE`/`ORDER BY`/pagination
+  clauses via `query-lib`'s `SqlFilterBuilder`/`OrderByBuilder`, listing the scope's pinned groups
+  before the caller's own order, or after it when the scope says so.
 - **Delete:** `delete(id, version)` → `ProviderProfileRepository.delete` runs a real
   `DELETE ... WHERE id = :id AND version = :version`, throwing `StaleWriteException`
   on a stale version — no soft-delete columns, no restore path.

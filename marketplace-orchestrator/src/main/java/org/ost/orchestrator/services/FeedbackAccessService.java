@@ -30,7 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Wraps {@link FeedbackPort} for marketplace-app, degrading gracefully when feedback-spring-boot-starter is absent. */
+/** Wraps {@link FeedbackPort} for the UI and REST adapters; reads degrade gracefully when feedback-spring-boot-starter is absent, writes require it. */
 @Service
 @RequiredArgsConstructor
 public class FeedbackAccessService {
@@ -44,6 +44,7 @@ public class FeedbackAccessService {
     private final ComponentFactory<AuditPort>    auditPortFactory;
     private final UserActorNameService           userActorNameService;
     private final AuthorizationService           authorizationService;
+    private final PromotionRefreshService        promotionRefreshService;
 
     public List<FeedbackDto> findForEntity(@NonNull EntityType entityType, @NonNull Long entityId, int page, int size) {
         return feedbackPortFactory.findIfAvailable()
@@ -64,7 +65,9 @@ public class FeedbackAccessService {
     }
 
     public FeedbackDto save(@NonNull FeedbackSaveDto dto) {
-        return feedbackPortFactory.get().save(dto);
+        FeedbackDto saved = feedbackPortFactory.get().save(dto);
+        promotionRefreshService.entityChanged(saved.entityType(), saved.entityId());
+        return saved;
     }
 
     public boolean isAvailable() {
@@ -145,6 +148,7 @@ public class FeedbackAccessService {
             feedbackPortFactory.get().flagFeedback(feedbackId, actorId, reason);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.HIDDEN, reason), actorId));
         });
+        refreshPromotionOf(feedbackId);
     }
 
     public void flagComment(@NonNull Long commentId, @NonNull Long actorId, @NonNull String reason) {
@@ -160,6 +164,7 @@ public class FeedbackAccessService {
             feedbackPortFactory.get().approveFeedback(feedbackId);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.NEW, null), actorId));
         });
+        refreshPromotionOf(feedbackId);
     }
 
     public void approveComment(@NonNull Long commentId, @NonNull Long actorId) {
@@ -176,6 +181,7 @@ public class FeedbackAccessService {
             feedbackPortFactory.get().confirmFeedbackViolation(feedbackId);
             auditPortFactory.ifAvailable(p -> p.captureUpdate(feedbackId, new FeedbackSnapshotDto(FeedbackModerationStatus.CONFIRMED_HIDDEN, null), actorId));
         });
+        refreshPromotionOf(feedbackId);
     }
 
     public void confirmCommentViolation(@NonNull Long commentId, @NonNull Long actorId) {
@@ -188,13 +194,15 @@ public class FeedbackAccessService {
 
     public void rejectFeedback(@NonNull Long feedbackId, @NonNull Long actorId) {
         authorizationService.requireIsPrivileged(actorId);
-        tx.executeWithoutResult(status -> {
+        FeedbackDto rejected = tx.execute(status -> {
             FeedbackDto existing = feedbackPortFactory.get().findFeedbackById(feedbackId)
                     .orElseThrow(() -> new NoSuchElementException(FEEDBACK_PREFIX + feedbackId + NOT_FOUND_SUFFIX));
             FeedbackSnapshotDto snapshot = new FeedbackSnapshotDto(existing.moderationStatus(), existing.moderationReason());
             feedbackPortFactory.get().rejectFeedback(feedbackId);
             auditPortFactory.ifAvailable(p -> p.captureDeletion(feedbackId, snapshot, actorId));
+            return existing;
         });
+        promotionRefreshService.entityChanged(rejected.entityType(), rejected.entityId());
     }
 
     public void rejectComment(@NonNull Long commentId, @NonNull Long actorId) {
@@ -206,5 +214,10 @@ public class FeedbackAccessService {
             feedbackPortFactory.get().rejectComment(commentId);
             auditPortFactory.ifAvailable(p -> p.captureDeletion(commentId, snapshot, actorId));
         });
+    }
+
+    private void refreshPromotionOf(Long feedbackId) {
+        feedbackPortFactory.get().findFeedbackById(feedbackId)
+                .ifPresent(feedback -> promotionRefreshService.entityChanged(feedback.entityType(), feedback.entityId()));
     }
 }

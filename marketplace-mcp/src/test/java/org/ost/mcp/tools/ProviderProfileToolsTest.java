@@ -40,7 +40,7 @@ class ProviderProfileToolsTest extends AbstractToolTest {
         server.expect(requestTo("http://api.test/api/provider-profiles?page=0"))
                 .andRespond(withSuccess("[{\"id\":1}]", MediaType.APPLICATION_JSON).header("X-Total-Count", "1"));
 
-        CallToolResult result = tools.listProviderProfiles(null, null, null, null, null, null);
+        CallToolResult result = tools.listProviderProfiles(null, null, null, null, null, null, null);
 
         assertThat(result.isError()).isFalse();
         assertThat(structured(result))
@@ -56,11 +56,11 @@ class ProviderProfileToolsTest extends AbstractToolTest {
     @Test
     void listProviderProfilesPassesEveryFilterEncoded() {
         server.expect(requestTo("http://api.test/api/provider-profiles?page=1&kinds=MASTER%2CSHOP&categoryIds=1%2C2"
-                        + "&cityTaxonId=5&sort=updatedAt%2Cdesc&locale=uk"))
+                        + "&cityTaxonId=5&promoted=true&sort=updatedAt%2Cdesc&locale=uk"))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)
                         .header(HttpHeaders.LINK, "<x>; rel=\"next\""));
 
-        CallToolResult result = tools.listProviderProfiles(1, List.of("MASTER", "SHOP"), List.of(1L, 2L), 5L, "updatedAt,desc", "uk");
+        CallToolResult result = tools.listProviderProfiles(1, List.of("MASTER", "SHOP"), List.of(1L, 2L), 5L, true, "updatedAt,desc", "uk");
 
         assertThat(structured(result)).containsEntry("hasMore", true).containsEntry("nextPage", 2);
         server.verify();
@@ -70,7 +70,7 @@ class ProviderProfileToolsTest extends AbstractToolTest {
     void listProviderProfilesUnauthorizedBecomesErrorResult() {
         server.expect(requestTo("http://api.test/api/provider-profiles?page=0")).andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
-        CallToolResult result = tools.listProviderProfiles(null, null, null, null, null, null);
+        CallToolResult result = tools.listProviderProfiles(null, null, null, null, null, null, null);
 
         assertThat(result.isError()).isTrue();
         assertThat(errorText(result)).startsWith("HTTP 401");

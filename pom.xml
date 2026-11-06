@@ -33,6 +33,7 @@
         <module>apikey-spring-boot-starter</module>
         <module>contact-spring-boot-starter</module>
         <module>feedback-spring-boot-starter</module>
+        <module>promotion-spring-boot-starter</module>
         <module>marketplace-orchestrator</module>
         <module>marketplace-rest-api</module>
         <module>marketplace-mcp</module>
@@ -164,6 +165,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>feedback-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>promotion-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

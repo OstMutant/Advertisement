@@ -413,3 +413,35 @@ It needs a decision: read the configured path in the security config, or documen
 pointer-only `DECISIONS.md` of the modules without their own decisions lists `ADR-NNN` rows by design
 (they are generated, never hand-edited). Either the generator changes what it prints or the rule names
 an exception for generated pointer files; the owner has to decide which.
+
+### 36. A confirmed feedback violation is documented as permanent, but approve moves it back to visible (found during improvement-235, 2026-11-06)
+
+The `FeedbackPort` Javadoc for `confirmFeedbackViolation`/`confirmCommentViolation` and the feedback
+starter's rules file say a confirmed violation stays censored forever. `FeedbackService.approveFeedback`
+and `approveComment` accept `HIDDEN` and `CONFIRMED_HIDDEN` as source states and set `NEW`, and the
+moderation view always offers the approve button. Either the code is right and the wording changes, or
+the wording is right and `CONFIRMED_HIDDEN` leaves the approve source states (a behaviour change). It is
+a moderation rule, so the owner has to decide which.
+
+### 37. Multi-line comments in integration-tests need their rationale moved to a canonical home before trimming (found during improvement-235, 2026-11-06)
+
+`TestDataCleaner` (class, `cleanTables`, `cleanAll`), the level 2 tests `FeedbackAccessServiceTest` and
+`FeedbackCommentWriteServiceTest` (class and nested stub config Javadoc) and four comments in
+`integration-tests/pom.xml` are multi-line blocks, one of them naming a ticket and one naming
+packages that no longer exist. The comment rule wants one line or none, and the facts they carry
+(why cleanup skips missing tables, why the stub `UiLabelHook` exists, why the pom lists the starters)
+must first get a home in the module rules file or the README, then the comments shrink to one line.
+
+### 38. The REST API limits only key issuing and writes, not reads (found during improvement-235, 2026-11-06)
+
+`BasicLoginRateLimitFilter` guards `POST /api/api-keys` and `ApiWriteRateLimitFilter` guards writes;
+`GET` list endpoints, which accept filters and page numbers that reach PostgreSQL, have no limit. It
+needs a policy decision first (per key, per address, which endpoints, what numbers) before any code.
+
+### 39. One unexplained failure of a Level 3 promotion scenario in a full integration run (found during improvement-235, 2026-11-06)
+
+`PromotedProviderProfileScenarioTest.list_sortWithoutPromoted_mergesThePromotedIntoTheOrdinaryOrder`
+once failed in a full run (`$[0].id` expected the newer profile, got the older one) and passed alone
+and in two later full runs. Nothing explains the swap: both profiles are created over a second apart
+and the query orders by `created_at DESC, id DESC`. If it fails again, capture the SQL and both
+`created_at` values before touching the test.

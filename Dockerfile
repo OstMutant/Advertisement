@@ -8,47 +8,16 @@
 #   mvnw), Vaadin production bundle build (via vaadin-maven-plugin during `mvnw package`).
 # Env: None -- build-time only; runtime env vars are supplied by whatever starts the resulting
 #   image (see scripts/deploy-and-run/docker-compose.app.yml).
-# Input: repo source (every module's pom.xml + src), mvnw, lombok.config, .mvn.
+# Input: the whole repo source minus what .dockerignore lists.
 # Outputs: a runnable marketplace-app image -- app.jar, exposes port 8080, entrypoint `java -jar app.jar`.
 # ────────────────────────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jdk AS builder
 WORKDIR /app
 
-# Copy the Maven wrapper and project configuration
-COPY pom.xml mvnw lombok.config ./
-COPY .mvn .mvn
-
-# Copy module POMs to leverage Docker cache for dependencies
-COPY query-lib/pom.xml query-lib/
-COPY platform-commons/pom.xml platform-commons/
-COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
-COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
-COPY user-spring-boot-starter/pom.xml user-spring-boot-starter/
-COPY advertisement-spring-boot-starter/pom.xml advertisement-spring-boot-starter/
-COPY taxon-spring-boot-starter/pom.xml taxon-spring-boot-starter/
-COPY provider-profile-spring-boot-starter/pom.xml provider-profile-spring-boot-starter/
-COPY marketplace-orchestrator/pom.xml marketplace-orchestrator/
-COPY marketplace-app/pom.xml marketplace-app/
-COPY integration-tests/pom.xml integration-tests/
-
-# Download dependencies (this layer is cached until pom.xml changes)
+# Copy every module (.dockerignore keeps build output and reports out of the context) -- the
+# module list lives only in the root pom.xml, `-am` below builds whichever modules the app needs
+COPY . .
 RUN chmod +x mvnw && sed -i 's/\r//' mvnw
-RUN --mount=type=cache,target=/root/.m2 ./mvnw dependency:go-offline -q
-
-# Copy the source code for all modules
-COPY query-lib/src ./query-lib/src
-COPY platform-commons/src ./platform-commons/src
-COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
-COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
-COPY user-spring-boot-starter/src ./user-spring-boot-starter/src
-COPY advertisement-spring-boot-starter/src ./advertisement-spring-boot-starter/src
-COPY taxon-spring-boot-starter/src ./taxon-spring-boot-starter/src
-COPY provider-profile-spring-boot-starter/src ./provider-profile-spring-boot-starter/src
-COPY marketplace-orchestrator/src ./marketplace-orchestrator/src
-COPY marketplace-app/src ./marketplace-app/src
-
-# Install parent POM and all dependency modules to local Maven repo before building marketplace-app
-RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests -pl .,platform-commons,query-lib,audit-spring-boot-starter,attachment-spring-boot-starter,user-spring-boot-starter,advertisement-spring-boot-starter,taxon-spring-boot-starter,provider-profile-spring-boot-starter,marketplace-orchestrator -q
 
 # Build the application (Vaadin production bundle is built automatically by
 # vaadin-maven-plugin on `package`; SPRING_PROFILES_ACTIVE=prod at runtime sets
@@ -59,7 +28,7 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests -pl .,platfor
 # silently reinstalled from scratch anyway while logging a spurious error.
 RUN --mount=type=cache,target=/root/.m2 \
     --mount=type=cache,target=/root/.vaadin \
-    ./mvnw package -DskipTests -pl marketplace-app -q
+    ./mvnw package -DskipTests -pl marketplace-app -am -q
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app

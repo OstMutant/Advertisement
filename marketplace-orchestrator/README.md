@@ -10,8 +10,10 @@ allowed to perform directly against multiple domain `*Port`s.
 - Composition/lookup services (`org.ost.orchestrator.services`) — one flat package, no per-domain
   sub-packages — for every cross-domain use case: advertisement/provider-profile save+audit+
   attachment-gallery transactions, taxon catalog management, user profile/settings, authorization
-  rule composition, sitemap generation, API-key management, and shared taxon/actor/attachment
-  lookups reused across domains.
+  rule composition, sitemap generation, API-key management, shared taxon/actor/attachment
+  lookups reused across domains, and promotion: the rules that decide which provider profiles are
+  promoted and keep that in step with review changes and deletions, plus the scope and badge data
+  every list of provider profiles uses.
 - `*Hook` SPI implementations (`org.ost.orchestrator.spi`) that only need domain-port access —
   ones that also need a UI-shell resource (translations, current locale, session state) go through
   a small forwarder SPI declared here and implemented by `marketplace-app` instead, keeping this
@@ -31,8 +33,7 @@ allowed to perform directly against multiple domain `*Port`s.
 
 ## Dependencies
 
-- All six domain starters (`audit`/`attachment`/`user`/`advertisement` at compile scope,
-  `taxon`/`provider-profile` at runtime scope) — the one module that pulls every starter jar onto
+- All ten domain starters, every one at runtime scope so the compiler never offers a starter class — the one module that pulls every starter jar onto
   the app's runtime classpath, since `marketplace-app` no longer declares them itself. Every access
   still goes through `ComponentFactory<XPort>` against a `platform-commons` interface, never a
   starter's concrete class — this is a Maven-classpath-assembly concern only, enforced at the code

@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
+import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
@@ -34,12 +35,14 @@ import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
-/** Public catalog listing of provider profiles -- visible to any visitor, no create/edit affordance here (that lives in {@code AccountOverlay}'s own Provider Profile tab). */
+/** Public catalog listing of provider profiles -- visible to any visitor; owners and privileged users get Edit and Delete on the cards. */
 @Slf4j
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 public class ProvidersView extends VerticalLayout {
+
+    private static final String DATA_TESTID = "data-testid";
 
     private final transient ProviderProfileReadService              providerProfileReadService;
     private final transient ProviderProfileDisplayEnrichmentService enrichmentService;
@@ -48,6 +51,7 @@ public class ProvidersView extends VerticalLayout {
     private final transient I18nService                             i18n;
     private final transient LocaleProvider                          localeProvider;
     private final transient NotificationService                     notificationService;
+    private final transient AccessEvaluator                         access;
 
     private final QueryStatusBar<ProviderProfileFilterDto> queryStatusBar;
     private final PaginationBar                             paginationBar;
@@ -97,9 +101,7 @@ public class ProvidersView extends VerticalLayout {
         return openProfileOverlay(pending.providerId(), () -> {});
     }
 
-    /** Opens the given provider profile's view overlay directly (not via a deep-link URL) -- shared by
-     *  {@link #openPendingDeepLinkIfAny} and by other views (e.g. ModerationView) that need to open a
-     *  profile overlay from within an already-running session, with their own {@code onClose} behavior. */
+    /** Opens the given provider profile's view overlay directly, not via a deep-link URL; the caller's {@code onClose} runs when it closes. */
     public boolean openProfileOverlay(@NonNull Long providerId, @NonNull Runnable onClose) {
         return providerProfileReadService.findById(providerId)
                 .map(this::enrichSingle)
@@ -121,6 +123,7 @@ public class ProvidersView extends VerticalLayout {
         container.setJustifyContentMode(JustifyContentMode.START);
         container.setAlignItems(Alignment.STRETCH);
         container.addClassName("provider-profile-container");
+        container.getElement().setAttribute(DATA_TESTID, "provider-profile-container");
         return container;
     }
 
@@ -131,7 +134,7 @@ public class ProvidersView extends VerticalLayout {
 
         try {
             List<ProviderProfileDto> fetched = providerProfileReadService.getFiltered(
-                    filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
+                    filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, access.isPrivileged());
             List<ProviderProfileDto> profiles = fetched.isEmpty() ? fetched : enrich(fetched);
             int total = providerProfileReadService.count(filter);
             paginationBar.setTotalCount(total);
@@ -162,6 +165,7 @@ public class ProvidersView extends VerticalLayout {
             queryStatusBar.update();
         }
     }
+
 
     private List<ProviderProfileDto> enrich(List<ProviderProfileDto> profiles) {
         profiles = enrichmentService.enrichWithCategoriesAndCity(profiles, localeProvider.getCurrentLocale());

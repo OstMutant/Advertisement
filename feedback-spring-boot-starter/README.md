@@ -13,10 +13,12 @@ owning it would mean the other reaching across the sibling-starter boundary (`.c
   entry is older than the 48h edit window (`FeedbackService.checkWithinEditWindow`); text is
   sanitized via `html-sanitizer-lib`'s `HtmlSanitizer`. A stale `version` on save is translated
   from Spring Data JDBC's `OptimisticLockingFailureException` into `StaleWriteException` in
-  `FeedbackRepository.save`.
+  `FeedbackRepository.saveContent`.
 - `feedback_aggregate` — `avg_rating`/`review_count` recomputed and upserted in the same
   transaction as every feedback write (`FeedbackRepository.upsertAggregate`); no column is added
   to `provider_profile`/`advertisement` for this.
+- A query for the entities of a type whose stored average (one decimal, as users see it) and visible
+  review count reach two thresholds, read from `feedback_aggregate` alone.
 - **SPI implementation:** `FeedbackPort` (`platform-commons`), consumed by
   `marketplace-orchestrator`'s `FeedbackAccessService`/`FeedbackCommentWriteService`, in turn
   wired into `marketplace-app`'s `FeedbackPanel`/`FeedbackReplyPanel`/`ModerationView`.
@@ -26,7 +28,7 @@ owning it would mean the other reaching across the sibling-starter boundary (`.c
 A caller (via `FeedbackPort`) passes an `(EntityType, Long entityId)` pair plus the feedback
 payload. `FeedbackPortImpl` delegates straight through to `FeedbackService`, which resolves
 persistence through `FeedbackRepository`:
-- `save` looks up any existing entry for `(authorId, entityType, entityId)` first (create vs.
+- `save` looks up the existing entry by `dto.id()` first (create vs.
   edit-within-window), sanitizes the text, then writes `feedback` and recomputes
   `feedback_aggregate` in one `@Transactional` method.
 - A feedback has at most one reply (`saveComment`/`deleteComment`); `MAX_FEEDBACK_PER_DAY` (10)

@@ -98,8 +98,9 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🔵 | 235 | improvement-235 — featured placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; research how it fits the architecture and how to show it, no code; research done and decisions taken, building can start |
-| Top | 🔵 | 237 | improvement-237 — a purchase as a reason for featuring: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
+| Top | 🟡 | 239 | improvement-239 — deleting a provider profile leaves its reviews, replies and rating summary behind (no feedback delete by owning entity; `ProviderProfileSaveService.delete` clears taxon assignments and contacts only); add the delete and call it inside the same transaction so deleting means deleting everywhere |
+| Top | 🔵 | 235 | improvement-235 — promotion placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them with a badge, first in the one list by default, under a "promoted" filter and sort; built and verified, being closed out |
+| Top | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
 | Deferred (trigger) | ⚪ | 003, 017, 021, 038, 053, 055, 086, 109 | each waits for its own trigger, listed in the Deferred section below: data volume (038, 053), the thumbnail refactor (017), concurrent gallery editing (021), a PostgreSQL bump (086), a UI consistency pass (055, 109), per-item triggers (003) |
@@ -107,17 +108,23 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 Details, links, and per-batch rationale below.
 
+### Top priority — improvement-239
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-239](tasks/improvement-239-delete-profile-deletes-its-feedback.md) | New (found while planning improvement-235; the user asked for it at the top, 2026-11-05) | `FeedbackPort.deleteByEntity` removing every review, reply, rating and the aggregate of a deleted profile, called inside `ProviderProfileSaveService.delete`'s transaction next to the contact cascade |
+
 ### Top priority — improvement-235
 
 | Task | Origin | What |
 |---|---|---|
-| [improvement-235](tasks/improvement-235-featured-placement-mechanism.md) | New (from the private product notes, reframed by the user 2026-11-05; the user asked for it at the top) | Featured placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; research how it fits the architecture and how to show it; no code |
+| [improvement-235](tasks/improvement-235-promotion-mechanism.md) | New (from the private product notes, reframed by the user 2026-11-05; the user asked for it at the top) | Promotion placement: one flexible mechanism that lifts advertisements and profiles out of the crowd for a pluggable reason (a rating rule now, a purchase later) and shows them first without annoying searchers; a badge on the card, a "promoted" filter and sort inside the one list; built and verified, being closed out |
 
 ### Top priority — improvement-237
 
 | Task | Origin | What |
 |---|---|---|
-| [improvement-237](tasks/improvement-237-purchase-reason-and-payment-module.md) | New (split out of improvement-235 at the user's request, 2026-11-05; ranked right after 236 because the user asked for it) | A purchase as a reason for featuring: manual selling first, a payment starter with a hosted checkout and a signed, idempotent webhook, the advertising-law label and the cash-register question for card payments; waits for the featured placement mechanism |
+| [improvement-237](tasks/improvement-237-purchase-reason-and-payment-module.md) | New (split out of improvement-235 at the user's request, 2026-11-05; ranked right after 236 because the user asked for it) | A purchase as a reason for promoting: manual selling first, a payment starter with a hosted checkout and a signed, idempotent webhook, the advertising-law label and the cash-register question for card payments; waits for the promotion placement mechanism |
 
 ### Nice to have — no internal priority order
 

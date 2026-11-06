@@ -47,13 +47,14 @@ class ProviderProfileSaveServiceTest {
     @Mock private CurrentLocaleService currentLocaleService;
     @Mock private SitemapService sitemapService;
     @Mock private AuthorizationService authorizationService;
+    @Mock private PromotionRefreshService promotionRefreshService;
 
     private ProviderProfileSaveService service;
 
     @BeforeEach
     void setUp() {
         service = new ProviderProfileSaveService(tx, providerProfilePortFactory, auditPortFactory,
-                taxonAssignmentWriteService, contactAccessService, displayEnrichmentService, currentLocaleService, sitemapService, authorizationService);
+                taxonAssignmentWriteService, contactAccessService, displayEnrichmentService, currentLocaleService, sitemapService, authorizationService, promotionRefreshService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -284,6 +285,7 @@ class ProviderProfileSaveServiceTest {
         verify(providerProfilePort).delete(profileId, version);
         verify(taxonAssignmentWriteService).clear(EntityType.PROVIDER_PROFILE, profileId);
         verify(contactAccessService).delete(EntityType.PROVIDER_PROFILE, profileId);
+        verify(promotionRefreshService).entityRemoved(EntityType.PROVIDER_PROFILE, profileId);
         ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureDeletion(eq(profileId), snapshotCaptor.capture(), eq(ACTOR_ID));
         assertThat(((ProviderProfileSnapshotDto) snapshotCaptor.getValue()).about()).isEqualTo("Deleted about");

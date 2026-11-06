@@ -43,11 +43,12 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   `CurrentLocaleService`/`UiLabelHook` pair (see "Hook implementations" below) instead
   of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
-  enrichment service (category/city/actor only — no attachments).
+  enrichment service (category/city/actor, plus the promotion badge fields through
+  `enrichWithPromotion`, whose end date is filled only for privileged callers — no attachments).
 - `ProviderProfileSaveService` — the ProviderProfile equivalent of `AdvertisementSaveService`:
   write + category/city assignment (via `TaxonAssignmentWriteService.unionAssignmentIds` +
   `TaxonAssignmentWriteService`) + audit capture, one `TransactionTemplate`-bounded unit.
-  `save(dto, targetUserId, actorId, actorIsPrivileged)` takes
+  `save(dto, targetUserId, actorId)` takes
   two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
   `ProviderProfilePort.save()` as the row owner; it names the owner only for a create, while an edit is authorized against the existing profile's real owner) and `actorId` (who performed the save, audit-only)
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment
@@ -88,6 +89,24 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `FeedbackWriteService` — the REST and Vaadin write path for a provider profile's review: the caller
   is always the review's author, an edit only touches the caller's own review
   (`AccessDeniedException` otherwise), and the reviewed profile must exist (`ProviderProfileReadService`).
+- `PromotionRule` / `TopRatedPromotionRule` / `PromotionRefreshService` — keep promotion placements in
+  step with the data a reason depends on. A rule (one bean per reason) says whether one entity
+  qualifies and which entities do; `TopRatedPromotionRule` promotes a provider profile whose stored
+  review average and visible review count reach the configured minimums (`PromotionTopRatedProperties`,
+  read through `FeedbackPort`). `PromotionRefreshService` is the one explicit entry point any process
+  calls: `entityChanged` applies every rule of the entity type, isolates a failing rule and never throws
+  into the caller; `entityRemoved` clears every reason, strictly and inside the caller's transaction,
+  like the contact cascade; `recountAll` replaces each rule's rows and runs once at start-up. A new
+  reason is one new rule bean; a process that changes rule-relevant data adds one call
+  (`FeedbackAccessService` after every review write or moderation change, `ProviderProfileSaveService`
+  on delete).
+- `PromotionCatalogService` — turns a provider profile list's promotion filter and sort into the scope
+  the list query takes (`ProviderProfileScope`): no query and no scope unless the filter asks for
+  promoted profiles only or the sort carries `promoted`; the promoted ids grouped by reason rank are
+  listed first (or last for an ascending sort), the filter limits the list to them. It strips the
+  `promoted` order from the sort before the profile port sees it and gives the badge data of a page
+  (the best-ranked placement of each profile). One place for the Vaadin list, the REST endpoint and the
+  MCP tool, so all three behave alike.
 - `UserDeleteService` — cascades a user's own dependent data (advertisements, provider profile)
   before deleting the account itself.
 - `UserCleanupService` — the scheduled retention-purge use case: finds soft-deleted accounts past
@@ -104,12 +123,13 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 - `ProviderProfileReadService` — the `ProviderProfilePort` equivalent of `AdvertisementReadService`,
   wrapping `ComponentFactory<ProviderProfilePort>`'s `getFiltered`/`count`/`findById`/`isAvailable`
   for the public Providers catalog listing, distinct from `ProviderProfileSaveService`'s
-  write/single-lookup methods.
+  write/single-lookup methods. `getFiltered`/`count` ask `PromotionCatalogService` for the scope, so a
+  promoted filter or sort works the same through every door.
 - `SitemapService` — builds and caches `/sitemap.xml`'s XML body (advertisements + provider
   profiles, one Caffeine cache entry, 15-minute TTL). `AdvertisementSaveService`/
   `ProviderProfileSaveService` call `invalidate()` after every save/delete, since both already live
   in this same module — a same-module direct call, no cross-module event needed.
-  `marketplace-app`'s `SitemapController` (`rest/`) is a thin adapter over `getSitemap()`.
+  `marketplace-rest-api`'s `SitemapController` is a thin adapter over `getSitemap()`.
 - `TaxonCatalogService` — wraps `ComponentFactory<TaxonPort>`'s catalog-management methods
   (`getAllByType`/`listAllByType`/`getUsageCounts`/`create`/`update`/`findById`/`getTranslations`)
   — distinct from `TaxonLookupService`, which stays narrowly scoped to entity-assignment lookups.
@@ -164,11 +184,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
 
 `org.ost.orchestrator.spi` — the `*Hook` implementations (see "Hook implementations" below):
 `AuditDomainHookImpl`, `CurrentActorHookImpl`, `ActivityEnrichHookImpl`, `UserSettingsChangedHookImpl`
-(`AuditActivityFieldsHook` and its four per-domain implementations were removed entirely — every
-implementation had converged to a one-line delegation with zero domain-specific logic, and the
-interface's only real caller was already `marketplace-app`'s own `AuditTimelineRowRenderer`, so
-the whole per-domain Hook pattern collapsed into one field-name-to-label mapping directly in that
-class; see `.claude/nav/adr-index.md`).
+(the field-name-to-label mapping lives directly in `marketplace-app`'s `AuditTimelineRowRenderer`, with no per-domain Hook; see `.claude/nav/adr-index.md`).
 
 ### Forwarder SPI pattern
 
@@ -211,14 +227,12 @@ inventing a second wiring approach for one module).
 
 ## Key constraints
 
-- **`pom.xml` declares all 9 starter `<dependency>` blocks** (`audit`/`attachment`/`user`/
-  `advertisement` at `compile` scope, `taxon`/`provider-profile`/`apikey`/`contact`/`feedback` at
-  `runtime` scope, preserving their existing optional-module semantics unchanged) — this is the one module in the app that
+- **`pom.xml` declares all 10 starter `<dependency>` blocks** (all at `runtime` scope, so the
+  compiler never offers a starter class) — this is the one module in the app that
   pulls every starter JAR onto the runtime classpath, since `marketplace-app` no longer declares
   them itself (`marketplace-app/pom.xml` depends only on `platform-commons` +
   `marketplace-orchestrator`, so `Module Dependencies`/`Bounded Contexts` show the same converged
-  shape — see `platform-commons/DECISIONS.md` for the ADR reversing the earlier
-  "orchestrator must depend only on platform-commons" rule). This is a Maven-classpath-assembly
+  shape — see `.claude/nav/adr-index.md` for the dependency decision). This is a Maven-classpath-assembly
   concern only, not a license to touch starter internals — **no class in this module imports a
   starter's concrete class, ever.** Every domain access still goes through `ComponentFactory<XPort>`
   against a `platform-commons` interface, exactly the mechanism `marketplace-app` itself used to
@@ -229,7 +243,7 @@ inventing a second wiring approach for one module).
   `ArchitectureRulesTest.orchestrator_classes_depend_on_at_most_two_domain_ports`. Counts only
   `ComponentFactory<XPort>`-wrapped fields — a direct, mandatory `*Port` field (e.g.
   `UserAccountPort` in `UserDeleteService`, injected because `user-spring-boot-starter` is a
-  compile-scope, non-optional dependency of the final app) is a different shape from the optional
+  mandatory, non-optional starter of the final app) is a different shape from the optional
   cross-domain composition fan-out this rule guards against, and is not counted. When a use case
   genuinely needs more than 2 optional domain ports, extract the shared parts into a `services.*`
   collaborator (as `TaxonLookupService`/`ActorLookupService`/etc. already do) rather than holding
@@ -268,14 +282,7 @@ inventing a second wiring approach for one module).
   collaborator, `AdvertisementAuditEnrichService`, does real category/city/`AdKind` diff-label
   resolution, not a single-value lookup — but only the UI-shell-touching calls go through
   `CurrentLocaleService`/`UiLabelHook`, so it splits the same way the narrower Hooks do: the pure-data
-  majority (change-merging, field resolution) stays a `marketplace-orchestrator` service — reversing
-  an earlier call that this one couldn't follow the same pattern (see `.claude/nav/adr-index.md` for
-  both decisions). `AuditActivityFieldsHook` — the fourth original Hook
-  interface, previously implemented by four per-domain classes here — was removed entirely: every
-  implementation had converged to a one-line delegation with zero domain-specific logic left, and
-  its only real caller was already `marketplace-app`'s own `AuditTimelineRowRenderer`, so the whole
-  field-name-to-label mapping now lives directly in that class instead of crossing the module
-  boundary at all.
+  majority (change-merging, field resolution) stays a `marketplace-orchestrator` service (see `.claude/nav/adr-index.md`).
 - **UI presence-guards also route through the orchestrator.** For literal BFF purity — zero direct
   `*Port` reference of any kind in marketplace-app — even a presence-only check (e.g. "is the
   attachment starter on the classpath, to decide whether to render a gallery button") goes through
@@ -285,11 +292,8 @@ inventing a second wiring approach for one module).
 - **Zero direct `*Port`/`*Hook` references remain in marketplace-app** (`AuthenticatedPrincipal`
   is the one allow-listed exception — see the "Forwarder SPI pattern" section above). Authorization/
   ownership checks (`isAdmin`/`isModerator`/`isOwner`), called on nearly every render across the
-  whole UI, previously stayed as a direct `UserAuthorizationPort` field on `AccessEvaluator`
-  (`services/security/`) on the reasoning that an orchestrator round-trip would cost real latency
-  for no benefit — reversed once a future REST adapter entered the picture (see `improvement-150`):
-  a REST caller has no `AccessEvaluator` to reach, so the check needed to exist in the orchestrator
-  regardless. `AccessEvaluator` now depends on `AuthorizationService` (a thin wrapper over the same
+  whole UI, live in the orchestrator because a REST caller has no `AccessEvaluator` to reach.
+  `AccessEvaluator` (`services/security/`) depends on `AuthorizationService` (a thin wrapper over the same
   direct, mandatory `UserAuthorizationPort` field, just relocated). Every other `User*Port` usage
   in marketplace-app (search/filter, registration, locale, settings, pagination) routes through
   `UserProfileService`/`ActorLookupService`, same as `AccessEvaluator` now does via

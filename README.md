@@ -6,7 +6,7 @@
 foundation underneath it (authorization model, SQL layer, testing strategy, backlog process) is
 stable and is the actual point of this project.
 
-**At a glance:** 7 bounded-context starters · 3 test layers, each with a distinct failure scope (unit /
+**At a glance:** 10 bounded-context starters · 3 test layers, each with a distinct failure scope (unit /
 Testcontainers / Playwright) · 200+ backlog items, each resolved with a dated, root-cause write-up
 — not a vague TODO list.
 
@@ -150,6 +150,7 @@ flowchart LR
         S7[apikey-spring-boot-starter]
         S8[contact-spring-boot-starter]
         S9[feedback-spring-boot-starter]
+        S10[promotion-spring-boot-starter]
     end
 ```
 

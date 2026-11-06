@@ -40,6 +40,7 @@ touched.
 - [`platform-commons.md`](platform-commons.md) — `platform-commons/**`
 - [`playwright.md`](playwright.md) — `playwright/**`
 - [`provider-profile-spring-boot-starter.md`](provider-profile-spring-boot-starter.md) — `provider-profile-spring-boot-starter/**`
+- [`promotion-spring-boot-starter.md`](promotion-spring-boot-starter.md) — `promotion-spring-boot-starter/**`
 - [`query-lib.md`](query-lib.md) — `query-lib/**`
 - [`scripts.md`](scripts.md) — `scripts/**` (see "Important" below — the glob matches more broadly than just the top-level `scripts/` directory)
 - [`taxon-spring-boot-starter.md`](taxon-spring-boot-starter.md) — `taxon-spring-boot-starter/**`

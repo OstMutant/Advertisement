@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.ost.feedback.config.FeedbackAutoConfiguration;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.UserTestFixtures;
+import org.ost.integrationtests.support.PromotionTestSupport;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
@@ -79,6 +80,7 @@ import static org.mockito.Mockito.verify;
         UserActorNameService.class,
         ProviderProfileReadService.class,
         FeedbackAccessService.class,
+        PromotionTestSupport.class,
         FeedbackAccessServiceTest.StubUiLabelHookConfig.class
 })
 @TestPropertySource(properties = "spring.datasource.hikari.maximum-pool-size=2")

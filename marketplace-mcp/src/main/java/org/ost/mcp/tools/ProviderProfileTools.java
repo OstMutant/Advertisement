@@ -26,7 +26,7 @@ public class ProviderProfileTools {
     private final RestApiClient restApi;
 
     @McpTool(name = "listProviderProfiles",
-            description = "Lists provider profiles (kinds MASTER, SHOP, SUPPORT), one page at a time, optionally filtered and sorted. "
+            description = "Lists provider profiles (kinds MASTER, SHOP, SUPPORT), one page at a time, optionally filtered and sorted. Each item says whether it is promoted and why. "
                     + "The list is public, no API key is needed. Page size is not a parameter: it comes from the caller's saved "
                     + "settings. " + ToolDescriptions.TOTAL_COUNT_NOTE
                     + "The result has items, totalCount, page, returned, hasMore and nextPage; when hasMore is true "
@@ -38,7 +38,8 @@ public class ProviderProfileTools {
             @McpToolParam(required = false, description = "Only these kinds: MASTER, SHOP, SUPPORT") List<String> kinds,
             @McpToolParam(required = false, description = "Only profiles in any of these category ids (from listTaxons with type CATEGORY)") List<Long> categoryIds,
             @McpToolParam(required = false, description = "Only profiles in this city taxon id (from listTaxons with type CITY)") Long cityTaxonId,
-            @McpToolParam(required = false, description = "Sort as field,direction with field createdAt or updatedAt and direction asc or desc, for example updatedAt,desc; without it the newest changes come first, then the newest created, then id") String sort,
+            @McpToolParam(required = false, description = "Only promoted profiles when true") Boolean promoted,
+            @McpToolParam(required = false, description = "Sort as field,direction with field createdAt, updatedAt or promoted and direction asc or desc, for example updatedAt,desc; without it the promoted profiles come first, then the newest changes, then the newest created, then id") String sort,
             @McpToolParam(required = false, description = "Language tag for category and city names, for example en or uk") String locale) {
         int pageNumber = page == null ? 0 : page;
         String path = RestPath.of("/api/provider-profiles")
@@ -46,6 +47,7 @@ public class ProviderProfileTools {
                 .param("kinds", kinds)
                 .param("categoryIds", categoryIds)
                 .param("cityTaxonId", cityTaxonId)
+                .param("promoted", promoted)
                 .param("sort", sort)
                 .param("locale", locale)
                 .build();
@@ -69,7 +71,7 @@ public class ProviderProfileTools {
             description = "Creates a provider profile of the given kind for the caller's own account, the account cannot be chosen. "
                     + "Needs the caller's API key; SUPPORT needs an administrator or moderator caller. "
                     + "categoryIds holds category ids and cityTaxonId a city id, both from listTaxons; about, phone, telegram and viber are optional. "
-                    + "The result has status and item of the new profile; no location or etag is returned.",
+                    + "The result has status, location and item of the new profile.",
             annotations = @McpTool.McpAnnotations(title = "Create a provider profile", readOnlyHint = false,
                     destructiveHint = false, idempotentHint = false, openWorldHint = false))
     public CallToolResult createProviderProfile(

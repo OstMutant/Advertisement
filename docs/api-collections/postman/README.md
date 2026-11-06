@@ -98,6 +98,7 @@ run:
 | `adminRights` | `getMe` (step `auth.rights`) | `yes` when the role of the default account is administrator, `no` otherwise; drives the flow-level `when` of the flows that need an administrator |
 | `moderatorId`, `moderatorVersion`, `moderatorKey` | `registerUser`, `getUser`, `issueApiKey` (steps `modreg`, `modget`, `modkey` of the Taxons and Moderation flows) | id, version and raw API key of the moderator the flow registers and promotes |
 | `otherId`, `otherKey` | `registerUser`, `issueApiKey` (steps `feedback.other`, `feedback.otherkey`) | id and API key of the second ordinary user the Feedback flow registers |
+| `modOtherId`, `modOtherKey` | `registerUser`, `issueApiKey` (steps `moderation.other`, `moderation.otherkey`) | id and API key of the ordinary user the Moderation flow registers to write the review, since the profile owner cannot review their own profile |
 
 The flows after Authentication each create their own category and city (with the administrator's key)
 and their own data, use the ordinary user's key for user actions and delete what they created at the
@@ -163,6 +164,7 @@ Variables captured at run time:
 | `mcpProfileId`, `mcpProfileVersion` | `createProviderProfile` and the steps that change it (Provider profiles flow) | id and version of the provider profile |
 | `mcpContactProfileId`, `mcpContactProfileVersion`, `mcpContactAdId`, `mcpContactAdVersion` | the Contacts flow | id and version of its provider profile and advertisement |
 | `mcpOtherId`, `mcpOtherKey` | `registerUser`, `issueApiKey` (Feedback flow) | id and API key of the second user |
+| `mcpModOtherId`, `mcpModOtherKey` | `registerUser`, `issueApiKey` (Moderation flow) | id and API key of the user who writes the review there |
 | `mcpFbProfileId`, `mcpFbProfileVersion`, `mcpReviewId`, `mcpReviewVersion`, `mcpReplyVersion` | the Feedback flow | its provider profile, the review and the reply |
 | `mcpSelfId`, `mcpSelfKey`, `mcpSelfVersion` | the Users flow | id, API key and version of its throwaway user |
 | `mcpSecondKeyId` | `listApiKeys` (step `keys.list`) | the id of the second key of the flow user |
