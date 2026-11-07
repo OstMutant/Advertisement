@@ -29,7 +29,9 @@
  *   - "non-privileged non-owner sees no Edit button": someone else's card and overlay, own card.
  *   - "user opens a provider deep link": overlay, field order, contact reveal, anonymous feedback
  *     panel, share button, sitemap.xml, crawler meta tags, card click and browser Back.
- *   - "user deletes their own provider profile from the public catalog".
+ *   - "user deletes their own provider profile from the public catalog": confirm dialog, only the own
+ *     card removed from the scoped catalog, empty AccountOverlay state, its flagged review and reply
+ *     removed from the moderation queue with it.
  *   - "moderator reports and moderates a review and a reply": report popup, merged queue, profile
  *     link, approve restores both.
  *   - "moderator works a 7-item moderation queue": filters, pagination, confirm violation and the
@@ -1229,7 +1231,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('user deletes their own provider profile from the public catalog — confirm dialog, only the own card removed from the scoped catalog, empty AccountOverlay state', async ({ pageAs, createUser, adminKey, request, unique }) => {
+  test('user deletes their own provider profile from the public catalog — confirm dialog, only the own card removed from the scoped catalog, empty AccountOverlay state, its flagged review and reply removed from the moderation queue with it', async ({ pageAs, createUser, adminKey, request, unique }) => {
     const category = await createCategory(request, adminKey, unique, 'Electronics');
     const city = await createCity(request, adminKey, unique, 'Kyiv');
     const own = await createOwnerWithProfile(request, createUser, profileBody({
@@ -1238,6 +1240,17 @@ test.describe('Provider Profile flow', () => {
     await createOwnerWithProfile(request, createUser, profileBody({
       kind: 'SHOP', about: 'Another retail shop for electronics.', categories: [category], city,
     }));
+    const reason = unique('Cascade');
+    const reviewer = await createUser();
+    const { feedbackId } = await reviewViaApi(request, reviewer, own.profileId, 4, 'Review removed together with its profile.');
+    await replyViaApi(request, own.key, feedbackId, 'Reply removed together with its profile.');
+    const reporter = await createUser();
+    const reporterKey = await issueApiKeyViaApi(request, reporter);
+    await flagViaApi(request, reporterKey, `/api/feedback/${feedbackId}/flags`, `${reason}: flagged review`);
+    await flagViaApi(request, reporterKey, `/api/feedback/${feedbackId}/reply/flags`, `${reason}: flagged reply`);
+    const queueBefore = await request.get('/api/moderation/queue', { headers: bearer(adminKey), params: { reasonText: reason } });
+    expect(queueBefore.ok()).toBeTruthy();
+    expect((await queueBefore.json()).filter(entry => entry.profileId === own.profileId)).toHaveLength(2);
     const page = await pageAs(own.owner);
     await openProvidersTab(page);
     await applyCatalogFilter(page, { categories: [category] });
@@ -1263,6 +1276,12 @@ test.describe('Provider Profile flow', () => {
     await openProviderProfileTab(page);
     await expect(emptyProfileText(page)).toBeVisible({ timeout: 5000 });
     await runCloseSettingsFlow(page);
+
+    await test.step('the profile\'s flagged review and reply left the moderation queue with it', async () => {
+      const queueAfter = await request.get('/api/moderation/queue', { headers: bearer(adminKey), params: { reasonText: reason } });
+      expect(queueAfter.ok()).toBeTruthy();
+      expect(await queueAfter.json()).toHaveLength(0);
+    });
   });
 
   test('moderator reports and moderates a review and a reply on a provider\'s profile — report-with-reason popup, merged moderation queue lists both with a working profile link, approve restores both', async ({ pageAs, moderatorAccount, createUser, adminKey, request, unique }) => {

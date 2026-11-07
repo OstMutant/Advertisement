@@ -121,6 +121,12 @@ public class FeedbackPortImpl implements FeedbackPort {
     }
 
     @Override
+    @Transactional
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        service.deleteByEntity(entityType, entityId);
+    }
+
+    @Override
     public List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable) {
         return service.findHiddenFeedback(pageable);
     }

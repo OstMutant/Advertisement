@@ -70,6 +70,9 @@ public interface FeedbackPort {
     /** Permanently removes a reply. */
     void rejectComment(@NonNull Long commentId);
 
+    /** Hard-deletes every feedback entry of the owning entity with its reply, rating and content, and the entity's aggregate row. */
+    void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId);
+
     /** Hidden feedback entries awaiting moderation review, oldest first. */
     List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable);
 

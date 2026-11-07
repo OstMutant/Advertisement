@@ -25,7 +25,7 @@ allowed to perform directly against multiple domain `*Port`s.
 
 | Class | Role |
 |---|---|
-| `AdvertisementSaveService`/`ProviderProfileSaveService` | The atomic save/delete transaction per domain — write + taxon assignment + audit capture (+ attachment gallery, advertisement only), one `TransactionTemplate`-bounded unit each. |
+| `AdvertisementSaveService`/`ProviderProfileSaveService` | The atomic save/delete transaction per domain — write + taxon assignment + audit capture (+ attachment gallery, advertisement only), one `TransactionTemplate`-bounded unit each; a provider profile's delete also removes its contact info and its feedback. |
 | `AuthorizationService` | The single source of truth for ownership/role rules (`canOperate`/`isPrivileged`/`require*`) — both `AccessEvaluator` (`marketplace-app`) and this module's own save/delete services call through it, so a REST caller and a Vaadin user get identical authorization behavior. |
 | `TaxonLookupService`/`ActorLookupService`/`TaxonAssignmentWriteService` | Shared read/write collaborators every domain's save path reuses, instead of each domain re-implementing the same `TaxonPort`/`UserPort` calls. |
 | `EntityExistenceService` | The one class allowed to hold more than two domain `*Port`s directly (all four) — pure per-`EntityType` existence-check dispatch with no cross-port composition to extract. |

@@ -291,6 +291,11 @@ public class FeedbackService {
         repository.deleteCommentHard(commentId, existing.contentId());
     }
 
+    @Transactional
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        repository.deleteByEntity(entityType, entityId);
+    }
+
     @Transactional(readOnly = true)
     public List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable) {
         return toDtoPage(repository.findHiddenFeedback(pageable), FeedbackService::toDto);

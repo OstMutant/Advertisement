@@ -14,8 +14,12 @@ import org.ost.platform.feedback.spi.FeedbackPort;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +42,26 @@ class FeedbackAccessServiceTest {
     @BeforeEach
     void setUp() {
         service = new FeedbackAccessService(tx, feedbackPortFactory, auditPortFactory, userActorNameService, authorizationService, promotionRefreshService);
+    }
+
+    @Test
+    void deleteByEntity_portPresent_delegatesToPort() {
+        doAnswer(inv -> {
+            Consumer<FeedbackPort> consumer = inv.getArgument(0);
+            consumer.accept(feedbackPort);
+            return null;
+        }).when(feedbackPortFactory).ifAvailable(any());
+
+        service.deleteByEntity(EntityType.PROVIDER_PROFILE, PROFILE_ID);
+
+        verify(feedbackPort).deleteByEntity(EntityType.PROVIDER_PROFILE, PROFILE_ID);
+    }
+
+    @Test
+    void deleteByEntity_portAbsent_doesNothing() {
+        service.deleteByEntity(EntityType.PROVIDER_PROFILE, PROFILE_ID);
+
+        verify(feedbackPort, never()).deleteByEntity(any(), any());
     }
 
     @Test

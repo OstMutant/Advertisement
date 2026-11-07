@@ -94,6 +94,11 @@ public class FeedbackAccessService {
         feedbackPortFactory.get().deleteComment(commentId);
     }
 
+    /** Removes the entity's reviews, replies, ratings and rating summary without touching its promotion placements -- the caller removes those. */
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        feedbackPortFactory.ifAvailable(port -> port.deleteByEntity(entityType, entityId));
+    }
+
     public Map<Long, String> resolveAuthorNames(@NonNull Set<Long> authorIds) {
         return userActorNameService.resolveNames(authorIds);
     }

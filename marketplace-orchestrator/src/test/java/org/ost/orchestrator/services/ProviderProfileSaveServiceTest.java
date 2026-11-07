@@ -43,6 +43,7 @@ class ProviderProfileSaveServiceTest {
     @Mock private AuditPort auditPort;
     @Mock private TaxonAssignmentWriteService taxonAssignmentWriteService;
     @Mock private ContactAccessService contactAccessService;
+    @Mock private FeedbackAccessService feedbackAccessService;
     @Mock private ProviderProfileDisplayEnrichmentService displayEnrichmentService;
     @Mock private CurrentLocaleService currentLocaleService;
     @Mock private SitemapService sitemapService;
@@ -54,7 +55,7 @@ class ProviderProfileSaveServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProviderProfileSaveService(tx, providerProfilePortFactory, auditPortFactory,
-                taxonAssignmentWriteService, contactAccessService, displayEnrichmentService, currentLocaleService, sitemapService, authorizationService, promotionRefreshService);
+                taxonAssignmentWriteService, contactAccessService, feedbackAccessService, displayEnrichmentService, currentLocaleService, sitemapService, authorizationService, promotionRefreshService);
         lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
@@ -285,6 +286,7 @@ class ProviderProfileSaveServiceTest {
         verify(providerProfilePort).delete(profileId, version);
         verify(taxonAssignmentWriteService).clear(EntityType.PROVIDER_PROFILE, profileId);
         verify(contactAccessService).delete(EntityType.PROVIDER_PROFILE, profileId);
+        verify(feedbackAccessService).deleteByEntity(EntityType.PROVIDER_PROFILE, profileId);
         verify(promotionRefreshService).entityRemoved(EntityType.PROVIDER_PROFILE, profileId);
         ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureDeletion(eq(profileId), snapshotCaptor.capture(), eq(ACTOR_ID));
@@ -302,6 +304,7 @@ class ProviderProfileSaveServiceTest {
                 .isInstanceOf(AccessDeniedException.class);
         verify(providerProfilePort, never()).delete(any(), any());
         verify(taxonAssignmentWriteService, never()).clear(any(), any());
+        verify(feedbackAccessService, never()).deleteByEntity(any(), any());
     }
 
     @Test

@@ -445,3 +445,14 @@ once failed in a full run (`$[0].id` expected the newer profile, got the older o
 and in two later full runs. Nothing explains the swap: both profiles are created over a second apart
 and the query orders by `created_at DESC, id DESC`. If it fails again, capture the SQL and both
 `created_at` values before touching the test.
+
+### 40. Reviews a deleted user wrote on other profiles stay behind (found during improvement-239, 2026-11-06)
+
+`UserDeleteService` cascades the user's own advertisements, provider profile and API keys, then
+soft-deletes the account; the retention purge removes the row later. `feedback.author_id` and
+`feedback_comment.author_id` have no foreign key, so the reviews and replies the user wrote on other
+profiles stay, and their author shows with the "deleted" mark like any historical actor. Removing them
+is a product decision (privacy of the author's text against the stability of other profiles' ratings)
+and a larger change: each affected profile needs its aggregate recounted and its promotion refreshed,
+and the cascade needs a feedback delete by author next to the one by owning entity. Decide first
+whether they go on deletion, on purge, or stay.

@@ -409,6 +409,34 @@ public class FeedbackRepository {
                 .update();
     }
 
+    /** Hard-deletes every feedback entry of one owning entity with its reply, rating and content rows, plus the entity's aggregate row -- no FK cascade configured. */
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("entityType", entityType.name())
+                .addValue("entityId", entityId);
+        jdbcClient.sql("""
+                        WITH deleted_comments AS (
+                            DELETE FROM feedback_comment
+                            WHERE feedback_id IN (SELECT id FROM feedback WHERE entity_type = :entityType AND entity_id = :entityId)
+                            RETURNING content_id
+                        ), deleted_ratings AS (
+                            DELETE FROM feedback_rating
+                            WHERE feedback_id IN (SELECT id FROM feedback WHERE entity_type = :entityType AND entity_id = :entityId)
+                        ), deleted_feedback AS (
+                            DELETE FROM feedback
+                            WHERE entity_type = :entityType AND entity_id = :entityId
+                            RETURNING content_id
+                        )
+                        DELETE FROM feedback_content
+                        WHERE id IN (SELECT content_id FROM deleted_comments UNION SELECT content_id FROM deleted_feedback)
+                        """)
+                .paramSource(params)
+                .update();
+        jdbcClient.sql("DELETE FROM feedback_aggregate WHERE entity_type = :entityType AND entity_id = :entityId")
+                .paramSource(params)
+                .update();
+    }
+
     private String buildModerationQueueWhere(MapSqlParameterSource params, ModerationQueueFilterDto filter, Set<Long> authorIds) {
         StringBuilder where = new StringBuilder(" WHERE ");
         if (filter.getStatuses() == null || filter.getStatuses().isEmpty()) {

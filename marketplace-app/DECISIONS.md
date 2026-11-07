@@ -2190,6 +2190,10 @@ all member enums' keys as a hard requirement.
 (see ADR-073 and `marketplace-orchestrator/CLAUDE.md`); this decision's reasoning still applies to
 those classes in their new location.
 
+**Verified:** 2026-11-07
+
+**Applied:** 1
+
 **Context:** `UserService.delete()` was a hard `DELETE`, the only hard-delete lifecycle mutation in the system
 and the only one with no audit capture. User picked Option A: soft-delete, aligning with
 advertisement/taxon.

@@ -62,8 +62,8 @@ feedback write/flag/approve)
   `review_count`; the aggregate is recomputed in the same transaction as every feedback write,
   flag, and approve.
 - No FK cascade between `feedback`/`feedback_rating`/`feedback_comment`/`feedback_content` — hard
-  deletes (`deleteCommentHard`, `deleteFeedbackHard`) issue each `DELETE` explicitly, in FK-safe
-  order.
+  deletes (`deleteCommentHard`, `deleteFeedbackHard`, and `deleteByEntity` for every entry of one
+  owning entity plus its `feedback_aggregate` row) issue each `DELETE` explicitly, in FK-safe order.
 - Who may write the single reply (only the reviewed provider-profile's owner) is **not** enforced
   in this starter — that authorization check lives in `marketplace-orchestrator`'s
   `FeedbackCommentWriteService`, since this starter must not depend on `ProviderProfilePort`. This

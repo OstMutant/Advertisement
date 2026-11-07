@@ -98,7 +98,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 239 | improvement-239 — deleting a provider profile leaves its reviews, replies and rating summary behind (no feedback delete by owning entity; `ProviderProfileSaveService.delete` clears taxon assignments and contacts only); add the delete and call it inside the same transaction so deleting means deleting everywhere |
 | Top | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
@@ -106,12 +105,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Nice to have | — | 036, 112, 191, 039, 118 | the lowest-priority tasks: anything that lands here is picked up after everything above. improvement-036 — actuator and structured JSON logs; the plan is researched and approved, execution not started. improvement-112 — a failing enrichment port blanks the advertisement list; the plan is researched, four decisions (edit and save paths, link-preview cache, REST/MCP note, other gaps) are unanswered, nothing implemented. improvement-191 — UI/UX modernization map (Query Block, Header/Tabs, surfaces, typography, dialogs, Timeline, User UI, attachments, Provider Profile); first step is a document, not code, and it waits on the open design questions of improvement-129; deliberately parked at the user's request. improvement-039 — dark mode: Dark mode — a real implementation attempt failed (UI wiring confirmed broken); deprioritized to the very bottom 2026-09-16 pending a decision on whether the feature is even wanted, not just how to build it. improvement-118 — manual check of the Open Graph preview in real Facebook and Telegram: F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-239
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-239](tasks/improvement-239-delete-profile-deletes-its-feedback.md) | New (found while planning improvement-235; the user asked for it at the top, 2026-11-05) | `FeedbackPort.deleteByEntity` removing every review, reply, rating and the aggregate of a deleted profile, called inside `ProviderProfileSaveService.delete`'s transaction next to the contact cascade |
 
 ### Top priority — improvement-237
 

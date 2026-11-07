@@ -320,7 +320,9 @@ question at extraction time, not verified against a real second caller yet.
 ## ADR-002: `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step
 **Status:** Accepted
 
-**Applied:** 1
+**Verified:** 2026-11-07
+
+**Applied:** 2
 
 **Context:** `AdvertisementService.delete()` (the starter) used to clean up the advertisement's own
 taxon assignments and attachments before soft-deleting the row, all inside one

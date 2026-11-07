@@ -37,6 +37,8 @@ persistence through `FeedbackRepository`:
   one visible again, `confirm*Violation` keeps it hidden permanently, `reject*` removes it; the
   hidden and confirmed-violation lists and the filtered, sorted and paged
   `findModerationQueue`/`countModerationQueue` feed the moderator queue.
+- `deleteByEntity` hard-deletes every entry of one owning entity with its reply, rating and
+  content rows and the entity's `feedback_aggregate` row, in one `@Transactional` call.
 - `findForEntity`/`count` read paginated entries for one owning entity, ordered by `created_at
   DESC`.
 - `getAggregate` reads the denormalized `feedback_aggregate` row, or a zero-value default when no

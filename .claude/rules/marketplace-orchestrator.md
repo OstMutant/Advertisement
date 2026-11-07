@@ -52,7 +52,8 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   two distinct identity parameters — `targetUserId` (whose profile this is, forwarded to
   `ProviderProfilePort.save()` as the row owner; it names the owner only for a create, while an edit is authorized against the existing profile's real owner) and `actorId` (who performed the save, audit-only)
   — since an admin/moderator editing another user's profile makes the two diverge. No attachment
-  gallery step (unlike Advertisement) — provider profiles carry no media.
+  gallery step (unlike Advertisement) — provider profiles carry no media. `delete` also clears the
+  profile's contact info and its reviews, replies and rating summary (`FeedbackAccessService`) in the same transaction.
 - `AdvertisementOwnerProfileLookupService` — resolves an advertisement's owner's provider profile
   id (`AdvertisementPort` + `ProviderProfilePort`), `ContactAccessService`'s own collaborator for the
   ADVERTISEMENT-to-owner's-PROVIDER_PROFILE contact lookup, same "extract a services.* collaborator"
@@ -79,6 +80,8 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   starter (author names resolved here for the current page only) as a `ModerationQueuePage`. The queue read and the hidden/confirmed-violation list reads require a privileged caller.
   `approveFeedback`/`approveComment` act only on a HIDDEN or CONFIRMED_HIDDEN entry, and
   `confirm*Violation` only on a HIDDEN one; any other status throws `FeedbackNotModeratableException`.
+  `deleteByEntity` removes every review, reply, rating and the aggregate of one owning entity and does
+  nothing when the feedback starter is absent; it records no audit entry, like the contact cascade.
 - `FeedbackCommentWriteService` — the owner-check collaborator for the single reply: only the
   reviewed `PROVIDER_PROFILE`'s own owner may create it (`FeedbackAccessService` +
   `ProviderProfileReadService` + `AuthorizationService.isOwner`), only the comment's own author may
