@@ -6,7 +6,7 @@
 
 **Status:** Accepted
 
-**Applied:** 1
+**Applied:** 2
 
 **Also affects:** marketplace-orchestrator, marketplace-app, marketplace-rest-api, marketplace-mcp, feedback-spring-boot-starter, provider-profile-spring-boot-starter, promotion-spring-boot-starter
 

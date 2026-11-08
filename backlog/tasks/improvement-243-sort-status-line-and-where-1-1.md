@@ -35,7 +35,7 @@ The line under the query block names the sort fields in the order the list is re
 
 ## Related
 
-- [improvement-241](improvement-241-database-refactoring.md): the database refactoring in which `WHERE 1=1` was found.
+- [improvement-241](../completed/tasks/improvement-241-database-refactoring.md): the database refactoring in which `WHERE 1=1` was found.
 - ADR-003 (marketplace-app).
 
 ## Operational notes

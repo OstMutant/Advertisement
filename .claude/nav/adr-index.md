@@ -89,7 +89,7 @@ yet — not zero.
 | ADR-029 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  |  | Bounded Contexts renders via Cytoscape as 4 category-split diagrams — flat domain nodes, per-edge evidence traced to its real caller |
 | ADR-032 (docs/architecture/scripts) | docs/architecture/scripts | Accepted — point 4's live Mermaid drawing of a README fence is superseded by ADR-036. **Verified:** 2026-08-21 |  |  | Every `SCRIPT_GROUP` script self-documents via a fixed 7-field header, plus a rendered `README.md` per directory — no hand-written prose describing what a script does anywhere in the tool |
 | ADR-001 (html-sanitizer-lib) | html-sanitizer-lib | Accepted |  |  | New shared library module for HTML sanitization — narrow admission criterion |
-| ADR-011 (integration-tests) | integration-tests | Accepted |  |  | Level 3 scenario tests derive expected ordering from observed DB timestamps instead of pinning them |
+| ADR-011 (integration-tests) | integration-tests | Accepted |  | 1 | Level 3 scenario tests derive expected ordering from observed DB timestamps instead of pinning them |
 | ADR-009 (integration-tests) | integration-tests | Accepted |  |  | Widen integration-tests scope to a 3-level test structure (starters / orchestrator / REST API) |
 | ADR-001 (integration-tests) | integration-tests | Accepted |  |  | One module owns every Testcontainers test — domain starters carry zero test code |
 | ADR-002 (integration-tests) | integration-tests | Accepted |  |  | Singleton Testcontainers Postgres container, shared across the whole `mvn test` run |
@@ -204,14 +204,14 @@ yet — not zero.
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Applied:** 1 |  |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
-| ADR-035 (platform-commons) | platform-commons | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | marketplace-orchestrator | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | marketplace-app | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | marketplace-rest-api | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | marketplace-mcp | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | feedback-spring-boot-starter | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
-| ADR-035 (platform-commons) | promotion-spring-boot-starter | Accepted |  | 1 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | platform-commons | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | marketplace-orchestrator | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | marketplace-app | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | marketplace-rest-api | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | marketplace-mcp | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | feedback-spring-boot-starter | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
+| ADR-035 (platform-commons) | promotion-spring-boot-starter | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
 | ADR-034 (platform-commons) | platform-commons | Accepted |  | 1 | `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement` |
 | ADR-033 (platform-commons) | platform-commons | Accepted |  |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
 | ADR-032 (platform-commons) | platform-commons | Accepted |  |  | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |

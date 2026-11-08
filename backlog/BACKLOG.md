@@ -103,7 +103,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Top | ⚪ | 244 | improvement-244 — research: does the project need a wiki, and can a documentation tool replace the Architecture Control Plane, or is it better to keep it |
 | Top | 🟡 | 243 | improvement-243 — the sort line of the list pages shows the order of the fields in the panel, not the real sort order, and no test checks it; `WHERE 1=1` in two repositories |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
-| Top | 🟡 | 241 | improvement-241 — database refactoring; no content yet, the user asked for the task without a description |
 | Top | 🟡 | 240 | improvement-240 — `/sync-docs` does not behave correctly: its default scope misses uncommitted work and its last step repeats what the CI docs stage does; refactor it |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Later | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
@@ -142,12 +141,6 @@ Details, links, and per-batch rationale below.
 | Task | Origin | What |
 |---|---|---|
 | [improvement-242](tasks/improvement-242-remove-all-containers-script.md) | New (the user asked for it at the top, 2026-11-08) | A script that removes every project container and never the working session's own; a dry-run mode to check what it would remove |
-
-### Top priority — improvement-241
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-241](tasks/improvement-241-database-refactoring.md) | New (the user asked for it at the top, without a description, 2026-11-07) | Database refactoring; no content yet |
 
 ### Top priority — improvement-240
 

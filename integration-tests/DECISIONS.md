@@ -5,6 +5,8 @@
 ## ADR-011: Level 3 scenario tests derive expected ordering from observed DB timestamps instead of pinning them
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** Level 3 scenario tests asserting sort/filter behavior over `created_at`/`updated_at`
 repeatedly failed under real host/container clock non-monotonicity (a later INSERT landing an
 earlier timestamp than an earlier one) — confirmed directly against live CI data, not assumed. An

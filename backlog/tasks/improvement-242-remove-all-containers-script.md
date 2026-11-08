@@ -34,7 +34,7 @@ Open questions to settle before writing: how the script learns which container i
 ## Related
 
 - `deploy-and-run.sh --prune-all`, `--reset` and `ci.sh --reset-e2e-stack`, `--reset-ci-cache`: the existing, narrower cleanups listed above.
-- [improvement-241](improvement-241-database-refactoring.md): its test runs and the full CI run that prompted this task.
+- [improvement-241](../completed/tasks/improvement-241-database-refactoring.md): its test runs and the full CI run that prompted this task.
 
 ## Operational notes
 - token_cost_review: n/a

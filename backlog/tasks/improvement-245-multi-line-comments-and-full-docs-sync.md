@@ -38,7 +38,7 @@ The two test classes follow the comment rule and their rationale lives in one ca
 ## Related
 
 - [improvement-240](improvement-240-sync-docs-refactor.md): the `/sync-docs` command and its report.
-- [improvement-241](improvement-241-database-refactoring.md): the work in which the comments were found.
+- [improvement-241](../completed/tasks/improvement-241-database-refactoring.md): the work in which the comments were found.
 
 ## Operational notes
 - token_cost_review: n/a
