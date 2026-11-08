@@ -48,6 +48,8 @@ settled against the advertising law; nothing else changes, since it uses the sam
 badge. The starter is optional like every other: with it absent, nothing is promoted and the list is
 unchanged.
 
+**Update:** `promotion_placement` has no `valid_from` or `valid_until` columns and a placement has no period: a reason's writer adds the row while the entry is promoted and removes it when it stops, as every other table reads a state from a fact and not from a comparison with the clock. A purchase will end through its own expiry cleanup in the payment module, and the badge carries the reason alone, with no end date for any caller.
+
 ---
 
 ## ADR-034: `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement`

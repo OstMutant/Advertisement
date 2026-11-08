@@ -67,11 +67,6 @@
                        columnNames="taxon_id, locale"
                        constraintName="pk_taxon_translation"/>
 
-        <createIndex indexName="idx_taxon_translation_locale_name" tableName="taxon_translation">
-            <column name="locale"/>
-            <column name="name"/>
-        </createIndex>
-
         <!-- ── taxon_assignment ──────────────────────────────────────────── -->
         <createTable tableName="taxon_assignment"
                       remarks="Generic: any entity type can have taxons assigned (no FK to advertisement table). Idempotent assignment (replaceAssignments handles add/remove diff). Used for filtering advertisements by category without exposing the join table to marketplace UI.">
@@ -89,7 +84,6 @@
             <column name="assigned_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="When the assignment was made">
                 <constraints nullable="false"/>
             </column>
-            <column name="assigned_by" type="BIGINT" remarks="User ID who made the assignment"/>
         </createTable>
 
         <addPrimaryKey tableName="taxon_assignment"

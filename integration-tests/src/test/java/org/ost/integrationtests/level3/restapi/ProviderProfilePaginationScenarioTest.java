@@ -175,9 +175,9 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
                         .contentType(MediaType.APPLICATION_JSON).content(updateBody))
                 .andExpect(status().isOk());
 
-        // Direct before/after check that the update itself bumped updated_at -- independent of the sort assertion below.
+        // Direct before/after check that the update itself rewrote updated_at -- different, not later, because the clock can step back.
         Map<Long, Instant> updatedAtById = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", ids);
-        org.assertj.core.api.Assertions.assertThat(updatedAtById.get(first.id())).isAfter(firstUpdatedAtBefore);
+        org.assertj.core.api.Assertions.assertThat(updatedAtById.get(first.id())).isNotEqualTo(firstUpdatedAtBefore);
 
         List<String> expectedUpdatedDesc = ids.stream().sorted(Comparator.comparing(updatedAtById::get).reversed())
                 .map(aboutById::get).toList();
@@ -256,11 +256,16 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
     @Test
     void noSortParam_pagesInUiDefaultOrderWithoutRepeatOrGap() throws Exception {
         RegisteredUser reader = readerWithPageSize5();
-        java.util.List<String> expected = new java.util.ArrayList<>();
+        Map<Long, String> aboutById = new java.util.LinkedHashMap<>();
         for (int i = 1; i <= 12; i++) {
-            createProvider("Provider%02d".formatted(i), "MASTER", null, null);
-            expected.add(0, "About Provider%02d".formatted(i));
+            CreatedProvider created = createProvider("Provider%02d".formatted(i), "MASTER", null, null);
+            aboutById.put(created.id(), "About Provider%02d".formatted(i));
         }
+        Map<Long, Instant> updatedAtById = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", List.copyOf(aboutById.keySet()));
+        // The default order is promoted first, then updatedAt descending; none is promoted here, so the expectation follows the stored timestamps.
+        java.util.List<String> expected = aboutById.keySet().stream()
+                .sorted(Comparator.comparing(updatedAtById::get).reversed())
+                .map(aboutById::get).toList();
 
         java.util.List<String> abouts = collectField("/api/provider-profiles", "about", reader.rawApiKey(), null, null, null, 3);
 

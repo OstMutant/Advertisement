@@ -189,9 +189,13 @@ Per-module documentation:
 | taxon-spring-boot-starter | [README](taxon-spring-boot-starter/README.md) | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
 | provider-profile-spring-boot-starter | [README](provider-profile-spring-boot-starter/README.md) | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
 | apikey-spring-boot-starter | [README](apikey-spring-boot-starter/README.md) | [DECISIONS](apikey-spring-boot-starter/DECISIONS.md) |
+| contact-spring-boot-starter | [README](contact-spring-boot-starter/README.md) | [DECISIONS](contact-spring-boot-starter/DECISIONS.md) |
+| feedback-spring-boot-starter | [README](feedback-spring-boot-starter/README.md) | [DECISIONS](feedback-spring-boot-starter/DECISIONS.md) |
+| promotion-spring-boot-starter | [README](promotion-spring-boot-starter/README.md) | [DECISIONS](promotion-spring-boot-starter/DECISIONS.md) |
 | integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
 | marketplace-orchestrator | [README](marketplace-orchestrator/README.md) | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
 | marketplace-rest-api | [README](marketplace-rest-api/README.md) | [DECISIONS](marketplace-rest-api/DECISIONS.md) |
+| marketplace-mcp | [README](marketplace-mcp/README.md) | [DECISIONS](marketplace-mcp/DECISIONS.md) |
 | marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
 | playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
 | scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |

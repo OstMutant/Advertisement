@@ -44,7 +44,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   of a direct `LocaleProvider`/`I18nService` dependency.
 - `ProviderProfileDisplayEnrichmentService` — the ProviderProfile equivalent of the Advertisement
   enrichment service (category/city/actor, plus the promotion badge fields through
-  `enrichWithPromotion`, whose end date is filled only for privileged callers — no attachments).
+  `enrichWithPromotion` — no attachments).
 - `ProviderProfileSaveService` — the ProviderProfile equivalent of `AdvertisementSaveService`:
   write + category/city assignment (via `TaxonAssignmentWriteService.unionAssignmentIds` +
   `TaxonAssignmentWriteService`) + audit capture, one `TransactionTemplate`-bounded unit.
@@ -127,7 +127,7 @@ lookup services live in one flat `org.ost.orchestrator.services` (no per-domain 
   wrapping `ComponentFactory<ProviderProfilePort>`'s `getFiltered`/`count`/`findById`/`isAvailable`
   for the public Providers catalog listing, distinct from `ProviderProfileSaveService`'s
   write/single-lookup methods. `getFiltered`/`count` ask `PromotionCatalogService` for the scope, so a
-  promoted filter or sort works the same through every door.
+  promoted filter or sort works the same through every door; `getFilteredWithoutPromotion` is the same page without promotion marks, for callers that never show them (the sitemap).
 - `SitemapService` — builds and caches `/sitemap.xml`'s XML body (advertisements + provider
   profiles, one Caffeine cache entry, 15-minute TTL). `AdvertisementSaveService`/
   `ProviderProfileSaveService` call `invalidate()` after every save/delete, since both already live

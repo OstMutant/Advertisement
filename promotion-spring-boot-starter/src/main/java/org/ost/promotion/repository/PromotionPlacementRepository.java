@@ -10,10 +10,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 /** Bespoke {@code JdbcClient} queries for {@code promotion_placement}; there is no trivial save or find, so no {@code CrudRepository}. */
 @Repository
@@ -24,18 +22,15 @@ public class PromotionPlacementRepository {
     private static final RowMapper<PromotionPlacementDto> ROW_MAPPER = (rs, _) -> new PromotionPlacementDto(
             EntityType.valueOf(rs.getString("entity_type")),
             rs.getLong("entity_id"),
-            PromotionReason.valueOf(rs.getString("reason")),
-            rs.getTimestamp("valid_from").toInstant(),
-            Optional.ofNullable(rs.getTimestamp("valid_until")).map(Timestamp::toInstant).orElse(null));
+            PromotionReason.valueOf(rs.getString("reason")));
 
     private final JdbcClient jdbcClient;
 
-    public List<PromotionPlacementDto> findActive(@NonNull EntityType entityType) {
+    public List<PromotionPlacementDto> findPromoted(@NonNull EntityType entityType) {
         return jdbcClient.sql("""
-                        SELECT entity_type, entity_id, reason, valid_from, valid_until
+                        SELECT entity_type, entity_id, reason
                         FROM promotion_placement
                         WHERE entity_type = :entityType AND reason IN (:reasons)
-                          AND valid_from <= NOW() AND (valid_until IS NULL OR valid_until > NOW())
                         ORDER BY reason, entity_id
                         """)
                 .paramSource(new MapSqlParameterSource()

@@ -15,7 +15,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
@@ -80,7 +79,6 @@ public class ProviderProfileApiController {
     private final ActivityHistorySupport activityHistorySupport;
     private final SnapshotRestoreService snapshotRestoreService;
     private final MergePatchSupport mergePatchSupport;
-    private final AuthorizationService authorizationService;
 
     @Operation(operationId = "createProviderProfile", summary = "Create a provider profile", description = "Self-service only -- the profile is always created for the caller's own account. categoryIds come from GET /api/taxons?type=CATEGORY, cityTaxonId from GET /api/taxons?type=CITY. kind=SUPPORT requires a privileged (admin/moderator) caller.")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
@@ -104,7 +102,7 @@ public class ProviderProfileApiController {
         return enrich(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers. Default order when sort is omitted: promoted profiles first, then most recently changed, then most recently created, then id; sort=promoted,asc lists the promoted ones last. promoted=true keeps only promoted profiles. Each item has promoted, promotionReason and, for administrators and moderators, promotionValidUntil.")
+    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers. Default order when sort is omitted: promoted profiles first, then most recently changed, then most recently created, then id; sort=promoted,asc lists the promoted ones last. promoted=true keeps only promoted profiles. Each item has promoted and promotionReason.")
     @GetMapping
     public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
@@ -112,7 +110,7 @@ public class ProviderProfileApiController {
             HttpServletRequest httpRequest) {
         int size = userProfileService.resolveProviderProfilesPageSize(actorId);
         Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS, DEFAULT_SORT);
-        List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj, withPromotionDetails(actorId));
+        List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj);
         items = enrichmentService.enrichWithCategoriesAndCity(items, Locale.forLanguageTag(locale));
         items = enrichmentService.enrichWithActorInfo(items);
         int total = readService.count(filter);
@@ -124,9 +122,9 @@ public class ProviderProfileApiController {
             description = "Public. Returns one provider profile with its ETag, the version to send back via If-Match on update or delete. 404 when the id is unknown.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
-    public ResponseEntity<ProviderProfileDto> getById(@AuthenticationPrincipal Long actorId, @PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
+    public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
         ProviderProfileDto profile = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
-        profile = enrichmentService.enrichWithPromotion(profile, withPromotionDetails(actorId));
+        profile = enrichmentService.enrichWithPromotion(profile);
         return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
     }
 
@@ -203,10 +201,6 @@ public class ProviderProfileApiController {
                 request.phone(), request.telegram(), request.viber(), version);
         Long savedId = saveService.save(dto, actorId, actorId);
         return enrich(readService.findById(savedId).orElseThrow(), SupportedLocales.DEFAULT);
-    }
-
-    private boolean withPromotionDetails(Long actorId) {
-        return actorId != null && authorizationService.isPrivileged(actorId);
     }
 
     private ProviderProfileDto enrich(ProviderProfileDto profile, Locale locale) {

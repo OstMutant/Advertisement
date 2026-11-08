@@ -6,25 +6,22 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="01-promotion-schema" author="ostap">
+        <validCheckSum>ANY</validCheckSum>
 
         <createTable tableName="promotion_placement"
-                      remarks="A promotion placement of any owning entity: which entry is lifted out of the catalog, why and until when. One writer owns each reason's rows; no column on the promoted entity's own table. Same entity_type+entity_id convention as contact_info and audit_log, no DB-level FK, resolved only via PromotionPlacementPort, never a SQL join.">
+                      remarks="A promotion placement of any owning entity: which entry is lifted out of the catalog and why. One writer owns each reason's rows; no column on the promoted entity's own table. Same entity_type+entity_id convention as contact_info and audit_log, no DB-level FK, resolved only via PromotionPlacementPort, never a SQL join.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(50)" remarks="Promoted entity type (EntityType; PROVIDER_PROFILE today). No FK -- resolved via PromotionPlacementPort, not a join">
+            <column name="entity_type" type="VARCHAR(50)" remarks="Promoted entity type (EntityType; PROVIDER_PROFILE today), resolved via PromotionPlacementPort, not a join">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_id" type="BIGINT" remarks="ID of the promoted entity, provider_profile(id) for PROVIDER_PROFILE, no FK">
+            <column name="entity_id" type="BIGINT" remarks="ID of the promoted entity. References provider_profile(id), no FK">
                 <constraints nullable="false"/>
             </column>
             <column name="reason" type="VARCHAR(30)" remarks="Why the entry is promoted (PromotionReason, TOP_RATED today). Each value has exactly one writer that owns and replaces its rows">
                 <constraints nullable="false"/>
             </column>
-            <column name="valid_from" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Start of the placement; a row is active once this has passed">
-                <constraints nullable="false"/>
-            </column>
-            <column name="valid_until" type="TIMESTAMP WITH TIME ZONE" remarks="End of the placement; null means until its writer removes the row, a purchase sets it"/>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="Creation timestamp">
                 <constraints nullable="false"/>
             </column>
@@ -33,11 +30,6 @@
         <createIndex indexName="idx_promotion_placement_entity_reason" tableName="promotion_placement" unique="true">
             <column name="entity_type"/>
             <column name="entity_id"/>
-            <column name="reason"/>
-        </createIndex>
-
-        <createIndex indexName="idx_promotion_placement_type_reason" tableName="promotion_placement">
-            <column name="entity_type"/>
             <column name="reason"/>
         </createIndex>
     </changeSet>

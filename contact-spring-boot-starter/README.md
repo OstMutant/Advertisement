@@ -1,10 +1,10 @@
 # contact-spring-boot-starter
 
-Split out as its own bounded context rather than folded into `provider-profile-spring-boot-starter`
-or `advertisement-spring-boot-starter`, mirroring why `audit-spring-boot-starter` is its own
-module: the concern (contact data + reveal analytics) is shared across those two domains, and
-either one owning it would mean the other reaching across the sibling-starter boundary
-(`.claude/rules.md`'s "no direct imports between sibling modules") to resolve a fallback.
+Auto-configures contact data and reveal analytics for an owning entity: one contact row per entity
+(only a provider profile owns one today) and an append-only log of reveals, counted per channel per
+month. It is its own starter, mirroring `audit-spring-boot-starter`, so no domain starter has to reach
+across the sibling-starter boundary (`.claude/rules.md`'s "no direct imports between sibling
+modules") to resolve it.
 
 ## What it provides
 

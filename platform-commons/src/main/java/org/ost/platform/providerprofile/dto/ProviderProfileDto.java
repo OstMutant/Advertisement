@@ -31,5 +31,4 @@ public class ProviderProfileDto {
     Long version;
     boolean promoted;
     PromotionReason promotionReason;
-    Instant promotionValidUntil;
 }

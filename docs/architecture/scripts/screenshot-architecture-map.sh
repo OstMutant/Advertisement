@@ -4,7 +4,8 @@
 #   in the long-lived container arch-map-shot (left running, warm, like playwright/run.sh's
 #   pw-runner), since the generated file has no automated visual test of its own, and checks what a
 #   picture cannot show: every Database ERD table sits in a module frame, every ERD and Module
-#   Dependencies arrow has a target row, every README flowchart block is drawn with the edge count
+#   Dependencies arrow has a target row, every ERD Links link has a target row and a click on it
+#   flashes that row, every README flowchart block is drawn with the edge count
 #   of its source, and the page raises no JavaScript error. Mirrors playwright/run.sh's container
 #   conventions but is a standalone tool, not part of the e2e suite.
 # Usage: bash docs/architecture/scripts/screenshot-architecture-map.sh
@@ -15,8 +16,8 @@
 # Outputs: docs/architecture/scripts/architecture-map-screenshots/{01-system,02-diagrams-list,
 #   03-diagram-module-deps,04-module-detail,04b-back-to-diagram-via-breadcrumb,05-diagram-spi,
 #   06-diagram-spi-zoomed,07-pipelines,08-backlog,09-diagram-erd,09b-erd-graph,10-readme-flow-system,
-#   11-readme-flow-tooling,11b-flow-block}.png (gitignored, ephemeral verification artifacts); the
-#   Playwright driver /tmp/arch-map-shot.js on the host; the arch-map-shot container is left running.
+#   11-readme-flow-tooling,11b-flow-block}.png (gitignored, ephemeral verification artifacts; every
+#   run first deletes the existing PNGs in that folder); the Playwright driver /tmp/arch-map-shot.js on the host; the arch-map-shot container is left running.
 # Returns: 0 when every screen was captured and every check held; 1 when the map file is missing, a
 #   check failed or the page raised a JavaScript error.
 # ─────────────────────────────────────────────────────────────────
@@ -138,6 +139,26 @@ async function goSystem(page) {
   console.log('ERD tables/nodes/module frames/orphans/edges:', JSON.stringify(erd));
   if (erd.edgesWithoutRow) jsErrors.push(erd.edgesWithoutRow + ' ERD arrows point at no schema row');
   if (erd.nodes !== erd.tables || erd.orphans) jsErrors.push('ERD graph has ' + erd.nodes + ' table nodes (' + erd.orphans + ' outside a module frame) for ' + erd.tables + ' tables');
+
+  // Links column of the table schemas: every link leads to an existing row and a real click flashes it.
+  const links = await page.evaluate(() => ({
+    anchors: document.querySelectorAll('[data-jump]').length,
+    expected: MODEL.dbErd.conceptualRelationships.length * 2,
+    dangling: [...document.querySelectorAll('[data-jump]')].filter(a => !document.getElementById(a.dataset.jump)).length,
+    standaloneSection: [...document.querySelectorAll('h3')].some(h => h.textContent.startsWith('Relationships not backed by a real foreign key'))
+  }));
+  console.log('ERD Links anchors/expected/dangling/standalone section:', JSON.stringify(links));
+  if (links.anchors !== links.expected) jsErrors.push('ERD has ' + links.anchors + ' Links links, expected ' + links.expected);
+  if (links.dangling) jsErrors.push(links.dangling + ' ERD Links links point at no schema row');
+  if (links.standaloneSection) jsErrors.push('ERD still shows the standalone relationships section');
+  const jumpIds = await page.evaluate(() => [...document.querySelectorAll('[data-jump]')].map(a => a.dataset.jump));
+  let notFlashed = 0;
+  for (let i = 0; i < jumpIds.length; i++) {
+    await page.evaluate(id => document.getElementById(id).classList.remove('row-flash'), jumpIds[i]);
+    await page.locator('[data-jump]').nth(i).click();
+    if (!(await page.evaluate(id => document.getElementById(id).classList.contains('row-flash'), jumpIds[i]))) notFlashed++;
+  }
+  if (notFlashed) jsErrors.push(notFlashed + ' clicks on ERD Links links did not flash their target row');
 
   // README flow blocks on the System page (root README) and the Tooling page (INFRASTRUCTURE.md):
   // every fence must be drawn, none left as raw Mermaid text.

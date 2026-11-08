@@ -74,8 +74,8 @@ public class ProviderProfileDisplayEnrichmentService {
 
     // ── Promotion ────────────────────────────────────────────────────────────
 
-    public ProviderProfileDto enrichWithPromotion(@NonNull ProviderProfileDto profile, boolean withDetails) {
-        return promotionCatalogService.withPromotion(List.of(profile), promotionCatalogService.activePlacements(), withDetails).get(0);
+    public ProviderProfileDto enrichWithPromotion(@NonNull ProviderProfileDto profile) {
+        return promotionCatalogService.withPromotion(List.of(profile), promotionCatalogService.promotedPlacements()).get(0);
     }
 
 }

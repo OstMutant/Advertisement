@@ -29,16 +29,16 @@ public class PromotionCatalogService {
 
     private final ComponentFactory<PromotionPlacementPort> promotionPlacementPortFactory;
 
-    public List<PromotionPlacementDto> activePlacements() {
+    public List<PromotionPlacementDto> promotedPlacements() {
         return promotionPlacementPortFactory.findIfAvailable()
-                .map(port -> port.findActive(EntityType.PROVIDER_PROFILE))
+                .map(port -> port.findPromoted(EntityType.PROVIDER_PROFILE))
                 .orElse(List.of());
     }
 
     /** Like the variant taking placements, but reads them only when the filter or sort actually needs them. */
     public ProviderProfileScope scopeFor(@NonNull ProviderProfileFilterDto filter, @NonNull Sort sort) {
         boolean needed = Boolean.TRUE.equals(filter.getPromoted()) || sort.getOrderFor(ProviderProfileDto.Fields.promoted) != null;
-        return needed ? scopeFor(filter, sort, activePlacements()) : ProviderProfileScope.ALL;
+        return needed ? scopeFor(filter, sort, promotedPlacements()) : ProviderProfileScope.ALL;
     }
 
     public ProviderProfileScope scopeFor(@NonNull ProviderProfileFilterDto filter, @NonNull Sort sort,
@@ -59,9 +59,9 @@ public class PromotionCatalogService {
         return Sort.by(sort.stream().filter(order -> !order.getProperty().equals(ProviderProfileDto.Fields.promoted)).toList());
     }
 
-    /** Marks each profile that has a placement with the highest-ranked one; the end date is filled in only when {@code withDetails}. */
+    /** Marks each profile that has a placement with the highest-ranked one. */
     public List<ProviderProfileDto> withPromotion(@NonNull List<ProviderProfileDto> profiles,
-                                                  @NonNull List<PromotionPlacementDto> placements, boolean withDetails) {
+                                                  @NonNull List<PromotionPlacementDto> placements) {
         Map<Long, PromotionPlacementDto> byEntity = placements.stream()
                 .collect(Collectors.toMap(PromotionPlacementDto::entityId, Function.identity(),
                         BinaryOperator.minBy(Comparator.comparingInt((PromotionPlacementDto placement) -> placement.reason().rank()))));
@@ -70,7 +70,6 @@ public class PromotionCatalogService {
                         .map(promotion -> profile.toBuilder()
                                 .promoted(true)
                                 .promotionReason(promotion.reason())
-                                .promotionValidUntil(withDetails ? promotion.validUntil() : null)
                                 .build())
                         .orElse(profile))
                 .toList();

@@ -14,7 +14,7 @@ Vaadin's server-push UI. No persistence, no Vaadin dependency, same shape as
   services `marketplace-app`'s own Vaadin forms call, so a REST write and a UI write go through
   identical validation/authorization/audit behavior.
 - Promoted provider profiles inside the one list: the list and the single read carry `promoted`,
-  `promotionReason` and, for administrators and moderators, `promotionValidUntil`; `promoted=true`
+  `promotionReason`; `promoted=true`
   keeps only promoted profiles, and the default order lists them first (`sort=promoted,asc` last).
 - Bearer API-key authentication (issuance gated by HTTP Basic) for every write; reads are public
   (mirroring the existing public Vaadin browsing experience) except the history, which needs a key. The caller's own key list hides revoked

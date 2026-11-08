@@ -3,7 +3,7 @@
 **Type:** feature design — what must exist for an advertiser to pay for promotion placement; waits for the promotion placement mechanism, which it plugs into as one more reason
 **Module:** a new payment starter with its port in `platform-commons`, `marketplace-orchestrator` (composition), `marketplace-app` (purchase and "my payments" screens), `marketplace-rest-api` (the provider webhook endpoint and its security rule), the promotion placement mechanism from [improvement-235](improvement-235-promotion-mechanism.md)
 **Priority:** 🔵 later — nothing to do until the mechanism of improvement-235 exists and there is traffic; the user will come back to it then
-**When:** blocked on [improvement-235](improvement-235-promotion-mechanism.md) (the mechanism) and, in practice, on a legal entity and a payment agreement; it comes after [improvement-236](../completed/tasks/improvement-236-list-order-and-edit-bump-rest-mcp-ui-parity.md) in the queue only because the user asked for that order
+**When:** blocked on [improvement-235](improvement-235-promotion-mechanism.md) (the mechanism) and, in practice, on a legal entity and a payment agreement
 
 ## Current state
 

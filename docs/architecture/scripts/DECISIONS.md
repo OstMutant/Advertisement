@@ -91,7 +91,7 @@ generations of the same state against each other.
 
 ## ADR-034: Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list
 
-**Status:** Accepted
+**Status:** Accepted — the small hand-curated list kept by decision #3 was later removed entirely: every conceptual relationship is derived from a `remarks=` marker and no hand-typed list remains
 
 **Context:** `db_erd_conceptual_relationships_json()` (established by ADR-017) held 9 hand-curated
 `{from, to, label}` entries for conceptual (no real SQL-level FK) relationships. Adding
@@ -851,8 +851,8 @@ general correctness fix independent of this diagram's fate.
 
 **Status:** Accepted — decision #3's hand-preserved list of actor-reference/no-FK point
 relationships is superseded by ADR-034 (now derived mechanically from a `remarks=` marker
-convention); the entity_type/entity_id generic-relationship portion of that same list, and every
-other part of this decision, still stands. The Render step (native Mermaid `erDiagram`,
+convention) and the generic entity_type/entity_id remainder of that list was removed too; every
+other part of this decision still stands. The Render step (native Mermaid `erDiagram`,
 `wireDbErdEntityClicks()`) is superseded by ADR-036.
 
 **Context:** Asked to migrate `04-database-erd.md` fully into `architecture-map.html`, same spirit

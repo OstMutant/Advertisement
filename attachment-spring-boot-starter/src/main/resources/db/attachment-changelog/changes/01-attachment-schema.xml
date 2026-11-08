@@ -73,10 +73,6 @@
             <column name="entity_id"/>
         </createIndex>
 
-        <sql>
-            CREATE INDEX IF NOT EXISTS idx_attachment_snapshot_changes ON attachment_snapshot USING GIN (changes_summary);
-        </sql>
-
     </changeSet>
 
 </databaseChangeLog>

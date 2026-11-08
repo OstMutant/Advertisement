@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Assignment-side operations: which taxon ids are attached to a given {@code (EntityType, entityId)} pair, kept separate from {@link TaxonService}'s catalog-side lifecycle since the two are independent write paths with different callers. */
+/** Assignment-side operations: which taxon ids are attached to a given {@code (EntityType, entityId)} pair, kept separate from {@link TaxonService}'s catalog-side lifecycle since the two are independent write paths. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class TaxonAssignmentService {
 
     @Transactional
     public void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
-                                   @NonNull Set<Long> newTaxonIds, Long actorId) {
+                                   @NonNull Set<Long> newTaxonIds) {
         Set<Long> current = assignmentRepository
                 .findAllByEntity(entityType.name(), entityId)
                 .stream()
@@ -41,7 +41,7 @@ public class TaxonAssignmentService {
             assignmentRepository.unassign(entityType.name(), entityId, taxonId);
         }
         for (Long taxonId : toAdd) {
-            assignmentRepository.assign(entityType.name(), entityId, taxonId, actorId);
+            assignmentRepository.assign(entityType.name(), entityId, taxonId);
         }
     }
 

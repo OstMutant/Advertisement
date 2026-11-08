@@ -30,14 +30,14 @@
 
         <!-- ── feedback ─────────────────────────────────────────────────────── -->
         <createTable tableName="feedback"
-                      remarks="A registered user's link row attaching one feedback_content+feedback_rating pair to an owning entity (PROVIDER_PROFILE or ADVERTISEMENT). No DB-level FK to provider_profile/advertisement, same entity_type+entity_id convention audit_log/contact_info already use -- resolved only via FeedbackPort, never a SQL join. At most one row per (author_id, entity_type, entity_id). Immutable after creation -- edits touch feedback_content/feedback_rating instead.">
+                      remarks="A registered user's link row attaching one feedback_content+feedback_rating pair to an owning entity (PROVIDER_PROFILE). No DB-level FK to provider_profile, same entity_type+entity_id convention audit_log/contact_info already use -- resolved only via FeedbackPort, never a SQL join. At most one row per (author_id, entity_type, entity_id). Immutable after creation -- edits touch feedback_content/feedback_rating instead.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="author_id" type="BIGINT" remarks="Author of the entry. References user_information(id), no FK">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point.">
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE), resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column.">
                 <constraints nullable="false"/>
             </column>
             <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">
@@ -93,17 +93,13 @@
             </column>
         </createTable>
 
-        <createIndex indexName="idx_feedback_comment_feedback" tableName="feedback_comment">
-            <column name="feedback_id"/>
-        </createIndex>
-
         <!-- ── feedback_aggregate ───────────────────────────────────────────── -->
         <createTable tableName="feedback_aggregate"
-                      remarks="Denormalized avg_rating/review_count for one owning entity, recomputed transactionally on every feedback write -- lives entirely inside this starter, same self-contained shape as contact_info, never a column on provider_profile/advertisement.">
+                      remarks="Denormalized avg_rating/review_count for one owning entity, recomputed transactionally on every feedback write -- lives entirely inside this starter, same self-contained shape as contact_info, never a column on provider_profile.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point.">
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE), resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column.">
                 <constraints nullable="false"/>
             </column>
             <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">

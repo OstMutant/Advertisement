@@ -168,7 +168,6 @@ public enum I18nKey {
     PROVIDERS_VIEW_NOTIFICATION_VALIDATION_FAILED("providers.view.notification.validation.failed"),
     PROVIDERS_VIEW_TOOLTIP_REFRESH_AVAILABLE("providers.view.tooltip.refresh.available"),
     PROMOTION_REASON_TOP_RATED("promotion.reason.top_rated"),
-    PROMOTION_BADGE_UNTIL("promotion.badge.until"),
     PROVIDERS_SORT_PROMOTED("providers.sort.promoted"),
     PROVIDERS_FILTER_PROMOTED_ONLY("providers.filter.promotedOnly"),
     PROVIDERS_SORT_CREATED_AT("providers.sort.createdAt"),

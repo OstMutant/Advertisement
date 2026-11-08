@@ -54,9 +54,9 @@ feedback write/flag/approve)
   generic, never a direct call into `provider-profile-spring-boot-starter`/
   `advertisement-spring-boot-starter`.
 - `FeedbackModerationStatus` has three values: `NEW` (visible by default), `HIDDEN` (pending
-  moderator review after a report), `CONFIRMED_HIDDEN` (a moderator's permanent confirmation of a
-  genuine violation — permanently excluded from the moderation queue, but still rendered as the
-  same censored placeholder as `HIDDEN`, per `isHidden()`).
+  moderator review after a report), `CONFIRMED_HIDDEN` (a moderator's confirmation of a genuine
+  violation — left out of the moderation queue's default view and still rendered as the same
+  censored placeholder as `HIDDEN`, per `isHidden()`; an approval can still restore it).
 - `FeedbackRepository.upsertAggregate` only counts `feedback_content.moderation_status = 'NEW'`
   rows — a hidden or confirmed-violation entry never inflates the public `avg_rating`/
   `review_count`; the aggregate is recomputed in the same transaction as every feedback write,

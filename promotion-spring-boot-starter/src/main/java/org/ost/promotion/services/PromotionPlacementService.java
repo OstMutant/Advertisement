@@ -12,15 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Set;
 
-/** Reads active placements and replaces the set of entities of one reason in a single transaction. */
+/** Reads promoted placements and replaces the set of entities of one reason in a single transaction. */
 @Service
 @RequiredArgsConstructor
 public class PromotionPlacementService {
 
     private final PromotionPlacementRepository repository;
 
-    public List<PromotionPlacementDto> findActive(@NonNull EntityType entityType) {
-        return repository.findActive(entityType);
+    public List<PromotionPlacementDto> findPromoted(@NonNull EntityType entityType) {
+        return repository.findPromoted(entityType);
     }
 
     @Transactional

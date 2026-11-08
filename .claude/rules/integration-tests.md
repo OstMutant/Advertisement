@@ -42,7 +42,7 @@ rule protects.
 stay 100% free of test code for this purpose — no `src/test/java` additions to them, ever, for
 Testcontainers repository tests or their fixtures.** All of it — the actual `*RepositoryTest`
 classes, and any shared fixture utility a test needs (e.g. `UserTestFixtures`, creating a test
-user row for FK-dependent inserts) — lives here instead, in one dedicated module.
+user row whose id fills a `NOT NULL` actor column) — lives here instead, in one dedicated module.
 
 **Why this doesn't violate "starters must not depend on each other"** (`.claude/rules.md`
 "Module Import Rules"): that rule governs production runtime composability — a starter must
@@ -55,8 +55,8 @@ a real Postgres. It can freely depend on `advertisement-spring-boot-starter`,
 without those starters ever becoming aware of each other or of this module.
 
 **Why not scatter tests into each starter's own `src/test/java` instead:** a repository test that
-needs a FK-satisfying user row (e.g. `AdvertisementRepository` — `advertisement.created_by` is
-`NOT NULL` with an FK to `user_information.id`) would otherwise force each starter needing this to
+needs a real user row (e.g. `AdvertisementRepository` — `advertisement.created_by` is `NOT NULL`
+and holds a real actor id, with no foreign key) would otherwise force each starter needing this to
 either (a) depend on `user-spring-boot-starter` itself (a real, if test-scoped, starter-to-starter
 coupling that ArchUnit/Enforcer would eventually need to special-case), or
 (b) reinvent its own fixture/stub logic independently, duplicating it across every starter that
@@ -66,7 +66,7 @@ into any domain starter's own dependency graph.
 
 **Rejected alternative — a test-only stub schema instead of the real one:** an earlier draft of
 this design considered giving `advertisement-spring-boot-starter`'s test a hand-rolled minimal
-`user_information` stub table (just enough columns to satisfy the FK) instead of depending on
+`user_information` stub table (just enough columns for an actor row) instead of depending on
 `user-spring-boot-starter` at all. Rejected: a stub schema can silently drift from the real one
 (the same class of risk `POSTGRES_IMAGE` deliberately closes, see `SharedEnvConfig` below) and
 would mask real cross-module schema-compatibility regressions that a test against the real
@@ -135,12 +135,9 @@ helper, keep spec/test-specific logic local otherwise.
   `@BeforeEach` before creating fixture data. **Always use `cleanAll`, not the lower-level
   `cleanTables(jdbcClient, "table1", ...)` overload, in `*RepositoryTest` classes** — every
   `*RepositoryTest` shares one physical singleton container for the whole `mvn test` run (see
-  `.claude/nav/adr-index.md`), so a class that only cleans its own domain's tables can fail on a foreign-key violation left
-  behind by a *different* domain's test class that ran earlier (confirmed directly:
-  `AdvertisementRepositoryTest`'s last test method leaves an `advertisement` row referencing
-  `user_information`, which broke `UserRepositoryTest`'s narrower cleanup before `cleanAll`
-  existed). Add new tables to `cleanAll` (in FK-safe position) whenever a new domain's
-  `*RepositoryTest` is added.
+  `.claude/nav/adr-index.md`), so a class that only cleans its own domain's tables sees the rows a
+  *different* domain's test class left behind. Add new tables to `cleanAll` (in FK-safe position)
+  whenever a new domain's `*RepositoryTest` is added.
 - Both live under `src/main/java` (not `src/test/java`) so `*RepositoryTest` classes in
   `src/test/java` can import them without a test-jar dependency — same placement rationale as
   `AbstractPostgresIntegrationTest`/`UserTestFixtures`.

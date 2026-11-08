@@ -43,15 +43,14 @@ class PromotionPlacementRepositoryTest extends AbstractPostgresIntegrationTest {
         TestDataCleaner.cleanAll(jdbcClient);
     }
 
-    private List<Long> activeIds(EntityType entityType) {
-        return repository.findActive(entityType).stream()
+    private List<Long> promotedIds(EntityType entityType) {
+        return repository.findPromoted(entityType).stream()
                 .map(PromotionPlacementDto::entityId)
                 .toList();
     }
 
-    private void insertRow(String entityType, long entityId, String reason, String validFrom, String validUntil) {
-        jdbcClient.sql("INSERT INTO promotion_placement (entity_type, entity_id, reason, valid_from, valid_until) VALUES (:type, :id, :reason, "
-                        + validFrom + ", " + validUntil + ")")
+    private void insertRow(String entityType, long entityId, String reason) {
+        jdbcClient.sql("INSERT INTO promotion_placement (entity_type, entity_id, reason) VALUES (:type, :id, :reason)")
                 .param("type", entityType)
                 .param("id", entityId)
                 .param("reason", reason)
@@ -69,7 +68,7 @@ class PromotionPlacementRepositoryTest extends AbstractPostgresIntegrationTest {
     void replaceForReason_insertsEveryGivenId() {
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(1L, 2L, 3L));
 
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).containsExactly(1L, 2L, 3L);
+        assertThat(promotedIds(EntityType.PROVIDER_PROFILE)).containsExactly(1L, 2L, 3L);
     }
 
     @Test
@@ -77,7 +76,7 @@ class PromotionPlacementRepositoryTest extends AbstractPostgresIntegrationTest {
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(1L, 2L));
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(1L, 2L));
 
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).containsExactly(1L, 2L);
+        assertThat(promotedIds(EntityType.PROVIDER_PROFILE)).containsExactly(1L, 2L);
         assertThat(rowCount("TOP_RATED")).isEqualTo(2);
     }
 
@@ -87,7 +86,7 @@ class PromotionPlacementRepositoryTest extends AbstractPostgresIntegrationTest {
 
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(2L, 3L, 4L));
 
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).containsExactly(2L, 3L, 4L);
+        assertThat(promotedIds(EntityType.PROVIDER_PROFILE)).containsExactly(2L, 3L, 4L);
     }
 
     @Test
@@ -96,19 +95,19 @@ class PromotionPlacementRepositoryTest extends AbstractPostgresIntegrationTest {
 
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of());
 
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).isEmpty();
+        assertThat(promotedIds(EntityType.PROVIDER_PROFILE)).isEmpty();
     }
 
     @Test
     void replaceForReason_leavesOtherReasonsAndOtherEntityTypesUntouched() {
-        insertRow("PROVIDER_PROFILE", 9L, "SPONSORED", "NOW()", "NULL");
+        insertRow("PROVIDER_PROFILE", 9L, "SPONSORED");
         service.replaceForReason(EntityType.ADVERTISEMENT, PromotionReason.TOP_RATED, Set.of(5L));
 
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(1L));
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of());
 
         assertThat(rowCount("SPONSORED")).isEqualTo(1);
-        assertThat(activeIds(EntityType.ADVERTISEMENT)).containsExactly(5L);
+        assertThat(promotedIds(EntityType.ADVERTISEMENT)).containsExactly(5L);
     }
 
     @Test
@@ -116,70 +115,48 @@ class PromotionPlacementRepositoryTest extends AbstractPostgresIntegrationTest {
         service.addForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, 4L);
         service.addForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, 4L);
 
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).containsExactly(4L);
+        assertThat(promotedIds(EntityType.PROVIDER_PROFILE)).containsExactly(4L);
         assertThat(rowCount("TOP_RATED")).isEqualTo(1);
     }
 
     @Test
     void removeForReason_removesOnlyThatEntityForThatReason() {
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(1L, 2L));
-        insertRow("PROVIDER_PROFILE", 1L, "SPONSORED", "NOW()", "NULL");
+        insertRow("PROVIDER_PROFILE", 1L, "SPONSORED");
 
         service.removeForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, 1L);
         service.removeForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, 99L);
 
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).containsExactly(2L);
+        assertThat(promotedIds(EntityType.PROVIDER_PROFILE)).containsExactly(2L);
         assertThat(rowCount("SPONSORED")).isEqualTo(1);
     }
 
     @Test
-    void findActive_excludesExpiredAndNotYetStartedRows() {
-        insertRow("PROVIDER_PROFILE", 1L, "TOP_RATED", "NOW() - INTERVAL '1 day'", "NULL");
-        insertRow("PROVIDER_PROFILE", 2L, "TOP_RATED", "NOW() - INTERVAL '2 days'", "NOW() + INTERVAL '1 day'");
-        insertRow("PROVIDER_PROFILE", 3L, "TOP_RATED", "NOW() - INTERVAL '2 days'", "NOW() - INTERVAL '1 day'");
-        insertRow("PROVIDER_PROFILE", 4L, "TOP_RATED", "NOW() + INTERVAL '1 day'", "NULL");
-
-        assertThat(activeIds(EntityType.PROVIDER_PROFILE)).containsExactly(1L, 2L);
-    }
-
-    @Test
-    void findActiveOfEveryReason_returnsTheActiveRowsOfTheEntityType() {
+    void findPromotedOfEveryReason_returnsTheRowsOfTheEntityType() {
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(1L, 2L));
         service.replaceForReason(EntityType.ADVERTISEMENT, PromotionReason.TOP_RATED, Set.of(5L));
 
-        assertThat(repository.findActive(EntityType.PROVIDER_PROFILE)).extracting(PromotionPlacementDto::entityId)
+        assertThat(repository.findPromoted(EntityType.PROVIDER_PROFILE)).extracting(PromotionPlacementDto::entityId)
                 .containsExactly(1L, 2L);
     }
 
     @Test
-    void findActiveOfEveryReason_excludesExpiredAndNotYetStartedRows() {
-        insertRow("PROVIDER_PROFILE", 1L, "TOP_RATED", "NOW() - INTERVAL '1 day'", "NULL");
-        insertRow("PROVIDER_PROFILE", 2L, "TOP_RATED", "NOW() - INTERVAL '2 days'", "NOW() - INTERVAL '1 day'");
-        insertRow("PROVIDER_PROFILE", 3L, "TOP_RATED", "NOW() + INTERVAL '1 day'", "NULL");
+    void findPromotedOfEveryReason_skipsARowWithAnUnknownReasonInsteadOfFailing() {
+        insertRow("PROVIDER_PROFILE", 1L, "TOP_RATED");
+        insertRow("PROVIDER_PROFILE", 2L, "FROM_A_FUTURE_VERSION");
 
-        assertThat(repository.findActive(EntityType.PROVIDER_PROFILE)).extracting(PromotionPlacementDto::entityId)
+        assertThat(repository.findPromoted(EntityType.PROVIDER_PROFILE)).extracting(PromotionPlacementDto::entityId)
                 .containsExactly(1L);
     }
 
     @Test
-    void findActiveOfEveryReason_skipsARowWithAnUnknownReasonInsteadOfFailing() {
-        insertRow("PROVIDER_PROFILE", 1L, "TOP_RATED", "NOW()", "NULL");
-        insertRow("PROVIDER_PROFILE", 2L, "FROM_A_FUTURE_VERSION", "NOW()", "NULL");
-
-        assertThat(repository.findActive(EntityType.PROVIDER_PROFILE)).extracting(PromotionPlacementDto::entityId)
-                .containsExactly(1L);
-    }
-
-    @Test
-    void findActive_mapsTheRowToTheDto() {
+    void findPromoted_mapsTheRowToTheDto() {
         service.replaceForReason(EntityType.PROVIDER_PROFILE, PromotionReason.TOP_RATED, Set.of(7L));
 
-        assertThat(repository.findActive(EntityType.PROVIDER_PROFILE)).singleElement().satisfies(dto -> {
+        assertThat(repository.findPromoted(EntityType.PROVIDER_PROFILE)).singleElement().satisfies(dto -> {
             assertThat(dto.entityType()).isEqualTo(EntityType.PROVIDER_PROFILE);
             assertThat(dto.entityId()).isEqualTo(7L);
             assertThat(dto.reason()).isEqualTo(PromotionReason.TOP_RATED);
-            assertThat(dto.validFrom()).isNotNull();
-            assertThat(dto.validUntil()).isNull();
         });
     }
 }

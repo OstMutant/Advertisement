@@ -11,14 +11,13 @@ import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-/** {@link ProviderProfileDisplayEnrichmentService}: a profile with no city must not throw (see `.claude/nav/adr-index.md`), and the promotion badge fields are set, with the end date only for privileged callers. */
+/** {@link ProviderProfileDisplayEnrichmentService}: a profile with no city must not throw (see `.claude/nav/adr-index.md`), and the promotion badge fields are set. */
 @ExtendWith(MockitoExtension.class)
 class ProviderProfileDisplayEnrichmentServiceTest {
 
@@ -64,15 +63,15 @@ class ProviderProfileDisplayEnrichmentServiceTest {
     }
 
     @Test
-    void enrichWithPromotion_single_marksTheProfileWithTheActivePlacements() {
+    void enrichWithPromotion_single_marksTheProfileWithThePromotedPlacements() {
         ProviderProfileDisplayEnrichmentService service = newService();
         ProviderProfileDto profile = ProviderProfileDto.builder().id(1L).build();
         List<PromotionPlacementDto> placements = List.of(
-                new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED, Instant.now(), null));
-        when(promotionCatalogService.activePlacements()).thenReturn(placements);
-        when(promotionCatalogService.withPromotion(List.of(profile), placements, true))
+                new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED));
+        when(promotionCatalogService.promotedPlacements()).thenReturn(placements);
+        when(promotionCatalogService.withPromotion(List.of(profile), placements))
                 .thenReturn(List.of(profile.toBuilder().promoted(true).build()));
 
-        assertThat(service.enrichWithPromotion(profile, true).isPromoted()).isTrue();
+        assertThat(service.enrichWithPromotion(profile).isPromoted()).isTrue();
     }
 }

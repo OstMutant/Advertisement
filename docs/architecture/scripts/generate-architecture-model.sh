@@ -4,17 +4,20 @@
 #   then generates architecture-model.json and architecture-map.html -- the live, browsable
 #   architecture control plane -- from real repo state, no hand-maintained markdown. Regenerating
 #   the ADR index here keeps a single "regenerate the architecture docs" run from leaving it stale.
-#   Generates architecture-model.json from already-structured, non-code sources only (no ArchUnit,
-#   no bytecode analysis) -- module/command/skill/agent graph nodes from pom.xml/config sources,
-#   cross-checked against flows.md, with ADRs folded into each module's intent[] list.
+#   Generates architecture-model.json from already-structured, non-code sources only (no bytecode
+#   analysis; Sonar, ArchUnit and CI data only with the flags below) -- module/command/skill/agent
+#   graph nodes from pom.xml/config sources, cross-checked against flows.md, with ADRs folded into
+#   each module's intent[] list.
 # Usage: bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--no-sonar-rescan] [--with-archunit] [--with-ci-metrics]
 #   (no flags)         regenerate architecture-model.json and architecture-map.html from repo state, including JaCoCo coverage and Surefire results from the last local build-and-test.sh run
 #   --with-adr-details embed full ADR text in the architecture-map.html (slower, larger output)
 #   --with-sonar       include SonarQube quality metrics; unless --no-sonar-rescan is given, it runs
 #                      scripts/sonar.sh --no-gate (a full build, test and scan, which starts the server)
-#                      when SonarQube is unreachable, has no analysis or is older than a changed .java file
+#                      when SonarQube is unreachable, has no analysis or is older than a changed .java file;
+#                      with no sonar.token in scripts/sonar/sonar-project.properties it never scans
 #   --no-sonar-rescan  use the stored Sonar analysis as is (the CI sonar stage already scanned); only meaningful with --with-sonar
-#   --with-archunit    include ArchUnit module-coupling analysis (runs ArchitectureMetricsExport)
+#   --with-archunit    include the ArchUnit module-coupling export that build-and-test.sh --archunit-metrics wrote (never runs it)
+#   --with-ci-metrics  include the per-step status and duration of the last CI run (scripts/ci/reports/pipeline-metrics.json)
 # Uses: bash, node (liquibase-schema-to-json.js, .claude/nav/scripts/generate-adr-index.sh, md-to-decisions-json.js),
 #   python3 (JaCoCo/Surefire parsing always; Sonar/ArchUnit only with --with-sonar/--with-archunit),
 #   curl and scripts/sonar.sh (only with --with-sonar), docker (a Node container when no local node).
@@ -23,7 +26,8 @@
 #   (also the same two folders inside scripts/build-and-test/reports/advertisement-build-only-unit,
 #   scripts/build-and-test/reports/advertisement-build-only-integration and
 #   scripts/build-and-test/reports/advertisement-build-only-ci-sonar, the CI stage folders),
-#   scripts/logs/** and scripts/ci/reports/ (run logs and CI metrics), pom.xml, Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
+#   scripts/logs/** and scripts/ci/reports/ (run logs and CI metrics), marketplace-app/target/architecture-metrics.json
+#   (only with --with-archunit), SonarQube's server data (only with --with-sonar), pom.xml, Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
 #   backlog/, root CLAUDE.md, .claude/rules/*.md (including html/markdown embedded sections marked
 #   with <!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->).
@@ -432,8 +436,8 @@ ARCHUNIT_METRICS_FILE="$REPO_ROOT/marketplace-app/target/architecture-metrics.js
 ARCHUNIT_METRICS_FILE_FALLBACK="$REPO_ROOT/scripts/build-and-test/reports/architecture-metrics.json"
 
 # Whether $1 (a module id) really owns (implements or calls) $2 (an SPI interface simple name),
-# per the real bytecode-derived spiEdges data (improvement-156) -- replaces this generator's own
-# older implements-regex guessing (improvement-174: found producing the same class of false
+# per the real bytecode-derived spiEdges data -- replaces this generator's own
+# older implements-regex guessing (found producing the same class of false
 # positive/negative spi_map_json() already had before its own ArchUnit-based fix). Exit code is a
 # 3-way signal, not a boolean: 0 = real data confirms ownership, 1 = real data confirms no
 # ownership, 2 = no ArchUnit data available at all this session -- callers fall back to their own
@@ -459,7 +463,7 @@ sys.exit(0 if owns else 1)
 # from that declaration line past blank/annotation lines (handles @FunctionalInterface) to find a
 # preceding "*/", then further back to the matching "/**"; strips "*"/"{@code}"/"{@link}" markup.
 # Every *.spi interface is expected to carry one -- see .claude/rules/platform-commons.md. Also reused for
-# entity/service/contract classes on the Module screen (improvement-160-adjacent work) -- not every
+# entity/service/contract classes on the Module screen -- not every
 # one of those is guaranteed a Javadoc comment, so an empty result there is expected, not an error.
 # Defined here (ahead of the Entities/Key Services/Contract block below, which calls it at
 # top-level script scope, not deferred inside a later-called function) -- bash has no function
@@ -499,7 +503,7 @@ javadoc_purpose_for() {
 # bounded_contexts_json() uses further down (real @Table classes, real *Service classes, real SPI
 # interface `implements` relationships), just keyed by module instead of by domain. Each line is
 # "name<TAB>file<TAB>description" (json_named_file_array()'s 3-column shape) -- file/description
-# feed the Module screen's real file links + Javadoc one-liners (improvement-160-adjacent work).
+# feed the Module screen's real file links + Javadoc one-liners.
 declare -A MODULE_DOMAIN MODULE_KEYSERVICES MODULE_CONTRACT MODULE_ENTITY
 for bc_d in "${BC_DOMAIN_ORDER[@]}"; do
   bc_m="${BC_DOMAIN_MODULE[$bc_d]}"
@@ -1015,7 +1019,7 @@ spi_map_json() {
     first_node=false
     nodes="$nodes    {\"id\": \"$(json_escape "$iface")\", \"label\": \"$(json_escape "$iface")\", \"parent\": \"platform-commons\", \"file\": \"$(json_escape "${iface_file#"$REPO_ROOT"/}")\"}"
 
-    # Real, bytecode-derived edges (ArchitectureMetricsExport.java's spiEdges -- improvement-156)
+    # Real, bytecode-derived edges (ArchitectureMetricsExport.java's spiEdges)
     # when available; falls back to the old grep-regex tree-walk otherwise (e.g. --archunit-metrics
     # was never run this session). Checked per-interface, not once for the whole file, so a genuine
     # zero-callers interface (valid data) is never confused with "no archunit data at all" (real
@@ -1163,53 +1167,32 @@ for caller in edges.get('callers', []):
   echo "}"
 }
 
-# ── Database ERD: live from the real Liquibase changelogs (table/column/type/constraints/FKs/
-# indexes/remarks -- single source of truth, see root CLAUDE.md's "Database Changes" guideline and
-# the sibling SPI Javadoc convention above). Real FKs (taxon_translation/taxon_assignment -> taxon,
-# user_information's self-referential deleted_by) come live from liquibase-schema-to-json.js.
-# Conceptual (no real SQL-level FK) relationships come from two sources:
-#  1. Derived, in db_erd_json() below, from any column whose own remarks= carries the fixed marker
-#     (module-doc-standards' Liquibase remarks convention -- every no-FK column in this codebase's
-#     changelogs already carries one): a single-target marker "References <table>(<column>), no
-#     FK", or an N-target marker "References <tableA>(<column>) or <tableB>(<column>) [or
-#     <tableC>(<column>) ...] depending on <discriminator>, no FK" for a polymorphic
-#     entity_type/entity_id pair whose real target is a runtime value, not a schema fact -- derives
-#     one edge per listed target, any count.
-#  2. What neither marker can express -- stays a small hand-preserved list below.
-db_erd_conceptual_relationships_json() {
-  cat <<'EOF'
-[
-  {"from": "ATTACHMENT", "to": "ATTACHMENT_SNAPSHOT", "label": "has_snapshots (entity_type/entity_id, no FK)"}
-]
-EOF
-}
+# ── Database ERD: tables, FKs and indexes from the changelogs; no-FK edges from each column's remarks= marker (see module-doc-standards) ──
 db_erd_json() {
   local files=()
   local f
   for f in "${DB_ERD_CHANGELOG_FILES[@]}"; do files+=("$REPO_ROOT/$f"); done
-  local tables_json curated_json relationships_json
+  local tables_json relationships_json
   tables_json="$(run_node "$REPO_ROOT/docs/architecture/scripts/liquibase-schema-to-json.js" "$REPO_ROOT" "${files[@]}")"
-  curated_json="$(db_erd_conceptual_relationships_json)"
   relationships_json="$(echo "$tables_json" | run_node -e '
     let d = "";
     process.stdin.on("data", c => d += c);
     process.stdin.on("end", () => {
-      const curated = JSON.parse(process.argv[1]);
       const refRe = /References\s+((?:\w+\(\w+\)\s*(?:or\s+)?)+)(?:depending on \w+\s*)?,\s*no FK/i;
       const derived = [];
       JSON.parse(d).forEach(t => t.columns.forEach(c => {
         const remarks = c.remarks || "";
         const m = refRe.exec(remarks);
         if (!m) return;
-        const targetRe = /(\w+)\(\w+\)/g;
+        const targetRe = /(\w+)\((\w+)\)/g;
         let tm;
         while ((tm = targetRe.exec(m[1])) !== null) {
-          derived.push({ from: tm[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)" });
+          derived.push({ from: tm[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)", column: c.name, refColumn: tm[2] });
         }
       }));
-      process.stdout.write(JSON.stringify([...derived, ...curated]));
+      process.stdout.write(JSON.stringify(derived));
     });
-  ' "$curated_json")"
+  ')"
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
 
@@ -3298,9 +3281,7 @@ function renderNamedFileListHtml(items) {
   }).join("") + `</ul>`;
 }
 
-// Jumps to a table's real schema on the Database ERD screen -- reuses the same "db-table-<name>"
-// anchor wireDbErdEntityClicks() already sets when a reader clicks the ERD diagram itself, so a
-// module's own "Tables owned" chip and the diagram converge on the exact same real schema section.
+// Opens the Database ERD screen and scrolls to the "db-table-<name>" schema section of that table.
 function navigateToTable(tableName) {
   navigate({ screen: "diagrams", groupKey: "04-database-erd", diagramIndex: 0 });
   const el = document.getElementById("db-table-" + tableName);
@@ -3901,7 +3882,7 @@ function fileLink(file, label) {
 // caller with no subsystem context. Split into two tables (Calls / Implemented By), one row per
 // real edge rather than one row per interface with all edges stacked in a cell -- each row's
 // `id` matches the diagram edge it represents, so clicking that edge (renderCytoscapeFromGraph's
-// edge-tap handler) can scroll straight to it (improvement-157).
+// edge-tap handler) can scroll straight to it.
 function spiRowId(kind, interfaceName, className) {
   return `spi-${kind}-${esc(interfaceName)}__${esc(className)}`;
 }
@@ -4127,9 +4108,7 @@ function exportSpiMapMarkdown() {
   downloadMarkdown("spi-map.md", md);
 }
 
-// ── Database ERD: live from MODEL.dbErd (real Liquibase changelog data) -- same "live, not a
-// separately-maintained .md" pattern as Module Dependencies/SPI Map; the picture (renderDbErdGraph()) and
-// the table-schema detail below it read the same data, so they cannot drift apart.
+// ── Database ERD: the diagram and the table-schema detail both read MODEL.dbErd ──────────────
 function simplifyDbType(type) {
   if (!type) return "unknown";
   const t = type.toUpperCase();
@@ -4167,7 +4146,7 @@ function buildDbErdMermaidSource() {
       if (c.foreignKeyTable) out += `    ${c.foreignKeyTable.toUpperCase()} ||--o{ ${t.name.toUpperCase()} : "${c.name}"\n`;
     });
   });
-  // Hand-preserved conceptual relationships -- no real FK, dotted line ("non-identifying").
+  // Conceptual relationships derived from the remarks markers -- no real FK, dotted line ("non-identifying").
   MODEL.dbErd.conceptualRelationships.forEach(r => {
     out += `    ${r.from} ||..o{ ${r.to} : "${r.label.replace(/"/g, "'")}"\n`;
   });
@@ -4353,7 +4332,7 @@ function renderBoundedContextsExtrasHtml(activeCategory) {
     </div>`;
   }).join("");
   // Grouped by label, one table per label -- same shape as SPI Map's Interface-grouped split
-  // (improvement-157). Most labels have exactly one meaning for this whole category's tab, so a
+  // Most labels have exactly one meaning for this whole category's tab, so a
   // repeated Label column added nothing; the heading carries the label + its hover-meaning instead.
   const byLabel = new Map();
   relationships.forEach(r => {
@@ -4433,10 +4412,9 @@ function renderDbErdGraph() {
     t.columns.forEach(c => { if (c.foreignKeyTable) addFk(c.foreignKeyTable, t.name, c.name); });
   });
   MODEL.dbErd.conceptualRelationships.forEach(r => {
-    // The label starts with the column that holds the reference; fall back to the table when it names none.
-    const column = (/^\w+/.exec(r.label) || [""])[0];
+    // The arrow leads to the column that holds the reference; fall back to the table when that column is not in the model.
     const holder = byUpper[r.to];
-    const rowId = holder && holder.columns.some(c => c.name === column) ? "db-col-" + holder.name + "-" + column : holder && "db-table-" + holder.name;
+    const rowId = holder && holder.columns.some(c => c.name === r.column) ? "db-col-" + holder.name + "-" + r.column : holder && "db-table-" + holder.name;
     edges.push({ source: r.from, target: r.to, label: r.label, dashed: true, deferred: true, rowId });
   });
   const cy = renderCytoscapeFromGraph(nodes, edges.filter(e => byUpper[e.source] && byUpper[e.target]), "LR");
@@ -4456,14 +4434,7 @@ function renderDbErdGraph() {
   cy.style().selector("edge[?dashed]").style({ "label": "" }).selector("edge.hover").style({ "label": "data(label)", "z-index": 10 }).update();
   // A click on an arrow centres the column that holds the reference in the schema section below.
   cy.edges().style("cursor", "pointer");
-  cy.on("tap", "edge", e => {
-    const row = document.getElementById(e.target.data("rowId"));
-    if (!row) return;
-    row.scrollIntoView({ behavior: "smooth", block: "center" });
-    row.classList.remove("row-flash");
-    void row.offsetWidth;
-    row.classList.add("row-flash");
-  });
+  cy.on("tap", "edge", e => jumpToDbErdElement(e.target.data("rowId")));
   cy.on("mouseover", "node", e => e.target.connectedEdges().addClass("hover"));
   cy.on("mouseout", "node", e => e.target.connectedEdges().removeClass("hover"));
   cy.on("tap", "node", e => {
@@ -4471,6 +4442,40 @@ function renderDbErdGraph() {
     const el = table && document.getElementById("db-table-" + table.name);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+}
+
+// Scrolls to and flashes one element of the Database ERD page, an arrow target or a link in a Links cell.
+function jumpToDbErdElement(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("row-flash");
+  void el.offsetWidth;
+  el.classList.add("row-flash");
+}
+
+document.addEventListener("click", e => {
+  const link = e.target.closest("[data-jump]");
+  if (!link) return;
+  e.preventDefault();
+  jumpToDbErdElement(link.dataset.jump);
+});
+
+function dbErdRealName(upper) {
+  const t = MODEL.dbErd.tables.find(x => x.name.toUpperCase() === upper);
+  return t ? t.name : upper.toLowerCase();
+}
+
+// Where a column points to without a real foreign key ("to") and which columns point at it ("from").
+function dbErdColumnLinks(table, column) {
+  const upper = table.name.toUpperCase();
+  const relationships = MODEL.dbErd.conceptualRelationships;
+  return [
+    ...relationships.filter(r => r.to === upper && r.column === column.name)
+      .map(r => ({ dir: "to", table: dbErdRealName(r.from), column: r.refColumn })),
+    ...relationships.filter(r => r.from === upper && r.refColumn === column.name)
+      .map(r => ({ dir: "from", table: dbErdRealName(r.to), column: r.column }))
+  ];
 }
 
 function renderDbErdTableSchemas() {
@@ -4482,7 +4487,9 @@ function renderDbErdTableSchemas() {
       if (c.foreignKeyTable) constraints.push(`FK → ${c.foreignKeyTable}(${c.foreignKeyColumn})`);
       if (c.unique) constraints.push("UNIQUE");
       if (!c.nullable) constraints.push("NOT NULL");
-      return `<tr id="db-col-${esc(t.name)}-${esc(c.name)}"><td><code class="path">${esc(c.name)}</code></td><td>${esc(c.type)}</td><td class="scope-label">${esc(constraints.join(", "))}</td><td>${esc(c.remarks)}</td></tr>`;
+      const links = dbErdColumnLinks(t, c)
+        .map(l => `${l.dir} <a href="#" data-jump="db-col-${esc(l.table)}-${esc(l.column)}">${esc(l.table)}.${esc(l.column)}</a>`).join("<br>");
+      return `<tr id="db-col-${esc(t.name)}-${esc(c.name)}"><td><code class="path">${esc(c.name)}</code></td><td>${esc(c.type)}</td><td class="scope-label">${esc(constraints.join(", "))}</td><td>${esc(c.remarks)}</td><td>${links}</td></tr>`;
     }).join("");
     const fkItems = t.foreignKeys.map(fk =>
       `<li><code class="path">${esc(fk.column)}</code> → <code class="path">${esc(fk.refTable)}(${esc(fk.refColumn)})</code> ON DELETE ${esc(fk.onDelete)}</li>`
@@ -4496,7 +4503,7 @@ function renderDbErdTableSchemas() {
       <div class="domain-group" id="db-table-${esc(t.name)}">
         <h3>${esc(t.name)} <span class="scope-label">${esc(t.module)}</span></h3>
         <div class="empty-hint">${sourceLink(t.file)}${t.remarks ? " — " + mdInlineToHtml(t.remarks) : ""}</div>
-        <table class="simple"><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>
+        <table class="simple"><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th><th>Links</th></tr></thead><tbody>${rows}</tbody></table>
         ${fkItems ? `<div class="adr-item"><strong>Foreign Keys</strong><ul class="info-list">${fkItems}</ul></div>` : ""}
         ${idxItems ? `<div class="adr-item"><strong>Indexes</strong><ul class="info-list">${idxItems}</ul></div>` : ""}
       </div>`;
@@ -4504,9 +4511,6 @@ function renderDbErdTableSchemas() {
 }
 
 function renderDbErdExtrasHtml() {
-  const relItems = MODEL.dbErd.conceptualRelationships.map(r =>
-    `<li>${esc(r.from)} → ${esc(r.to)}: ${esc(r.label)}</li>`
-  ).join("");
   return `
     <section class="block"><h3>Overview</h3>
       <div class="empty-hint">All tables are created via Liquibase migrations. Each starter owns its own changelog under its own <code class="path">db/*-changelog/</code> directory — no shared migrations between modules (the application's own <code class="path">db/changelog</code> master is empty). Column/table descriptions live directly in each changelog's own <code class="path">remarks=</code> attribute (single source of truth, see root CLAUDE.md's "Database Changes" guideline) — not duplicated in a separate markdown file.</div>
@@ -4523,11 +4527,7 @@ function renderDbErdExtrasHtml() {
         <tr><td class="scope-label">○&lt; at the line's end</td><td>"Zero or many" — the table at that end has zero or more matching rows (crow's-foot notation)</td></tr>
       </tbody></table>
     </section>
-    <section class="block"><h3>Tables (${MODEL.dbErd.tables.length})</h3>${renderDbErdTableSchemas()}</section>
-    <section class="block"><h3>Relationships not backed by a real foreign key</h3>
-      <div class="empty-hint">This codebase deliberately leaves these columns unconstrained at the SQL level — purge-safety and referential integrity are enforced at the application layer instead (see each module's own rules file under <code class="path">.claude/rules/</code>, "Key constraints"). Dotted lines in the diagram above.</div>
-      <ul class="info-list">${relItems}</ul>
-    </section>`;
+    <section class="block"><h3>Tables (${MODEL.dbErd.tables.length})</h3>${renderDbErdTableSchemas()}</section>`;
 }
 
 function exportDbErdMarkdown() {
@@ -4539,7 +4539,7 @@ function exportDbErdMarkdown() {
   MODEL.dbErd.tables.forEach(t => {
     md += `### ${t.name}\n\n**Module:** \`${t.module}\`  \n**Changelog:** \`${t.file}\`\n\n`;
     if (t.remarks) md += `${t.remarks}\n\n`;
-    md += `| Column | Type | Constraints | Notes |\n|---|---|---|---|\n`;
+    md += `| Column | Type | Constraints | Notes | Links |\n|---|---|---|---|---|\n`;
     t.columns.forEach(c => {
       const isCompositePk = t.compositePrimaryKey && t.compositePrimaryKey.includes(c.name);
       const constraints = [];
@@ -4547,7 +4547,8 @@ function exportDbErdMarkdown() {
       if (c.foreignKeyTable) constraints.push(`FK -> ${c.foreignKeyTable}(${c.foreignKeyColumn})`);
       if (c.unique) constraints.push("UNIQUE");
       if (!c.nullable) constraints.push("NOT NULL");
-      md += `| ${c.name} | ${c.type} | ${constraints.join(", ")} | ${c.remarks} |\n`;
+      const links = dbErdColumnLinks(t, c).map(l => `${l.dir} ${l.table}.${l.column}`).join("<br>");
+      md += `| ${c.name} | ${c.type} | ${constraints.join(", ")} | ${c.remarks} | ${links} |\n`;
     });
     md += "\n";
     if (t.foreignKeys.length) {
@@ -4564,8 +4565,6 @@ function exportDbErdMarkdown() {
       md += "\n";
     }
   });
-  md += `## Relationships not backed by a real foreign key\n\n`;
-  MODEL.dbErd.conceptualRelationships.forEach(r => { md += `- ${r.from} -> ${r.to}: ${r.label}\n`; });
   downloadMarkdown("database-erd.md", md);
 }
 

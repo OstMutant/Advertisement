@@ -62,8 +62,7 @@ city column at all. Both category and city assignments live in `taxon-spring-boo
 - `platform-commons` — `ProviderProfilePort`/`ProviderProfileDto`/`ProviderProfileSaveDto`/
   `ProviderProfileFilterDto`/`ProviderProfileSnapshotDto`/`ProviderKind`, plus `TaxonPort`
   (query-time category/city filter resolution only — never a write).
-- `query-lib` — `SqlFilterBuilder`/`OrderByBuilder` for the public catalog's filter/sort/pagination
-  query.
+- `query-lib` — the public catalog's filter, sort and pagination clauses.
 - `html-sanitizer-lib` — sanitizes and visible-text-length-validates the `about` field, the same
   pattern `advertisement-spring-boot-starter` uses for its own rich-text field.
 - No dependency on `taxon-spring-boot-starter` or any other sibling starter (enforced by this

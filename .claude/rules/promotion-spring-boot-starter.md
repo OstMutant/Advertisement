@@ -12,7 +12,7 @@ Java package root: `org.ost.promotion`
 
 ## What it owns
 
-- `PromotionPlacementRepository` — bespoke `JdbcClient` queries over `promotion_placement` (the active
+- `PromotionPlacementRepository` — bespoke `JdbcClient` queries over `promotion_placement` (the promoted
   rows of an entity type for every reason known to this version, delete the rows of a reason missing
   from a set, insert the missing ones, delete one row); there is no trivial save or find, so no entity class and no
   `CrudRepository`
@@ -28,8 +28,8 @@ Java package root: `org.ost.promotion`
 
 Liquibase changelog: `db/promotion-changelog/promotion-changelog-master.xml`
 Table: `promotion_placement` (one row per promoted entity and reason, enforced by the unique
-`idx_promotion_placement_entity_reason` index; `valid_from`/`valid_until` bound the placement, a null
-end means until its writer removes the row)
+`idx_promotion_placement_entity_reason` index; a row exists while the entry is promoted, and its writer
+removes the row when it no longer is)
 
 ---
 
@@ -46,6 +46,6 @@ end means until its writer removes the row)
 - `PromotionAutoConfiguration` declares `@EnableJdbcRepositories` like every starter that ships a
   repository, although there is no `CrudRepository` here: the shared test auto-configuration always
   loads Spring Data JDBC and needs the base package.
-- The read of active rows selects only the reasons this version's `PromotionReason` knows, so a row left
+- The read of promoted rows selects only the reasons this version's `PromotionReason` knows, so a row left
   by another version never fails the read that every list request depends on.
 - `PromotionPlacementPortImpl` is pure delegation — no business logic inside the port.

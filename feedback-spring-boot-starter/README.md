@@ -1,10 +1,10 @@
 # feedback-spring-boot-starter
 
-Split out as its own bounded context rather than folded into `provider-profile-spring-boot-starter`
-or `advertisement-spring-boot-starter`, mirroring why `contact-spring-boot-starter` is its own
-module: the concern (rating+text feedback) is shared across those two domains, and either one
-owning it would mean the other reaching across the sibling-starter boundary (`.claude/rules.md`'s
-"no direct imports between sibling modules") to resolve a fallback.
+Auto-configures rating+text feedback on an owning entity (today a provider profile): one entry per
+author and entity, edits only inside a 48-hour window, a rating aggregate per entity, and
+moderation of entries and replies. It is its own starter, mirroring `contact-spring-boot-starter`,
+so no domain starter has to reach across the sibling-starter boundary (`.claude/rules.md`'s "no
+direct imports between sibling modules") to resolve it.
 
 ## What it provides
 
@@ -50,8 +50,8 @@ persistence through `FeedbackRepository`:
   `FeedbackModerationStatus` (`feedback.*`) is this module's own compile-time contract;
   `EntityType` (`core.model`) is the generic entity key; `StaleWriteException` (`core`) is the
   optimistic-lock failure type this module's repository translates into.
-- `html-sanitizer-lib` — `HtmlSanitizer.sanitize` for `feedback_text`.
-- `query-lib` — `PaginationSqlBuilder.pageLimit` for the paginated entity-feedback read.
+- `html-sanitizer-lib` — sanitizes the entry and reply text (`feedback_content.content_text`).
+- `query-lib` — the pagination clause of the entity-feedback read.
 - No Maven dependency on any sibling starter (enforced by this module's own `maven-enforcer-plugin`
   rule) — resolution stays entity-type/entity-id generic, never a direct call into
   `provider-profile-spring-boot-starter`/`advertisement-spring-boot-starter`.

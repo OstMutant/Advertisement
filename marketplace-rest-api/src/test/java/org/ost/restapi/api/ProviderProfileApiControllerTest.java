@@ -9,7 +9,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.orchestrator.services.AccessDeniedException;
-import org.ost.orchestrator.services.AuthorizationService;
 import org.ost.orchestrator.services.ProviderProfileDisplayEnrichmentService;
 import org.ost.orchestrator.services.ProviderProfileReadService;
 import org.ost.orchestrator.services.ProviderProfileSaveService;
@@ -38,7 +37,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -71,7 +69,6 @@ class ProviderProfileApiControllerTest {
     @Mock private UserProfileService userProfileService;
     @Mock private ActivityHistorySupport activityHistorySupport;
     @Mock private SnapshotRestoreService snapshotRestoreService;
-    @Mock private AuthorizationService authorizationService;
 
     private MockMvc mockMvc;
 
@@ -79,13 +76,13 @@ class ProviderProfileApiControllerTest {
     void setUp() {
         mockMvc = mockMvc(new ProviderProfileApiController(saveService, readService, enrichmentService, userProfileService,
                 activityHistorySupport, snapshotRestoreService,
-                new MergePatchSupport(Validation.buildDefaultValidatorFactory().getValidator()), authorizationService));
+                new MergePatchSupport(Validation.buildDefaultValidatorFactory().getValidator())));
         authenticateAs(ACTOR_ID);
         lenient().when(enrichmentService.enrichWithCategoryAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActor(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithCategoriesAndCity(any(), any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(enrichmentService.enrichWithActorInfo(any())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(enrichmentService.enrichWithPromotion(any(ProviderProfileDto.class), anyBoolean())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(enrichmentService.enrichWithPromotion(any(ProviderProfileDto.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(userProfileService.resolveProviderProfilesPageSize(any())).thenReturn(20);
     }
 
@@ -146,7 +143,7 @@ class ProviderProfileApiControllerTest {
     void list_delegatesToReadServiceAndSetsTotalCountHeader() throws Exception {
         ProviderProfileDto info = ProviderProfileDto.builder().id(1L).build();
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "promoted", "updatedAt", "createdAt", "id")), anyBoolean())).thenReturn(List.of(info));
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "promoted", "updatedAt", "createdAt", "id")))).thenReturn(List.of(info));
         when(readService.count(eq(filter))).thenReturn(1);
 
         mockMvc.perform(get("/api/provider-profiles"))
@@ -157,12 +154,12 @@ class ProviderProfileApiControllerTest {
     @Test
     void list_withSortParam_parsesIntoSort() throws Exception {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt", "id")), anyBoolean())).thenReturn(List.of());
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt", "id")))).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
         mockMvc.perform(get("/api/provider-profiles").param("sort", "createdAt,desc")).andExpect(status().isOk());
 
-        verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt", "id")), anyBoolean());
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "createdAt", "id")));
     }
 
     @Test
@@ -174,13 +171,13 @@ class ProviderProfileApiControllerTest {
     void list_pageSizeComesFromCallersSavedSettings_urlSizeParamIsIgnored() throws Exception {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
         when(userProfileService.resolveProviderProfilesPageSize(ACTOR_ID)).thenReturn(50);
-        when(readService.getFiltered(eq(filter), eq(0), eq(50), any(), anyBoolean())).thenReturn(List.of());
+        when(readService.getFiltered(eq(filter), eq(0), eq(50), any())).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
         // "size=5" in the URL must have no effect -- there is no such request parameter anymore.
         mockMvc.perform(get("/api/provider-profiles").param("size", "5")).andExpect(status().isOk());
 
-        verify(readService).getFiltered(eq(filter), eq(0), eq(50), any(), anyBoolean());
+        verify(readService).getFiltered(eq(filter), eq(0), eq(50), any());
     }
 
     @Test
@@ -188,12 +185,12 @@ class ProviderProfileApiControllerTest {
         clearAuthentication();
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
         when(userProfileService.resolveProviderProfilesPageSize(null)).thenReturn(20);
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean())).thenReturn(List.of());
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
         mockMvc.perform(get("/api/provider-profiles")).andExpect(status().isOk());
 
-        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean());
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any());
     }
 
     // ── getById ──────────────────────────────────────────────────────────
@@ -517,56 +514,31 @@ class ProviderProfileApiControllerTest {
     @Test
     void list_promotedSortAscending_isAcceptedAndReachesTheReadService() throws Exception {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean())).thenReturn(List.of());
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
         mockMvc.perform(get("/api/provider-profiles").param("sort", "promoted,asc")).andExpect(status().isOk());
 
         verify(readService).getFiltered(eq(filter), eq(0), eq(20),
-                argThat(sort -> sort.getOrderFor("promoted") != null && sort.getOrderFor("promoted").isAscending()), anyBoolean());
+                argThat(sort -> sort.getOrderFor("promoted") != null && sort.getOrderFor("promoted").isAscending()));
     }
 
     @Test
     void list_promotedFilter_isBoundIntoTheFilter() throws Exception {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().promoted(true).build();
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean())).thenReturn(List.of());
+        when(readService.getFiltered(eq(filter), eq(0), eq(20), any())).thenReturn(List.of());
         when(readService.count(eq(filter))).thenReturn(0);
 
         mockMvc.perform(get("/api/provider-profiles").param("promoted", "true")).andExpect(status().isOk());
 
-        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean());
-    }
-
-    @Test
-    void list_privilegedCaller_getsThePromotionDetails() throws Exception {
-        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(authorizationService.isPrivileged(ACTOR_ID)).thenReturn(true);
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean())).thenReturn(List.of());
-        when(readService.count(eq(filter))).thenReturn(0);
-
-        mockMvc.perform(get("/api/provider-profiles")).andExpect(status().isOk());
-
-        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any(), eq(true));
-    }
-
-    @Test
-    void list_anonymousCaller_getsNoPromotionDetails() throws Exception {
-        clearAuthentication();
-        ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
-        when(userProfileService.resolveProviderProfilesPageSize(null)).thenReturn(20);
-        when(readService.getFiltered(eq(filter), eq(0), eq(20), any(), anyBoolean())).thenReturn(List.of());
-        when(readService.count(eq(filter))).thenReturn(0);
-
-        mockMvc.perform(get("/api/provider-profiles")).andExpect(status().isOk());
-
-        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any(), eq(false));
+        verify(readService).getFiltered(eq(filter), eq(0), eq(20), any());
     }
 
     @Test
     void getById_promotedProfile_carriesThePromotionFields() throws Exception {
         ProviderProfileDto profile = ProviderProfileDto.builder().id(7L).kind(ProviderKind.MASTER).build();
         when(readService.findById(7L)).thenReturn(Optional.of(profile));
-        when(enrichmentService.enrichWithPromotion(any(ProviderProfileDto.class), anyBoolean()))
+        when(enrichmentService.enrichWithPromotion(any(ProviderProfileDto.class)))
                 .thenReturn(profile.toBuilder().promoted(true).build());
 
         mockMvc.perform(get("/api/provider-profiles/7"))

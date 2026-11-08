@@ -21,7 +21,8 @@ derive the expected outcome from those observed values rather than from assumed 
 values tie (a tie makes a derived expected order ambiguous), and logs a warning when observed
 values come back out of insertion order (expected, not fatal — the point of deriving from
 observation is to be immune to this). Applied to `UserApiKeyAdvertisementScenarioTest`,
-`ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`, and
+`ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`,
+`ProviderProfilePaginationScenarioTest.noSortParam_pagesInUiDefaultOrderWithoutRepeatOrGap`, and
 `UserPaginationScenarioTest.filterByCreatedAtRange_returnsOnlyWithinBounds`.
 
 **Rejected alternative — pin timestamps via `UPDATE` after creation (the original fix):** works,

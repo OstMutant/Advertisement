@@ -11,8 +11,8 @@ import java.util.Set;
 /** Promotion placements of any owning entity, generic over entity type and id; implementation lives in promotion-spring-boot-starter. */
 public interface PromotionPlacementPort {
 
-    /** Placements of this entity type that are active now, for every reason known to this version. */
-    List<PromotionPlacementDto> findActive(@NonNull EntityType entityType);
+    /** Returns the promoted entries of this entity type with their reasons, for every reason known to this version. */
+    List<PromotionPlacementDto> findPromoted(@NonNull EntityType entityType);
 
     /** Makes the rows of this reason for this entity type exactly {@code entityIds}; an empty set removes them all. */
     void replaceForReason(@NonNull EntityType entityType, @NonNull PromotionReason reason, @NonNull Set<Long> entityIds);

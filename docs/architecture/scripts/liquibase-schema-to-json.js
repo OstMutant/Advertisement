@@ -9,11 +9,12 @@
  *   <file1...>  one or more Liquibase changelog XML files
  * Uses: Node.js (no external dependencies -- plain string/regex parsing, no XML library).
  * Env: None.
- * Input: Liquibase changelog XML (createTable/column/constraints, addForeignKeyConstraint,
- *   createIndex, addPrimaryKey, and raw <sql> parsed for CHECK constraints/non-native indexes).
- * Outputs: one JSON object `{ "tables": [...] }` printed to stdout, consumed by
+ * Input: Liquibase changelog XML (createTable/column/constraints, setColumnRemarks,
+ *   addForeignKeyConstraint, createIndex, addPrimaryKey, and raw <sql> parsed for CHECK
+ *   constraints/non-native indexes).
+ * Outputs: one JSON array of tables printed to stdout, consumed by
  *   generate-architecture-model.sh's db_erd_json().
- * Returns: 0 on success; non-zero if any file cannot be read or XML parsing fails.
+ * Returns: 0 on success; non-zero if any file cannot be read.
  * ──────────────────────────────────────────────────────────────────────────── */
 
 const fs = require("fs");
@@ -31,7 +32,7 @@ function parseFile(repoRoot, absFile) {
   const tables = [];
 
   // ── createTable blocks (non-greedy up to the matching closing tag) ──────────────────────────
-  const tableRe = /<createTable\s+([^>]*)>([\s\S]*?)<\/createTable>/g;
+  const tableRe = /<createTable\s+((?:[^>"]|"[^"]*")*)>([\s\S]*?)<\/createTable>/g;
   let tm;
   while ((tm = tableRe.exec(xml))) {
     const openAttrs = tm[1];
@@ -41,7 +42,7 @@ function parseFile(repoRoot, absFile) {
     const columns = [];
 
     // Each <column ...>...</column> or self-closing <column .../>
-    const colRe = /<column\s+([^>]*?)(\/>|>([\s\S]*?)<\/column>)/g;
+    const colRe = /<column\s+((?:[^>"]|"[^"]*")*?)(\/>|>([\s\S]*?)<\/column>)/g;
     let cm;
     while ((cm = colRe.exec(body))) {
       const colAttrs = cm[1];
@@ -108,8 +109,7 @@ function parseFile(repoRoot, absFile) {
     if (t) t.compositePrimaryKey = attr(a, "columnNames").split(",").map(s => s.trim());
   }
 
-  // ── raw <sql> blocks -- narrow regex pass for CHECK constraints and non-Liquibase-native
-  //    indexes (partial/GIN), the two patterns actually used across these 6 files. ─────────────
+  // ── raw <sql> blocks: CHECK constraints and non-Liquibase-native indexes (partial/GIN) ──────
   const sqlRe = /<sql>([\s\S]*?)<\/sql>/g;
   let sm;
   while ((sm = sqlRe.exec(xml))) {
@@ -144,7 +144,7 @@ for (const f of files) allTables.push(...parseFile(repoRoot, f));
 // Apply setColumnRemarks updates from all files after all tables have been parsed
 for (const f of files) {
   const xml = fs.readFileSync(f, "utf8");
-  const rmkRe = /<setColumnRemarks\s+([^>]*)\/>/g;
+  const rmkRe = /<setColumnRemarks\s+((?:[^>"]|"[^"]*")*)\/>/g;
   let rmk;
   while ((rmk = rmkRe.exec(xml))) {
     const a = rmk[1];

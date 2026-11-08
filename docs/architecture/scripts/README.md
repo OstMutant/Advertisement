@@ -11,14 +11,15 @@ runnable directly on the host.
 Real entry points, independently invocable:
 
 ```bash
-bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--with-archunit] [--with-ci-metrics]
+bash docs/architecture/scripts/generate-architecture-model.sh [--with-adr-details] [--with-sonar] [--no-sonar-rescan] [--with-archunit] [--with-ci-metrics]
 bash docs/architecture/scripts/check-architecture-model-freshness.sh
 bash docs/architecture/scripts/screenshot-architecture-map.sh
 ```
 
 `check-architecture-model-freshness.sh` wraps `generate-architecture-model.sh` (backs up the
 committed output, re-runs the generator, diffs, restores) — a real caller/callee relationship.
-`generate-architecture-model.sh` in turn always calls `liquibase-schema-to-json.js`, and calls
+`generate-architecture-model.sh` in turn always calls `.claude/nav/scripts/generate-adr-index.sh`
+(first, so the ADR index it reads is fresh) and `liquibase-schema-to-json.js`, and calls
 `.claude/nav/scripts/md-to-decisions-json.js` (its `--stdout` mode, a cross-directory call — that
 script itself lives with the rest of the ADR-navigation tooling, not here, since its primary real
 use is `--extract`, unrelated to this generator) only when `--with-adr-details` is passed:
@@ -26,6 +27,7 @@ use is `--extract`, unrelated to this generator) only when `--with-adr-details` 
 ```mermaid
 flowchart TD
     F[check-architecture-model-freshness.sh] --> A[generate-architecture-model.sh]
+    A --> G[".claude/nav/scripts/generate-adr-index.sh"]
     A --> B[liquibase-schema-to-json.js]
     A --> C{--with-adr-details?}
     C -->|yes| D[".claude/nav/scripts/md-to-decisions-json.js --stdout"]

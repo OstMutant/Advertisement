@@ -40,7 +40,7 @@ public class DefaultTaxonPort implements TaxonPort {
     @Transactional
     public void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
                                    @NonNull Set<Long> taxonIds) {
-        assignmentService.replaceAssignments(entityType, entityId, taxonIds, null);
+        assignmentService.replaceAssignments(entityType, entityId, taxonIds);
     }
 
     @Override
@@ -89,9 +89,6 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public Map<Long, TaxonDto> findByIds(@NonNull Set<Long> taxonIds, @NonNull Locale locale) {
-        if (taxonIds.isEmpty()) {
-            return Map.of();
-        }
         return buildDtoLookup(taxonIds.stream().toList(), locale, false);
     }
 

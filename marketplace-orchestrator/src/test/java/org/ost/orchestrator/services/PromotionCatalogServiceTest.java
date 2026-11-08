@@ -15,7 +15,6 @@ import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.springframework.data.domain.Sort;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -40,12 +39,12 @@ class PromotionCatalogServiceTest {
     }
 
     private static PromotionPlacementDto placement(long id) {
-        return new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, id, PromotionReason.TOP_RATED, Instant.now(), null);
+        return new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, id, PromotionReason.TOP_RATED);
     }
 
     private void stubPlacements(PromotionPlacementDto... placements) {
         when(portFactory.findIfAvailable()).thenReturn(Optional.of(port));
-        when(port.findActive(EntityType.PROVIDER_PROFILE)).thenReturn(List.of(placements));
+        when(port.findPromoted(EntityType.PROVIDER_PROFILE)).thenReturn(List.of(placements));
     }
 
     @Test
@@ -103,35 +102,23 @@ class PromotionCatalogServiceTest {
     }
 
     @Test
-    void activePlacements_starterAbsent_isEmpty() {
+    void promotedPlacements_starterAbsent_isEmpty() {
         when(portFactory.findIfAvailable()).thenReturn(Optional.empty());
 
-        assertThat(service.activePlacements()).isEmpty();
+        assertThat(service.promotedPlacements()).isEmpty();
     }
 
     @Test
     void withPromotion_promotedProfile_getsTheReasonAndTheFlag() {
-        Instant until = Instant.parse("2030-01-01T00:00:00Z");
-        PromotionPlacementDto top = new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED, Instant.now(), until);
+        PromotionPlacementDto top = new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED);
 
         List<ProviderProfileDto> marked = service.withPromotion(
-                List.of(ProviderProfileDto.builder().id(1L).build(), ProviderProfileDto.builder().id(2L).build()), List.of(top), true);
+                List.of(ProviderProfileDto.builder().id(1L).build(), ProviderProfileDto.builder().id(2L).build()), List.of(top));
 
         assertThat(marked.get(0).isPromoted()).isTrue();
         assertThat(marked.get(0).getPromotionReason()).isEqualTo(PromotionReason.TOP_RATED);
-        assertThat(marked.get(0).getPromotionValidUntil()).isEqualTo(until);
         assertThat(marked.get(1).isPromoted()).isFalse();
         assertThat(marked.get(1).getPromotionReason()).isNull();
-    }
-
-    @Test
-    void withPromotion_withoutDetails_hidesTheEndDate() {
-        PromotionPlacementDto top = new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED, Instant.now(), Instant.parse("2030-01-01T00:00:00Z"));
-
-        List<ProviderProfileDto> marked = service.withPromotion(List.of(ProviderProfileDto.builder().id(1L).build()), List.of(top), false);
-
-        assertThat(marked.get(0).isPromoted()).isTrue();
-        assertThat(marked.get(0).getPromotionValidUntil()).isNull();
     }
 
     @Test

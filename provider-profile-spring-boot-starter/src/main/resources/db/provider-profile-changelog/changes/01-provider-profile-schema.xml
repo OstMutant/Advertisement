@@ -33,9 +33,6 @@
         <createIndex indexName="idx_provider_profile_actor_id" tableName="provider_profile" unique="true">
             <column name="actor_id"/>
         </createIndex>
-        <createIndex indexName="idx_provider_profile_kind" tableName="provider_profile">
-            <column name="kind"/>
-        </createIndex>
 
     </changeSet>
 

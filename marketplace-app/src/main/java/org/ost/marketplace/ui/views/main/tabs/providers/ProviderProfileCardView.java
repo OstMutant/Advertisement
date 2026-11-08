@@ -32,7 +32,6 @@ import org.springframework.context.annotation.Scope;
 import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
-import static org.ost.marketplace.ui.query.utils.TimeZoneUtil.formatInstant;
 
 /** Text-only catalog card for a provider profile (kind badge, about excerpt, category/city lines) -- no photo, since {@link ProviderProfileDto} carries no media field. */
 @SpringComponent
@@ -144,11 +143,6 @@ public class ProviderProfileCardView extends HorizontalLayout
         Span badge = new Span(getValue(forPromotionReason(profile.getPromotionReason())));
         badge.addClassName("provider-profile-promotion-badge");
         badge.getElement().setAttribute(DATA_TESTID, "provider-profile-promotion-badge");
-        if (access.isPrivileged()) {
-            String until = profile.getPromotionValidUntil() == null ? ""
-                    : ". " + getValue(PROMOTION_BADGE_UNTIL, formatInstant(profile.getPromotionValidUntil()));
-            badge.getElement().setAttribute("title", getValue(forPromotionReason(profile.getPromotionReason())) + until);
-        }
         return badge;
     }
 

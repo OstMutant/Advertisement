@@ -1,8 +1,9 @@
 Analyze what changed in the codebase and update only the affected architecture documentation.
 
 Usage:
-  /sync-docs               — compare current HEAD against origin/main
-  /sync-docs <ref>         — compare current HEAD against <ref> (branch, tag, or SHA)
+  /sync-docs               — uncommitted changes only (staged and unstaged, against HEAD)
+  /sync-docs <ref>         — committed changes only: compare current HEAD against <ref> (branch, tag, or SHA)
+  /sync-docs task <id>     — every commit of that task plus the uncommitted changes
   /sync-docs --full-audit  — ignore git diff entirely; verify every existing README.md/DECISIONS.md/
                              CLAUDE.md/.claude/rules/*.md claim, plus every *.java class/method
                              Javadoc and infra/tooling file header, against current code (see "Full
@@ -23,7 +24,7 @@ checked exhaustively, not sampled — a module means the whole module, a package
 package, a diff means exactly (and only) the files the diff touched. Never partially check a named
 scope and call it done.
 
-**Known limitation of the default (diff-based) mode:** it only re-checks documentation for files
+**Known limitation of the diff-based modes:** it only re-checks documentation for files
 that changed in the given diff. Staleness introduced by a rename/removal in commit A, where no
 later commit's diff ever touched the doc mentioning the old name, is invisible to this mode
 forever — the diff that would surface it never happens, since the doc file itself isn't part of
@@ -35,8 +36,10 @@ few weeks), not as a replacement for the fast day-to-day diff mode.
 
 ## Step 1 — Determine changed files
 
-Run: `git diff --name-only <ref>...HEAD`
-Default ref: `origin/main`
+Run, by scope:
+- no argument: `git diff --name-only HEAD` (uncommitted changes, staged and unstaged);
+- `<ref>`: `git diff --name-only <ref>...HEAD` (committed changes only);
+- `task <id>`: the union of `git show --name-only --format= <sha>` over every commit whose message names the task (`git log --grep` on the id) and `git diff --name-only HEAD`; with no such commit, only the uncommitted files, and say so.
 
 If no Java, SQL, or pom.xml files changed → print "No architectural changes detected." and stop.
 
@@ -68,6 +71,20 @@ same lever Full Audit Mode's own Step A3 already uses — this applies even to a
 file, not only once there are many. When there are several, group dispatches by module/file-count
 (same-file fusion) purely as a batching optimization, not as a precondition for using Haiku at
 all.
+
+### Step 2b — Related documents
+
+The table above only names documents tied to a changed file; a document that mentions a changed
+thing but was not itself touched is found here, by the content of the diff:
+- For every name the diff adds, removes or renames (class, method, table, column, enum value,
+  module, endpoint, script flag), search all current documents (`*.md`, script headers, `*.js`,
+  `*.yml`; not `backlog/` and not generated files) for it. Every hit is a related document and joins
+  the targets of this step.
+- When the diff adds, removes or renames a module, list every document that enumerates the modules
+  (every list, table and diagram) and check each one for completeness against the real module set
+  (the root `pom.xml` `<module>` entries) — a name appearing somewhere in a file does not prove each
+  of its lists is complete.
+- Print the related documents together with the targets before Step 4.
 
 ---
 
@@ -159,15 +176,22 @@ trigger, run once, after every other file this step touches, so
 `docs/architecture/data/architecture-model.json`/`docs/architecture/architecture-map.html` never
 regenerate from stale input.
 
+**Every corrected document is read again after its edit, and every corrected claim names the place
+in the code that confirms it (file and line).** Replacing a word without that check is not a
+correction.
+
 ---
 
 ## Step 5 — Report
 
 Print a summary:
-- Which files were updated
+- Files in scope (from Step 1) and what each was verified against
+- A table with one row per related document (Steps 2 and 2b): why it is related, what it was verified against, the result; below it a list "related, not checked"
+- Which files were updated, each corrected claim with the file and line that confirms it
 - Which tasks were created / closed / updated
 - Which ADRs were added or status-changed
 - Any new violations found
+- What was not checked
 
 ---
 

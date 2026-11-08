@@ -22,8 +22,8 @@ public class PromotionPlacementPortImpl implements PromotionPlacementPort {
     private final PromotionPlacementService service;
 
     @Override
-    public List<PromotionPlacementDto> findActive(@NonNull EntityType entityType) {
-        return service.findActive(entityType);
+    public List<PromotionPlacementDto> findPromoted(@NonNull EntityType entityType) {
+        return service.findPromoted(entityType);
     }
 
     @Override

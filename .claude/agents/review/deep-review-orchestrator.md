@@ -36,6 +36,8 @@ diff):
   + unstaged against the last commit). If empty, stop and report "nothing to review".
 - A git ref or commit hash (e.g. `HEAD~3`, `a1b2c3d`) → that one commit's own diff:
   `git diff <ref>~1..<ref>`.
+- `task <id>` → every commit whose message names that task (`git log --grep` on the id, the repository's `<type>(<id>): …` commit convention) plus the uncommitted changes: the diff is `git show <sha>` for each such commit followed by `git diff HEAD`.
+  With no such commit, review the uncommitted changes only and say so in the summary.
 - `module <name>` (e.g. "module platform-commons") → a file set: every file under
   `<name>/src/main` (via `Glob`).
 - `path <dir>` → a file set: every file under `<dir>` (via `Glob` with `<dir>/**/*`), tests included. Unlike
@@ -244,6 +246,8 @@ this line entirely if step 4 never ran (zero survivors from step 3). Followed by
 - for each finding prepared in step 9: its full filename + file content + Operational notes block,
   each in its own fenced block, with "Present this to the user and, once approved, write it to
   `backlog/tasks/` — do not write it without asking first."
+
+Then a **Report** with these five sections, in this order, naming files by path: (1) Checked: the files in the resolved scope and what each was verified against. (2) Reviewed: the finder angles that ran. (3) Findings: confirmed and rejected, each with its file. (4) Fixed: nothing, since this agent never writes code. (5) Not checked: what the scope left out and why.
 
 **With `output: json`**, return instead of the two blocks above one fenced json block,
 `{"findings": [...], "rejected": [...], "overlaps": [...], "inspected": {...}}`, followed by the short

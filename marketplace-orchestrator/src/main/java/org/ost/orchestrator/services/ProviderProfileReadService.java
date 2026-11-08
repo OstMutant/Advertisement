@@ -23,7 +23,7 @@ public class ProviderProfileReadService {
     private final PromotionCatalogService promotionCatalogService;
 
     /** One page of the catalog without promotion marks, for callers that never show them. */
-    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
+    public List<ProviderProfileDto> getFilteredWithoutPromotion(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
         ProviderProfileScope scope = promotionCatalogService.scopeFor(filter, sort);
         return providerProfilePortFactory.findIfAvailable()
                 .map(p -> p.getFiltered(filter, page, size, promotionCatalogService.withoutPromoted(sort), scope))
@@ -31,13 +31,12 @@ public class ProviderProfileReadService {
     }
 
     /** One page of the catalog, already marked with its promotion; the placements are read once for both the scope and the marks. */
-    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort,
-                                                boolean withPromotionDetails) {
-        List<PromotionPlacementDto> placements = promotionCatalogService.activePlacements();
+    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
+        List<PromotionPlacementDto> placements = promotionCatalogService.promotedPlacements();
         ProviderProfileScope scope = promotionCatalogService.scopeFor(filter, sort, placements);
         return providerProfilePortFactory.findIfAvailable()
                 .map(p -> p.getFiltered(filter, page, size, promotionCatalogService.withoutPromoted(sort), scope))
-                .map(profiles -> promotionCatalogService.withPromotion(profiles, placements, withPromotionDetails))
+                .map(profiles -> promotionCatalogService.withPromotion(profiles, placements))
                 .orElse(List.of());
     }
 

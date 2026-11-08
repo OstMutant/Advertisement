@@ -15,7 +15,6 @@ import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.springframework.data.domain.Sort;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -48,29 +47,29 @@ class ProviderProfileReadServiceTest {
         Sort rest = Sort.by(Sort.Order.desc("updatedAt"));
         ProviderProfileScope scope = new ProviderProfileScope(null, List.of(Set.of(1L)), false);
         List<PromotionPlacementDto> placements = List.of(
-                new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED, Instant.now(), null));
-        when(promotionCatalogService.activePlacements()).thenReturn(placements);
+                new PromotionPlacementDto(EntityType.PROVIDER_PROFILE, 1L, PromotionReason.TOP_RATED));
+        when(promotionCatalogService.promotedPlacements()).thenReturn(placements);
         when(promotionCatalogService.scopeFor(filter, sort, placements)).thenReturn(scope);
         when(promotionCatalogService.withoutPromoted(sort)).thenReturn(rest);
         List<ProviderProfileDto> page = List.of(ProviderProfileDto.builder().id(1L).build());
         List<ProviderProfileDto> marked = List.of(ProviderProfileDto.builder().id(1L).promoted(true).build());
         when(port.getFiltered(filter, 0, 10, rest, scope)).thenReturn(page);
-        when(promotionCatalogService.withPromotion(page, placements, true)).thenReturn(marked);
+        when(promotionCatalogService.withPromotion(page, placements)).thenReturn(marked);
 
-        assertThat(service.getFiltered(filter, 0, 10, sort, true)).isSameAs(marked);
-        verify(promotionCatalogService).activePlacements();
+        assertThat(service.getFiltered(filter, 0, 10, sort)).isSameAs(marked);
+        verify(promotionCatalogService).promotedPlacements();
     }
 
     @Test
-    void getFiltered_withoutMarks_readsNoPlacementsWhenTheRequestNeedsNone() {
+    void getFilteredWithoutPromotion_readsNoPlacementsWhenTheRequestNeedsNone() {
         Sort sort = Sort.by(Sort.Order.desc("updatedAt"));
         when(promotionCatalogService.scopeFor(filter, sort)).thenReturn(ProviderProfileScope.ALL);
         when(promotionCatalogService.withoutPromoted(sort)).thenReturn(sort);
         List<ProviderProfileDto> page = List.of(ProviderProfileDto.builder().id(1L).build());
         when(port.getFiltered(filter, 0, 10, sort, ProviderProfileScope.ALL)).thenReturn(page);
 
-        assertThat(service.getFiltered(filter, 0, 10, sort)).isSameAs(page);
-        verify(promotionCatalogService, never()).activePlacements();
+        assertThat(service.getFilteredWithoutPromotion(filter, 0, 10, sort)).isSameAs(page);
+        verify(promotionCatalogService, never()).promotedPlacements();
     }
 
     @Test
