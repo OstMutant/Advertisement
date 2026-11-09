@@ -98,6 +98,7 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 249 | improvement-249 — research: pluggable modules with opaque cross-module references, starting from the Taxon filter flow (`taxon_assignment`, `ANY(:allowedIds)`), with a report and a plan, no code change |
 | Top | 🟡 | 246 | improvement-246 — technical debt investigation of the project, ten hypotheses (Dockerfile, ADR files, rules size, skill duplication, dependency versions, version compatibility, compiler options, ADR index, CI complexity, other), read-only |
 | Top | ⚪ | 244 | improvement-244 — research: does the project need a wiki, and can a documentation tool replace the Architecture Control Plane, or is it better to keep it |
 | Top | 🟡 | 243 | improvement-243 — the sort line of the list pages shows the order of the fields in the panel, not the real sort order, and no test checks it; `WHERE 1=1` in two repositories |
@@ -110,6 +111,12 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Nice to have | — | 036, 112, 191, 039, 118 | the lowest-priority tasks: anything that lands here is picked up after everything above. improvement-036 — actuator and structured JSON logs; the plan is researched and approved, execution not started. improvement-112 — a failing enrichment port blanks the advertisement list; the plan is researched, four decisions (edit and save paths, link-preview cache, REST/MCP note, other gaps) are unanswered, nothing implemented. improvement-191 — UI/UX modernization map (Query Block, Header/Tabs, surfaces, typography, dialogs, Timeline, User UI, attachments, Provider Profile); first step is a document, not code, and it waits on the open design questions of improvement-129; deliberately parked at the user's request. improvement-039 — dark mode: Dark mode — a real implementation attempt failed (UI wiring confirmed broken); deprioritized to the very bottom 2026-09-16 pending a decision on whether the feature is even wanted, not just how to build it. improvement-118 — manual check of the Open Graph preview in real Facebook and Telegram: F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-249
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-249](tasks/improvement-249-pluggable-modules-opaque-cross-module-references-research.md) | New (the user asked for it at the very top, 2026-11-09) | A research and review run: whether local association tables and opaque ids give pluggable starters and database-level filtering, starting from the Taxon filter flow, with a report, a migration plan and batches; no code change |
 
 ### Top priority — improvement-246
 
