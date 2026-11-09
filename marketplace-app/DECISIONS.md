@@ -785,6 +785,8 @@ conflicts with the "explicit over implicit" architecture principle.
 ## ADR-003: Inline SQL repository style — no descriptor layer
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** A prior `SqlEntityDescriptor` / `SqlCommand` descriptor layer required jumping to
 constants classes to read any query.
 
@@ -794,6 +796,9 @@ otherwise. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants.
 - `MapSqlParameterSource` constructed inline per method.
 - Dynamic SQL assembled with `.formatted()`, never `+` concatenation.
 - `SqlFilterBuilder.build(params, filter, prefix)` — prefix is part of the call.
+- No `WHERE 1=1`: `WHERE` is written only when at least one condition exists; the prefix passed to
+  `SqlFilterBuilder.build` is `" WHERE "` or `" AND "`, and several optional conditions are collected
+  in a list and joined with `" AND "`.
 - `OrderByBuilder.build(sort, map)` returns `" ORDER BY ..."` with leading space.
 
 **Consequences:** The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`,

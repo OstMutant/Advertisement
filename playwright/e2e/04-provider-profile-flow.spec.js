@@ -59,7 +59,7 @@ const { runNavigateToUsersTabFlow, runOpenUserEditViaListFlow, runOpenUserViewDi
 const { confirmDeleteDialog } = require('./_flows/delete.flow');
 const { openCardOverlay } = require('./_flows/advertisement.flow');
 const { runOpenFilterPanelFlow, runFillTitleFilterFlow, runApplyFilterFlow } = require('./_flows/advertisement-filter.flow');
-const { verifyDateRangeFilters, openQueryPanel, applyFilter, clearFilter, fillText, fillRole, goToNextPage, goToPrevPage, goToFirstPage, goToLastPage } = require('./_flows/filter.flow');
+const { verifyDateRangeFilters, openQueryPanel, applyFilter, clearFilter, fillText, fillRole, goToNextPage, goToPrevPage, goToFirstPage, goToLastPage, assertSortStatusLine } = require('./_flows/filter.flow');
 const { changePageSizes, getPageSizes, pageSizeField } = require('./_flows/settings.flow');
 const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 const { issueApiKeyViaApi, postViaApi, createProviderProfileViaApi, seedTaxonsViaApi } = require('./_flows/seed.flow');
@@ -693,6 +693,7 @@ test.describe('Provider Profile flow', () => {
 
     await page.goto('/');
     await openProvidersTab(page);
+    await assertSortStatusLine(page, '↕️ Sort: Promotion (Descending), Updated (Descending), Created (Descending)');
     await openCatalogQuery(page);
     const bothCategories = [vehicles, electronics];
     await applyCatalogFilter(page, { categories: bothCategories });
@@ -1313,6 +1314,7 @@ test.describe('Provider Profile flow', () => {
 
     await page.getByRole('tab', { name: /moderation/i }).click();
     await scopeModerationQueue(page, `${tag}:`);
+    await assertSortStatusLine(page, '↕️ Sort: Reported (Descending)');
     const list = page.locator('.moderation-list');
     const feedbackCard = moderationCard(list).filter({ hasText: 'Reportable feedback text.' });
     const replyCard = moderationCard(list).filter({ hasText: 'Reportable reply text.' });
@@ -1454,6 +1456,7 @@ test.describe('Provider Profile flow', () => {
     await page.getByRole('tab', { name: /moderation/i }).click();
     const list = page.locator('.moderation-list');
     await scopeModerationQueue(page, `${tag}:`);
+    await assertSortStatusLine(page, '↕️ Sort: Reported (Descending)');
     await expect(moderationCard(list)).toHaveCount(7, { timeout: 8000 });
     for (const text of otherReviewerTexts) {
       await expect(moderationCard(list).filter({ hasText: text })).toBeVisible({ timeout: 5000 });

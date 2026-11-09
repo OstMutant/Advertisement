@@ -158,6 +158,29 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void findByFilter_allowedIdsAndKindsFilter_returnsOnlyRowsMatchingBoth() {
+        ProviderProfile master = save(actorId, ProviderKind.MASTER);
+        ProviderProfile shop = save(newActor(), ProviderKind.SHOP);
+        save(newActor(), ProviderKind.MASTER);
+
+        List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
+                ProviderProfileFilterDto.builder().kinds(Set.of(ProviderKind.MASTER)).build(), PageRequest.of(0, 10),
+                new ProviderProfileScope(Set.of(master.getId(), shop.getId()), List.of(), false));
+
+        assertThat(results).extracting(ProviderProfileDto::getId).containsExactly(master.getId());
+    }
+
+    @Test
+    void countByFilter_emptyFilterAndNoScope_countsAllRows() {
+        save(actorId, ProviderKind.MASTER);
+        save(newActor(), ProviderKind.SHOP);
+
+        Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(), ProviderProfileScope.ALL);
+
+        assertThat(count).isEqualTo(2L);
+    }
+
+    @Test
     void findByFilter_pinnedGroup_isListedFirstDespiteTheCallersSort() {
         ProviderProfile first = save(actorId, ProviderKind.MASTER);
         ProviderProfile second = save(newActor(), ProviderKind.SHOP);

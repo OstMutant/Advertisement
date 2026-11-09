@@ -43,6 +43,11 @@
             <column name="created_at" descending="true"/>
         </createIndex>
 
+        <!-- the purge by age (deleteOlderThan) and the timeline's newest-first order -->
+        <createIndex indexName="idx_audit_created_at" tableName="audit_log">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
     </changeSet>
 
 </databaseChangeLog>

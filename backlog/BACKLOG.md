@@ -101,7 +101,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Top | 🟡 | 249 | improvement-249 — research: pluggable modules with opaque cross-module references, starting from the Taxon filter flow (`taxon_assignment`, `ANY(:allowedIds)`), with a report and a plan, no code change |
 | Top | 🟡 | 246 | improvement-246 — technical debt investigation of the project, ten hypotheses (Dockerfile, ADR files, rules size, skill duplication, dependency versions, version compatibility, compiler options, ADR index, CI complexity, other), read-only |
 | Top | ⚪ | 244 | improvement-244 — research: does the project need a wiki, and can a documentation tool replace the Architecture Control Plane, or is it better to keep it |
-| Top | 🟡 | 243 | improvement-243 — the sort line of the list pages shows the order of the fields in the panel, not the real sort order, and no test checks it; `WHERE 1=1` in two repositories |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
@@ -129,12 +128,6 @@ Details, links, and per-batch rationale below.
 | Task | Origin | What |
 |---|---|---|
 | [improvement-244](tasks/improvement-244-research-wiki-or-keep-architecture-control-plane.md) | New (the user asked for it at the top, 2026-11-08) | Research whether the project needs a wiki and whether a documentation tool could replace the Architecture Control Plane, or keep it as it is |
-
-### Top priority — improvement-243
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-243](tasks/improvement-243-sort-status-line-and-where-1-1.md) | New (the user asked for it at the top, 2026-11-08) | The sort line of the list pages follows the real sort order, a test for it, and `WHERE 1=1` removed from two repositories with the ADR updated |
 
 ### Top priority — improvement-242
 

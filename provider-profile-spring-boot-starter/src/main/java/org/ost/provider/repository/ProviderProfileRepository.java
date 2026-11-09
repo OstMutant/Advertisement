@@ -98,15 +98,15 @@ public class ProviderProfileRepository {
                                                   @NonNull ProviderProfileScope scope) {
         var params = new MapSqlParameterSource();
         String orderBy = buildOrderBy(params, OrderByBuilder.build(pageable.getSort(), SORT_FIELDS), scope);
-        String sql = (SELECT + "WHERE 1=1%s%s%s%s")
-                .formatted(buildIdClause(params, scope.onlyIds()), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
+        String sql = (SELECT + "%s%s%s")
+                .formatted(buildWhere(params, filter, scope), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
     public Long countByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT COUNT(*) FROM provider_profile pp WHERE 1=1%s%s"
-                .formatted(buildIdClause(params, scope.onlyIds()), FILTER.build(params, filter, " AND "));
+        String sql = "SELECT COUNT(*) FROM provider_profile pp%s"
+                .formatted(buildWhere(params, filter, scope));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
@@ -127,10 +127,15 @@ public class ProviderProfileRepository {
         return " ORDER BY " + String.join(", ", clauses);
     }
 
-    private static String buildIdClause(MapSqlParameterSource params, Set<Long> ids) {
-        if (ids == null) return "";
-        params.addValue("allowedIds", ids.toArray(new Long[0]));
-        return " AND pp.id = ANY(:allowedIds)";
+    private static String buildWhere(MapSqlParameterSource params, ProviderProfileFilterDto filter, ProviderProfileScope scope) {
+        List<String> conditions = new ArrayList<>();
+        if (scope.onlyIds() != null) {
+            params.addValue("allowedIds", scope.onlyIds().toArray(new Long[0]));
+            conditions.add("pp.id = ANY(:allowedIds)");
+        }
+        String dynamic = FILTER.build(params, filter);
+        if (!dynamic.isBlank()) conditions.add(dynamic);
+        return conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
     }
 
     public void delete(@NonNull Long id, Long version) {

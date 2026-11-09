@@ -167,7 +167,7 @@ At the end give: the top 5 problems by priority; what must be fixed before the m
 ## Related
 
 - [improvement-244](improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.
-- [improvement-243](improvement-243-sort-status-line-and-where-1-1.md): holds the decision about an index with `created_at` first on `audit_log`, which section A of the second prompt can check on real data; the two tasks stay separate.
+- [improvement-243](../completed/tasks/improvement-243-sort-status-line-and-where-1-1.md): holds the decision about an index with `created_at` first on `audit_log`, which section A of the second prompt can check on real data; the two tasks stay separate.
 
 ## Operational notes
 - token_cost_review: n/a

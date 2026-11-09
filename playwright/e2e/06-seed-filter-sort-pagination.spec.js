@@ -67,6 +67,7 @@ const {
   fillText, fillNumber, fillRole, fillCategory, fillCity, fillAdKind,
   getRow,
   verifyPagination, verifyDateRangeFilters, verifySortColumn, verifySortColumnChanges,
+  assertSortStatusLine,
 } = require('./_flows/filter.flow');
 const { changePageSizes, openHistory, closeHistory, restoreLatestFromActivity, getPageSizes, pageSizeField } = require('./_flows/settings.flow');
 const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
@@ -160,6 +161,7 @@ test.describe('Seed data and query validation', () => {
     await page.getByRole('tab', { name: /Advertisements|Оголошення/i }).click();
     await page.locator(ADV_ITEM).first().waitFor({ timeout: 8000 });
 
+    await assertSortStatusLine(page, '↕️ Sort: Updated At (Descending), Created At (Descending)');
     await openQueryPanel(page, ADV_BLOCK);
     await screenshot(page, 'adv-filter-panel-open');
 
@@ -245,6 +247,7 @@ test.describe('Seed data and query validation', () => {
     await page.getByRole('tab', { name: /Users|Користувачі/i }).click();
     await page.locator(USER_ITEM).first().waitFor({ timeout: 8000 });
 
+    await assertSortStatusLine(page, '↕️ Sort: Updated At (Descending), Created At (Descending)');
     await openQueryPanel(page, USER_BLOCK);
     await screenshot(page, 'user-filter-panel-open');
 
@@ -505,6 +508,7 @@ test.describe('Seed data and query validation', () => {
 
     const page = await pageAs(adminAccount);
     await openTimelineTab(page);
+    await assertSortStatusLine(page, '↕️ Sort: Date (Descending)');
     await openTimelineFilter(page);
     await assertActorPickerVisible(page, expect, true);
 

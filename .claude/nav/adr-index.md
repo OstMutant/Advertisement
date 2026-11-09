@@ -133,7 +133,7 @@ yet — not zero.
 | ADR-078 (marketplace-app) | marketplace-mcp | Accepted |  | 1 | External REST API authentication — long-lived bearer API-key, not OAuth2 |
 | ADR-001 (marketplace-app) | marketplace-app | Accepted |  |  | All Vaadin UI consolidated in marketplace-app |
 | ADR-002 (marketplace-app) | marketplace-app | Accepted |  |  | No JPA / no Hibernate — JdbcClient + inline SQL |
-| ADR-003 (marketplace-app) | marketplace-app | Accepted |  |  | Inline SQL repository style — no descriptor layer |
+| ADR-003 (marketplace-app) | marketplace-app | Accepted |  | 1 | Inline SQL repository style — no descriptor layer |
 | ADR-005 (marketplace-app) | marketplace-app | Accepted |  |  | Modular storage — contract in attachment-starter, not marketplace |
 | ADR-006 (marketplace-app) | marketplace-app | Accepted |  |  | Audit subsystem in audit-spring-boot-starter; domain calls via AuditPort |
 | ADR-007 (marketplace-app) | marketplace-app | Accepted |  |  | @EnableMethodSecurity active; @PreAuthorize not at class level on services |

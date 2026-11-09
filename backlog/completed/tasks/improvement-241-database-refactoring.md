@@ -242,7 +242,7 @@ Report of the `deep-review-orchestrator` agent, as received:
 
 ### Moved to other tasks
 
-- The sort line of the list pages shows the wrong order, no test checks it, `WHERE 1=1` in two repositories, the index with `created_at` first on `audit_log`: [improvement-243](../../tasks/improvement-243-sort-status-line-and-where-1-1.md).
+- The sort line of the list pages shows the wrong order, no test checks it, `WHERE 1=1` in two repositories, the index with `created_at` first on `audit_log`: [improvement-243](improvement-243-sort-status-line-and-where-1-1.md).
 - Multi-line comments (two test classes, the map generator) and a full documentation sync: [improvement-240](improvement-240-sync-docs-refactor.md).
 
 ## Remaining
