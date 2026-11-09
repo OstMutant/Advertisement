@@ -37,6 +37,7 @@ The line under the query block names the sort fields in the order the list is re
 
 - [improvement-241](../completed/tasks/improvement-241-database-refactoring.md): the database refactoring in which `WHERE 1=1` was found.
 - ADR-003 (marketplace-app).
+- [improvement-246](improvement-246-technical-debt-investigation.md): its second investigation prompt (section A, SQL and indexes) can check the index question of step 5 on real data; the two tasks stay separate.
 
 ## Operational notes
 - token_cost_review: n/a

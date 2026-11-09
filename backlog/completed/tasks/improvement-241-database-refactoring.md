@@ -237,13 +237,13 @@ Report of the `deep-review-orchestrator` agent, as received:
 - Related documents (Step 2b): a search of all current documents for the changed names found nothing stale except the original text of the promotion decision, which keeps its history by design and has the "Update" paragraph; module lists were checked in `README.md` (diagram and table), `CLAUDE.md` and `.claude/rules/README.md`; `check-module-lists.sh`, `check-flows-completeness.sh` and `check-hardcoded-counts.sh` passed.
 - Javadoc and comments of 30 changed Java files: three Haiku agents read-only, one per group of modules; every claim they raised was checked in the code before editing. Fixed: `ProviderProfileDisplayEnrichmentServiceTest` (the end date for privileged callers), `FeedbackModerationStatus.isHidden`, `TaxonAssignmentService` ("with different callers"), `ProvidersView.refreshOnTabSelect`, `ProviderProfilePaginationScenarioTest` line 265 (default order starts with promoted), `TaxonServiceTest` (a task number in the class comment).
 - Regenerated `architecture-model.json`, `architecture-map.html`, `arch-embed-index.md` (exit 0).
-- Found, not fixed: five multi-line comments in two test classes and the multi-line comments of the map generator; they moved to [improvement-245](../../tasks/improvement-245-multi-line-comments-and-full-docs-sync.md).
+- Found, not fixed: five multi-line comments in two test classes and the multi-line comments of the map generator; they moved to [improvement-240](../../tasks/improvement-240-sync-docs-refactor.md).
 - Not checked: `pom.xml` and script headers outside the files already covered; the Haiku agents read only the changed files.
 
 ### Moved to other tasks
 
 - The sort line of the list pages shows the wrong order, no test checks it, `WHERE 1=1` in two repositories, the index with `created_at` first on `audit_log`: [improvement-243](../../tasks/improvement-243-sort-status-line-and-where-1-1.md).
-- Multi-line comments (two test classes, the map generator) and a full documentation sync: [improvement-245](../../tasks/improvement-245-multi-line-comments-and-full-docs-sync.md).
+- Multi-line comments (two test classes, the map generator) and a full documentation sync: [improvement-240](../../tasks/improvement-240-sync-docs-refactor.md).
 
 ## Remaining
 

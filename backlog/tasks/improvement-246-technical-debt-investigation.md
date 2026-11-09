@@ -19,6 +19,7 @@ Checked on 2026-11-08 in the repository, before the investigation (the investiga
 - H8: `.claude/nav/adr-index.md` has 283 decision rows, 33 of them with "superseded", "corrected" or "reversed" in the line (about 12 percent).
 - H9: `scripts/ci/run.sh` has about 20 option lines (counted by a pattern, not read in full), and one of them is not named in any file of `backlog/completed`.
 - H10 was not checked.
+- Second prompt (deep verification of recent changes, below), checked on 2026-11-08: the names it uses exist in the code: `FeedbackRepository.deleteByEntity` (line 413), `FeedbackPort.deleteByEntity(EntityType, Long)`, `deleteForReasonExcept` (2 files), `EntityRef(EntityType, Long)` in `platform-commons`, `.dockerignore`, the `runtime` scope of the starters in `marketplace-orchestrator`, and `<exclude>org.ost:*-spring-boot-starter</exclude>` in all ten starters; `ContactRepository.deleteByEntity(EntityType, Long)` has the same shape as the feedback one. Its sections A and B overlap with the index audit already done in the database refactoring (six of seven removed indexes judged by the query code, one measured on a temporary table); its section G overlaps with H1 and H5 above.
 
 ## Why change
 
@@ -88,9 +89,85 @@ At the end — a summary table (H1–H10: status, effort, impact) and the top 3 
 - Build/test only with separate permission.
 - Report language: English (per `.claude/rules.md` Language); in chat — Ukrainian.
 
+### The second investigation prompt: deep verification of recent changes (as given by the user, translated)
+
+#### Deep Verification of Recent Changes: Subtle Bugs and Regressions
+
+Run a deep verification of the latest changes in the repository. This is not a general code review and not a search for style improvements. The goal is to find subtle errors, hidden regressions and unaccounted consequences of the changes that may not show up in ordinary happy-path testing.
+
+##### 1. Context and rules
+
+- Compare the current HEAD with the previous state of the changes.
+- Check not only the changed lines but all dependent places: callers, SQL, DTOs, Ports, API, UI, tests, Liquibase, configuration.
+- Do not propose abstract best practices.
+- Do not invent problems without evidence.
+- Do not change the code. This is an audit only.
+- Do not refactor and do not widen the scope.
+- `marketplace-orchestrator` is a deliberate architectural decision. Do not propose moving, dismantling or redesigning it.
+- Do not duplicate known backlog items. Check the existing tasks and ADRs before forming new recommendations.
+- If confirming a finding needs a test run, SQL or `EXPLAIN`, run it if possible. If not, state clearly what remained unchecked.
+
+##### 2. Priority areas
+
+**A. SQL and data integrity.** Check:
+- whether the removed indexes match real queries, filters, sorting and JOINs;
+- whether selectivity or the execution plan of queries got worse;
+- whether composite indexes work correctly given the column order;
+- whether an index was removed that a query uses through another combination of conditions;
+- whether full table scans appear on large tables;
+- whether the new DELETE/UPDATE queries match the real relations between records;
+- whether data still used by other records can be deleted;
+- whether there are hidden assumptions of 1:1 or 1:N not enforced by UNIQUE/FK constraints;
+- whether NULL, empty collections, duplicates and missing records are handled correctly;
+- whether the semantics of filtering, sorting or pagination changed.
+
+Check the new `FeedbackRepository.deleteByEntity()` in particular: the order of deleting related records; the behaviour of a data-modifying CTE in PostgreSQL; deleting `feedback_content` if other records can reference it; the behaviour when there is no feedback; the behaviour with partly present related data; atomicity and rollback; possible race conditions with parallel operations. Do not count a problem as confirmed only because it is theoretically possible; check the actual constraints, callers and data model.
+
+**B. Liquibase and compatibility of existing databases.** Check every changelog change:
+- whether already applied changesets were edited instead of new ones being created;
+- what exactly `validCheckSum ANY` does and whether it masks a divergence between schemas;
+- whether existing installations get the same changes as a clean installation;
+- whether old columns and indexes are really removed;
+- whether a new database is created correctly while an old one stays with the old schema;
+- whether the order of the migration changesets is safe;
+- whether data is lost during migration;
+- whether a migration can be run again or after a partial failure;
+- whether changelog, Java model and SQL repository agree.
+
+Check separately the removal of `assigned_by`, `valid_from` / `valid_until`, and of the promotion, feedback, provider profile and taxon indexes. For each change say whether it is correct for: 1. a clean database; 2. a database where the previous changesets are already applied; 3. a database with real data.
+
+**C. Promotion: the change of semantics.** Check the whole flow after `valid_from` / `valid_until` were removed: creating, updating and deleting a promotion placement; determining the promoted status; filtering and sorting; the API response; the UI display; the sitemap; the provider profile read flow; external consumers of the DTO/API. Find out: whether expiration is really not needed anywhere else; whether old records with a non-null `valid_until` remain; whether the behaviour of old records changed; whether every place that used to take expiration into account now has equivalent logic; whether a difference appeared between the UI, the REST API and the sitemap. Check `findPromoted()` and `deleteForReasonExcept()` together with the existing indexes, especially the efficiency of the `entity_type + reason` conditions.
+
+**D. Transactions and concurrency.** Check the new and changed operations for: partial execution; a missing transaction where one is needed; wrong transaction boundaries; calls to another module inside a transaction; a rollback that does not cover all changes; deadlocks; race conditions; lost updates; wrong behaviour with parallel delete/update. Check in particular the integration of `FeedbackAccessService.deleteByEntity()` into `ProviderProfileSaveService.delete()`: whether one transaction covers all needed changes; whether orphan records remain; whether the optional feedback module behaves correctly; whether the order of operations and the audit logging are kept.
+
+**E. Cross-module contracts.** Check the changes of Ports, DTOs and service contracts: whether a new needless dependency appeared; whether the same information is passed in several ways; whether enrichment is duplicated; whether needless queries between modules appeared; whether behaviour changed when an optional module is absent; whether the signatures of Port, implementation and callers agree; whether the module isolation rules are broken. Consider `FeedbackPort.deleteByEntity(EntityType, Long)` separately: whether the signature fits the current idea of typed references; whether using the existing `EntityRef` is appropriate; whether a new local format for passing a composite identity is created; whether the change would really reduce code and coupling and not just add an abstraction. Do not propose a global registry or new tables only to replace two arguments by one. First assess the existing types and real scenarios.
+
+**F. Promotion enrichment and performance.** Check: whether repeated queries were really removed; whether promotion placements are loaded again in the same scenario; whether all placements are loaded when only the ids of the current page are needed; whether a hidden N+1 appeared; whether the volume of data passed between layers grew; whether pagination got worse; whether the number of SQL queries changed in the REST/UI/sitemap scenarios. Do not propose caching or asynchrony without a measured problem.
+
+**G. Docker and Maven.** Check the new Dockerfile: whether `COPY . .` works correctly with the real `.dockerignore`; whether needless files get into the build context; whether secrets, local configs or build output are copied; whether the Maven reactor build is broken; whether `-pl marketplace-app -am` works; whether the efficiency of the Docker layer cache is lost; whether the Maven cache mount is really used; whether the build behaviour changed against the old version. Check also the change of dependency scope in `marketplace-orchestrator`: compile/runtime/test classpaths; production packaging; Spring Boot auto-configuration discovery; integration tests; running the application built as a JAR; whether differences appeared between the IDE and the Maven build. Check the wildcard exclusion `org.ost:*-spring-boot-starter`: whether it excludes dependencies that were not meant to be excluded.
+
+**H. Hidden functional regressions.** For every changed behaviour find: all callers; all API/UI entry points; negative scenarios; boundary values; scenarios with missing or stale data; scenarios with parallel requests; compatibility with existing data. Check the removal of fields from the DTO/API and the changes of promotion behaviour with special care: not only the internal callers but also the public contracts.
+
+##### 3. Test review
+
+Review the matching unit, Testcontainers and Playwright tests. Do not only check that tests exist: check whether they would really have found the defects of the sections above. Find: tests that check only the happy path; tests that fix the state themselves before the assertion; missing rollback/concurrency/integration scenarios; tests that no longer match the new behaviour; cases where a mock hides an SQL or transaction problem. For SQL, CTEs, constraints and Liquibase prefer a real PostgreSQL through Testcontainers, not H2 or a mock. If you run tests, give the exact commands and results. Do not claim that a test passed if it was not actually run.
+
+##### 4. Result format
+
+No general description of the changes. A list of concrete findings is needed. For each finding: 1. Name of the problem. 2. Severity: Critical / High / Medium / Low. 3. Status: Confirmed / Likely / Needs verification. 4. File and the exact method/SQL/changeset. 5. What exactly is wrong. 6. The concrete scenario in which the problem occurs. 7. The consequence for data, performance or behaviour. 8. The minimal fix. 9. The test that will prove the problem is fixed.
+
+Split the result into: Confirmed bugs (proven errors); Potential regressions (reasoned risks that need checking); Missing tests (important scenarios without test coverage); Performance concerns (only those with a concrete basis); Verified safe changes (changes that were checked and create no problems).
+
+##### 5. Final conclusion
+
+At the end give: the top 5 problems by priority; what must be fixed before the merge; what can be left as it is; which changes need a check on real data; which new backlog items are really needed; which are already covered by existing tasks or ADRs. For each recommendation say whether it is a bug fix, a data migration, a performance optimization, test coverage or an optional improvement.
+
+**The main thing:** look not for what could be done differently but for what in the current changes can really break, worsen the work or create a hidden problem. Every conclusion must rest on concrete code, SQL, schema or a test. If the evidence is not enough, say so.
+
 ## Related
 
 - [improvement-244](improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.
+- [improvement-243](improvement-243-sort-status-line-and-where-1-1.md): holds the decision about an index with `created_at` first on `audit_log`, which section A of the second prompt can check on real data; the two tasks stay separate.
 
 ## Operational notes
 - token_cost_review: n/a

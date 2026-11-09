@@ -127,15 +127,6 @@ if "%ALL%%CLAUDE_ONLY%"=="00" goto :after_claude_context
 for %%F in (.claude\rules.md .claude\DECISIONS.md) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
-for %%D in (commands skills rules agents nav) do (
-    for /f "delims=" %%A in ('dir /S /B ".claude\%%D\*.md" 2^>nul') do (
-        echo %%A >> "%FILE_LIST%"
-    )
-)
-:after_claude_context
-for %%F in (.claude\rules.md .claude\DECISIONS.md) do (
-    if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
-)
 for /f "delims=" %%A in ('dir /S /B ".claude\commands\*.md" 2^>nul') do (
     echo %%A >> "%FILE_LIST%"
 )

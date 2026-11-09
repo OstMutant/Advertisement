@@ -42,5 +42,5 @@ Steps:
    without a file), add the run to `backlog/research/tools/observations.md` (date, topic, duration,
    sources read, signals that fired from the last `show-status.sh`, verdict, one-line note), and only
    then run `bash backlog/research/tools/scripts/remove-topic.sh <topic> --yes`.
-    When the user decides not to file a task, ask for explicit approval to delete the topic folder and run `remove-topic.sh` only after that answer; a topic folder is never removed without it.
+   When the user decides not to file a task, ask for explicit approval to delete the topic folder and run `remove-topic.sh` only after that answer; a topic folder is never removed without it.
 10. Never execute the plan from this command, and never commit: execution is a separate approval.

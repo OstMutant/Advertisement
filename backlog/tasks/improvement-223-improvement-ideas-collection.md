@@ -47,9 +47,9 @@ Options: stop sending that header for the key-issuing endpoint, or find the admi
 another request. Both change the app or the recorded flow rules (`docs/api-collections`
 DECISIONS.md), so the choice needs a plan of its own.
 
-### 3. One-off OpenRewrite experiment on the Lombok recipes (from the `/optimize` plan, 2026-10-24)
+### 3. One-off OpenRewrite experiment on the Lombok recipes (from the `/reduce-code` plan, 2026-10-24)
 
-The `/optimize` plan leaves OpenRewrite out of the command because Lombok is already applied in about 176 files and the expected yield is small. One `rewrite:dryRun` with the Lombok recipes would show what it would really change. Cost: a throw-away Maven plugin run, no repository change; the result decides whether OpenRewrite is worth adding later.
+The `/reduce-code` plan leaves OpenRewrite out of the command because Lombok is already applied in about 176 files and the expected yield is small. One `rewrite:dryRun` with the Lombok recipes would show what it would really change. Cost: a throw-away Maven plugin run, no repository change; the result decides whether OpenRewrite is worth adding later.
 
 ### 4. `md-to-decisions-json.js --extract .claude ADR-002` fails (found by the planner, 2026-10-24)
 

@@ -98,12 +98,11 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 240 | improvement-240 — the AI commands and documentation checks: `/sync-docs` default scope, report and related documents, five multi-line comments of two test classes and the map generator, a full documentation sync, `/optimize` renamed to `/reduce-code` (in development), a new `/tighten-ai` |
 | Top | 🟡 | 246 | improvement-246 — technical debt investigation of the project, ten hypotheses (Dockerfile, ADR files, rules size, skill duplication, dependency versions, version compatibility, compiler options, ADR index, CI complexity, other), read-only |
-| Top | 🟡 | 245 | improvement-245 — five multi-line comments in two integration test classes break the comment rule, and a full documentation sync (`/sync-docs --full-audit`) has not been run |
 | Top | ⚪ | 244 | improvement-244 — research: does the project need a wiki, and can a documentation tool replace the Architecture Control Plane, or is it better to keep it |
 | Top | 🟡 | 243 | improvement-243 — the sort line of the list pages shows the order of the fields in the panel, not the real sort order, and no test checks it; `WHERE 1=1` in two repositories |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
-| Top | 🟡 | 240 | improvement-240 — `/sync-docs` does not behave correctly: its default scope misses uncommitted work and its last step repeats what the CI docs stage does; refactor it |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Later | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
@@ -112,17 +111,17 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 Details, links, and per-batch rationale below.
 
+### Top priority — improvement-240
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-240](tasks/improvement-240-sync-docs-refactor.md) | New (the user asked for it at the top, 2026-11-07; merged with the former improvement-245 and improvement-247, 2026-11-08) | The `/sync-docs` refactor, the comment rule cleanup, a full documentation sync, `/optimize` renamed to `/reduce-code`, a new `/tighten-ai` |
+
 ### Top priority — improvement-246
 
 | Task | Origin | What |
 |---|---|---|
 | [improvement-246](tasks/improvement-246-technical-debt-investigation.md) | New (the user asked for it at the top, 2026-11-08) | A read-only investigation of ten technical-debt hypotheses, with the report format and limits given by the user |
-
-### Top priority — improvement-245
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-245](tasks/improvement-245-multi-line-comments-and-full-docs-sync.md) | New (the user asked for it at the top, 2026-11-08) | The five multi-line comments in `TaxonServiceTest` and `ProviderProfilePaginationScenarioTest` become one line each with their rationale in its canonical place; a full documentation sync |
 
 ### Top priority — improvement-244
 
@@ -142,12 +141,6 @@ Details, links, and per-batch rationale below.
 |---|---|---|
 | [improvement-242](tasks/improvement-242-remove-all-containers-script.md) | New (the user asked for it at the top, 2026-11-08) | A script that removes every project container and never the working session's own; a dry-run mode to check what it would remove |
 
-### Top priority — improvement-240
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-240](tasks/improvement-240-sync-docs-refactor.md) | New (the user asked for it at the top, 2026-11-07) | Refactor `/sync-docs`: default scope, a regeneration step the CI docs stage repeats |
-
 ### Nice to have — no internal priority order
 
 | Task | Origin | What |
@@ -161,7 +154,7 @@ Details, links, and per-batch rationale below.
 | [improvement-142](tasks/improvement-142-architecture-map-bounded-contexts-follow-ups.md) | New (filed 2026-08-05, continuation of improvement-138 once that file's own scope closed; deprioritized to the bottom of the backlog 2026-08-28 per explicit user request) | `scripts/ai/DECISIONS.md` ADR-019 mechanized Bounded Contexts' domain grouping/relationships live from real code, but a full content-parity check before deleting `docs/architecture/bounded-contexts.md` found four genuinely-unique sections with no live equivalent: `Domain Details`'s per-domain prose (specific cross-domain call narratives, negative facts, architectural nuances), `Shared Kernel`'s full 5-category breakdown with examples, `Domain Independence`, and `Risks & Future Considerations`. `Integration Patterns` confirmed **not** a loss (duplicates SPI Map's Call Flow Examples word-for-word). `bounded-contexts.md` has already been deleted (`git rm`); a draft candidate for the four sections' JSON content is captured directly in the issue file. Fix: wire that content into the generator as hand-preserved static content (same exception class as SPI Map's Call Flow Examples/Implementation Rules), same 01/02/04 discipline. Scoped to Bounded Contexts content parity only — Code-Metrics-related follow-ups now live entirely in `improvement-144` |
 | (no issue filed yet — see [improvement-142](tasks/improvement-142-architecture-map-bounded-contexts-follow-ups.md)'s captured `07-risk-report.md` content) | Carried forward from the now-deleted `07-risk-report.md`'s "Architectural Debt" list (2026-08-06) | 3 small speculative items, none urgent: extract a centralized `AuthorizationService` if authorization logic grows beyond `AccessEvaluator` (MEDIUM priority/effort); partition `audit_log` for scaling beyond ~1M rows (LOW priority, LARGE effort, not urgent); add unit tests for every `AuditActivityFieldsHook`/`AuditActivityEnrichHook` implementation across all `EntityType` values (MEDIUM priority, SMALL effort — same gap the `SPI Contract Testing` risk in the deleted `07` also named) — file as a real `/feature` issue if/when actually picked up |
 | [improvement-185](tasks/improvement-185-full-javadoc-integration-architecture-map.md) | New (exploratory chat discussion, filed 2026-09-08, follow-up to this session's per-class purpose-tooltip work) | Whether/how to integrate full standard Javadoc (method-level `@param`/`@return`/`@throws`, cross-referenced) into architecture-map, beyond today's one-line class-purpose hover tooltip — three undecided candidates (external generated site, iframe embed, or extending the lightweight in-house extraction into a new class-detail screen), no design chosen yet |
-| [improvement-226](tasks/improvement-226-query-lib-reductions-from-optimize-run.md) | New (follow-up of the first `/optimize path query-lib` run, filed 2026-10-24) | Remove about 56 lines `query-lib/` does not need (a private copy of a constructor, three unused public methods, a duplicated test, throw-away test mappings, one wrong `pom.xml` comment) with every caller unchanged; six decisions wait for the user; moved to Nice to have 2026-10-26 |
+| [improvement-226](tasks/improvement-226-query-lib-reductions-from-optimize-run.md) | New (follow-up of the first `/reduce-code path query-lib` run, filed 2026-10-24) | Remove about 56 lines `query-lib/` does not need (a private copy of a constructor, three unused public methods, a duplicated test, throw-away test mappings, one wrong `pom.xml` comment) with every caller unchanged; six decisions wait for the user; moved to Nice to have 2026-10-26 |
 | [improvement-215](tasks/improvement-215-approval-gate-requires-template.md) | Moved down from Top 2026-10-28 (not critical for now) | The approval hooks accept any affirmative reply as approval and cannot see whether the plan was shown in the Approval Rule's template (Summary / Agent / Model / Input / Result); file changes through Bash are not gated at all. Planned split: the template check first (can the hook read the transcript?), the Bash write gate as its own design step |
 | [improvement-036](tasks/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging |
 | [improvement-191](tasks/improvement-191-ui-modernization-map-reconcile-188-096-129.md) | New (evaluated an external "UI/UX MODERNIZATION v2" directive against this codebase, filed 2026-09-15; user-requested top-of-backlog placement, 2026-09-15; execution order confirmed 2026-09-15) | The directive's own claims were verified against real code: its ArchUnit-boundary claim (`marketplace_app_must_not_depend_on_platform_commons_spi_directly`) and its "geometry-only Playwright pass hid a visually wrong result" lesson (`improvement-126`) both check out. But its theme-baseline investigation (§0/§16) duplicates `improvement-188` Task A's already-delivered "lean no" Aura go/no-go, and its AdvertisementCard (Wave 1) plus mobile/responsive (§13) scope overlaps `improvement-129` and `improvement-096`. Scoped down to what isn't already owned: Query Block, Header/Tabs, surface system, typography, color discipline, vertical rhythm, dialogs, Timeline, User UI, attachments, Provider Profile visual refinement — plus the document's own Map-then-human-approval process before any implementation. `improvement-188` closed in full 2026-09-17 (Tasks 0/A/C/D all done). **Still waits on `improvement-129`'s open design questions being resolved** — sequenced last in Top for this reason. See the issue file for full rationale |
@@ -259,4 +252,4 @@ standalone items when filed.
 - Task resolved → move the file to `completed/tasks/` (per rules.md), remove its row here, AND
   add a one-line `✅ Done (date): ...` entry to [BACKLOG-ARCHIVE.md](completed/BACKLOG-ARCHIVE.md) under the relevant wave
   — all in the same change.
-- A research for a task being planned lives in `research/<topic>/` (kept in git so a new session can resume it) and is removed with `research/tools/scripts/remove-topic.sh` once the task made from it is filed. See [research/tools/README.md](research/tools/README.md).
+- A research for a task being planned lives in `research/<topic>/` (kept in git so a new session can resume it) and is removed with `research/tools/scripts/remove-topic.sh` once the task made from it is filed, or after the user's explicit approval to delete it when no task is filed. See [research/tools/README.md](research/tools/README.md).

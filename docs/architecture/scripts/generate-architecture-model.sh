@@ -35,7 +35,9 @@
 #   docs/architecture/architecture-map.html, docs/architecture/data/arch-embed-index.md. JSON/HTML
 #   built to temp siblings and moved into place only on full success (atomic -- interrupted runs
 #   never leave partial/empty files).
-# Returns: 0 on success, non-zero if any generation step fails.
+# Returns: 0 on success, non-zero if any generation step fails, among them a Database ERD column named
+#   like a reference (entity_id, author_id, actor_id, created_by, *_actor_id, *_taxon_id) that has no foreign
+#   key and no "References <table>(<column>), no FK" marker in its remarks=.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -1180,9 +1182,12 @@ db_erd_json() {
     process.stdin.on("end", () => {
       const refRe = /References\s+((?:\w+\(\w+\)\s*(?:or\s+)?)+)(?:depending on \w+\s*)?,\s*no FK/i;
       const derived = [];
+      const refCols = /^(entity_id|author_id|actor_id|created_by|.*_actor_id|.*_taxon_id)$/;
+      const unmarked = [];
       JSON.parse(d).forEach(t => t.columns.forEach(c => {
         const remarks = c.remarks || "";
         const m = refRe.exec(remarks);
+        if (!m && !c.foreignKeyTable && refCols.test(c.name)) unmarked.push(t.name + "." + c.name);
         if (!m) return;
         const targetRe = /(\w+)\((\w+)\)/g;
         let tm;
@@ -1190,9 +1195,13 @@ db_erd_json() {
           derived.push({ from: tm[1].toUpperCase(), to: t.name.toUpperCase(), label: c.name + " (no FK)", column: c.name, refColumn: tm[2] });
         }
       }));
+      if (unmarked.length) {
+        process.stderr.write("ERROR: a column that references another table without a foreign key has no \"References <table>(<column>), no FK\" marker in its remarks=: " + unmarked.join(", ") + "\n");
+        process.exit(1);
+      }
       process.stdout.write(JSON.stringify(derived));
     });
-  ')"
+  ')" || return 1
   echo "{\"tables\": $tables_json, \"conceptualRelationships\": $relationships_json}"
 }
 
@@ -2092,6 +2101,7 @@ ci_metrics_json="null"
 test_reports_json_out="$(test_reports_json)"
 run_logs_json_out="$(run_logs_json)"
 services_list_json="$(services_json)"
+db_erd_out="$(db_erd_json)"
 
 {
   echo "{"
@@ -2105,7 +2115,7 @@ services_list_json="$(services_json)"
   echo "  \"archEmbeds\": $(arch_embeds_json),"
   echo "  \"backlogPriorityOrder\": $(backlog_priority_order_json),"
   echo "  \"spiMap\": $(spi_map_json),"
-  echo "  \"dbErd\": $(db_erd_json),"
+  echo "  \"dbErd\": $db_erd_out,"
   echo "  \"boundedContexts\": $(bounded_contexts_json),"
   echo "  \"sonarMetrics\": $sonar_json,"
   echo "  \"archUnitMetrics\": $archunit_json,"

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Measures one batch of the /optimize command and checks its hard rules without a model
+# Description: Measures one batch of the /reduce-code command and checks its hard rules without a model
 #   call. For the files of the batch it counts the lines added and removed against a base (staged
 #   and unstaged changes together; an untracked file counts all its lines as added), and over the
 #   whole change against that base it fails when anything under marketplace-orchestrator/ changed,
 #   when an added line in a pom.xml contains <dependency>, or when an added line in a .java file uses
 #   reflection. The counts are physical lines, comments and blank lines included.
-# Usage: bash .claude/commands/optimize/check-batch.sh [--base <ref>] <path>... [--help]
+# Usage: bash .claude/commands/reduce-code/check-batch.sh [--base <ref>] <path>... [--help]
 #   <path>...   the files (or folders) of one batch
 #   --base      the ref the change is measured against (default HEAD)
 #   --help      print the usage text and exit
@@ -82,7 +82,7 @@ while IFS= read -r file; do
   [ -n "$file" ] || continue
   case "$file" in
     marketplace-orchestrator/*)
-      echo "VIOLATION $file is under marketplace-orchestrator/, which /optimize never touches"
+      echo "VIOLATION $file is under marketplace-orchestrator/, which /reduce-code never touches"
       VIOLATIONS=$((VIOLATIONS + 1))
       ;;
   esac

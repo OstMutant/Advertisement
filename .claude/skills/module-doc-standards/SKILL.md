@@ -193,6 +193,10 @@ column-to-column reference at all (e.g. two sibling tables that both separately 
 same owning entity, with no direct link between the two tables themselves) is not drawn: the
 diagram shows only what a real foreign key or a column's marker declares, no hand-typed list.
 
+Before closing a task that changes a changelog, check every column named like a reference
+(`entity_id`, `author_id`, `actor_id`, `created_by`, `*_actor_id`, `*_taxon_id`) that has no foreign
+key: it carries the marker. The generator fails on such a column without one.
+
 ## Where comment rationale that got trimmed actually goes
 
 When the one-line-or-none rule trims out real rationale that was going to be the comment's

@@ -1,10 +1,12 @@
 ---
-description: Find code and documentation this repository no longer needs to maintain, measure the saving and remove it only in approved batches -- discovery (read-only: a brief built from a fixed template, the deep-review-orchestrator with the code-reduction-reviewer lens, then the deep-researcher on Opus), report, apply <ID>, verify. Never touches marketplace-orchestrator, never commits.
-argument-hint: "[module <name> | path <dir> | all | report | apply <ID>[,<ID>] | verify [<ID>]]"
+description: (In development) Find code and documentation this repository no longer needs to maintain, measure the saving and remove it only in approved batches -- discovery (read-only: a brief built from a fixed template, the deep-review-orchestrator with the code-reduction-reviewer lens, then the deep-researcher on Opus), report, apply <ID>, verify. Never touches marketplace-orchestrator, never commits.
+argument-hint: "[module <name> | path <dir> | topic <description> | all | report | apply <ID>[,<ID>] | verify [<ID>]]"
 disable-model-invocation: false
 ---
 
-# /optimize
+# /reduce-code
+
+This command is still in development.
 
 Reduce the total amount of code this repository has to write, understand, test and maintain, without
 losing readability, explicitness, type safety, testability or the architecture. Four modes, chosen by
@@ -48,13 +50,17 @@ added.
 
 ## Modes
 
-### `module <name>`, `path <dir>`, `all` -- discover
+### `module <name>`, `path <dir>`, `topic <description>`, `all` -- discover
 
+0. `topic <description>` is a cross-cutting scope: find every file outside `marketplace-orchestrator/` that
+   the description names (`Grep`/`Glob` for its symbols, tables and columns, tests and changelogs included),
+   list the files grouped by module, and use that list as `<scope>` (the orchestrator receives it as
+   `paths <file list>`, the brief names the description and the list). The topic slug comes from the description.
 1. Refuse a scope inside `marketplace-orchestrator`. For `marketplace-app` as a whole, recommend
    `path` scopes of its packages first and go on only after a direct yes. `module <name>` is searched
    as `path <name>/`, so the scope holds every file of the module (tests, `pom.xml`, `README.md`,
    `DECISIONS.md` included), not only `src/main`.
-2. Topic: `optimize-<scope slug>`, lower-case letters, digits and hyphens, at most 40 characters. Run
+2. Topic: `reduce-code-<scope slug>`, lower-case letters, digits and hyphens, at most 40 characters. Run
    `bash backlog/research/tools/scripts/list-topics.sh`; when the topic exists, run `show-status.sh <topic>`
    and tell the user what is there instead of starting over.
 3. Run `bash backlog/research/tools/scripts/start-topic.sh <topic>` and write `backlog/research/<topic>/brief.md`
@@ -125,7 +131,7 @@ the decision is left to the user.
 
 ### `verify [<ID>]`
 
-1. Run `bash .claude/commands/optimize/check-batch.sh <the entry's files>`. Any `VIOLATION` stops the run and
+1. Run `bash .claude/commands/reduce-code/check-batch.sh <the entry's files>`. Any `VIOLATION` stops the run and
    is reported.
 2. Run the smallest relevant tests first (`build-and-test.sh --unit-test <module>` or
    `--integration-test <class>`), then the suite the Definition of Done names, backgrounded through the

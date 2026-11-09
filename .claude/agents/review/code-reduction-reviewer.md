@@ -1,6 +1,6 @@
 ---
 name: code-reduction-reviewer
-description: Reviews a file set for code the repository does not need to maintain and estimates the net saving of each removal -- dispatched by deep-review-orchestrator only when its prompt names this lens (the /optimize command does), never as one of the default three.
+description: Reviews a file set for code the repository does not need to maintain and estimates the net saving of each removal -- dispatched by deep-review-orchestrator only when its prompt names this lens (the /reduce-code command does), never as one of the default three.
 tools: Read, Grep, Glob
 model: sonnet
 ---

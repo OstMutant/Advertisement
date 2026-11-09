@@ -6,6 +6,7 @@ Usage: /deep-review [scope]
 Examples:
   /deep-review                          # uncommitted working-tree changes (default)
   /deep-review HEAD~3                   # one specific commit (committed changes only)
+  /deep-review HEAD~5..HEAD~2           # the changes between two refs (nothing uncommitted)
   /deep-review task improvement-NNN     # every commit of that task plus the uncommitted changes
   /deep-review module platform-commons  # every file in one module's src/main
   /deep-review all                      # whole repo, one module at a time in parallel

@@ -36,6 +36,8 @@ diff):
   + unstaged against the last commit). If empty, stop and report "nothing to review".
 - A git ref or commit hash (e.g. `HEAD~3`, `a1b2c3d`) → that one commit's own diff:
   `git diff <ref>~1..<ref>`.
+- `<a>..<b>` (two refs or commit hashes, e.g. `HEAD~5..HEAD~2`) → the range of changes between them:
+  `git diff <a>..<b>` (nothing uncommitted). If empty, stop and report "nothing to review".
 - `task <id>` → every commit whose message names that task (`git log --grep` on the id, the repository's `<type>(<id>): …` commit convention) plus the uncommitted changes: the diff is `git show <sha>` for each such commit followed by `git diff HEAD`.
   With no such commit, review the uncommitted changes only and say so in the summary.
 - `module <name>` (e.g. "module platform-commons") → a file set: every file under

@@ -3,7 +3,7 @@
 Code-review subagents — [`deep-review-orchestrator`](deep-review-orchestrator.md) dispatches the
 three default reviewer lenses below in a single, parallel response (or only the lenses its prompt
 names; [`code-reduction-reviewer`](code-reduction-reviewer.md) runs only that way, from the
-`/optimize` command), then dispatches its own per-candidate
+`/reduce-code` command), then dispatches its own per-candidate
 verification subagents (ad hoc `general-purpose` dispatches, not named files in this directory, so
 not pictured below) before returning its result.
 [`dry-kiss-yagni-reviewer`](dry-kiss-yagni-reviewer.md) and [`solid-reviewer`](solid-reviewer.md)
