@@ -112,6 +112,8 @@ third time.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Also affects:** advertisement-spring-boot-starter, provider-profile-spring-boot-starter
 
 **Context:** `AdvertisementService` and `ProviderProfileService` each independently hand-rolled the

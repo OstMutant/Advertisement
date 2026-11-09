@@ -124,16 +124,19 @@ Research and review only. Do not change code; do not create tables, migrations, 
 
 ## Operational notes
 - token_cost_review: n/a
-- token_cost_research: n/a
+- token_cost_research: 321267 (second research pass only; the first pass was not recorded)
 - token_cost_verification: n/a
 - review_signal_ratio: n/a
-- context_loading_task_type: n/a
-- context_loading_consulted: n/a
-- context_loading_matched: n/a
-- flows_situation: n/a
-- flows_chosen: n/a
-- flows_matched: n/a
+- context_loading_task_type: Cross-module feature
+- context_loading_consulted: yes
+- context_loading_matched: yes
+- flows_situation: a researched plan for a cross-module filter rule
+- flows_chosen: /deep-research (twice), then /new-task
+- flows_matched: yes
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: none
+- adrs_referenced: ADR-001 (taxon-spring-boot-starter), ADR-034 (marketplace-app), ADR-032 (platform-commons)
+
+### Agent calls
+- Deep research, second pass (query-fragment port) | subagent_type=deep-researcher | tokens=321267 | tool_uses=135 | duration_s=3019 | mode=background | batch=solo

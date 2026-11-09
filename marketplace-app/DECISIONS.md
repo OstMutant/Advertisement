@@ -1649,6 +1649,8 @@ optional singleton services/ports"):
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Also affects:** advertisement-spring-boot-starter
 
 **Context:** `AdvertisementRepository.findAdvertisementById()`/`findByFilter()` did

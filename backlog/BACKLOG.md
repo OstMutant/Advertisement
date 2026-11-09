@@ -98,24 +98,18 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 249 | improvement-249 — research: pluggable modules with opaque cross-module references, starting from the Taxon filter flow (`taxon_assignment`, `ANY(:allowedIds)`), with a report and a plan, no code change |
 | Top | 🟡 | 246 | improvement-246 — technical debt investigation of the project, ten hypotheses (Dockerfile, ADR files, rules size, skill duplication, dependency versions, version compatibility, compiler options, ADR index, CI complexity, other), read-only |
 | Top | ⚪ | 244 | improvement-244 — the Architecture Control Plane shows module READMEs, gets full-text search (MiniSearch) and is linked from the root README; the research found no tool that replaces it |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
+| Later | 🔵 | 250 | improvement-250 — a Port returns a typed SQL predicate for a cross-module filter that can match an unbounded number of rows (Taxon category and city first), so no id set travels through Java; the plan, the decision-record texts and the execution steps are written, execution waits for the user's go |
 | Later | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
 | Deferred (trigger) | ⚪ | 003, 017, 021, 038, 053, 055, 086, 109 | each waits for its own trigger, listed in the Deferred section below: data volume (038, 053), the thumbnail refactor (017), concurrent gallery editing (021), a PostgreSQL bump (086), a UI consistency pass (055, 109), per-item triggers (003) |
 | Nice to have | — | 036, 112, 191, 039, 118 | the lowest-priority tasks: anything that lands here is picked up after everything above. improvement-036 — actuator and structured JSON logs; the plan is researched and approved, execution not started. improvement-112 — a failing enrichment port blanks the advertisement list; the plan is researched, four decisions (edit and save paths, link-preview cache, REST/MCP note, other gaps) are unanswered, nothing implemented. improvement-191 — UI/UX modernization map (Query Block, Header/Tabs, surfaces, typography, dialogs, Timeline, User UI, attachments, Provider Profile); first step is a document, not code, and it waits on the open design questions of improvement-129; deliberately parked at the user's request. improvement-039 — dark mode: Dark mode — a real implementation attempt failed (UI wiring confirmed broken); deprioritized to the very bottom 2026-09-16 pending a decision on whether the feature is even wanted, not just how to build it. improvement-118 — manual check of the Open Graph preview in real Facebook and Telegram: F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-249
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-249](tasks/improvement-249-pluggable-modules-opaque-cross-module-references-research.md) | New (the user asked for it at the very top, 2026-11-09) | A research and review run: whether local association tables and opaque ids give pluggable starters and database-level filtering, starting from the Taxon filter flow, with a report, a migration plan and batches; no code change |
 
 ### Top priority — improvement-246
 
@@ -160,6 +154,12 @@ Details, links, and per-batch rationale below.
 | [improvement-191](tasks/improvement-191-ui-modernization-map-reconcile-188-096-129.md) | New (evaluated an external "UI/UX MODERNIZATION v2" directive against this codebase, filed 2026-09-15; user-requested top-of-backlog placement, 2026-09-15; execution order confirmed 2026-09-15) | The directive's own claims were verified against real code: its ArchUnit-boundary claim (`marketplace_app_must_not_depend_on_platform_commons_spi_directly`) and its "geometry-only Playwright pass hid a visually wrong result" lesson (`improvement-126`) both check out. But its theme-baseline investigation (§0/§16) duplicates `improvement-188` Task A's already-delivered "lean no" Aura go/no-go, and its AdvertisementCard (Wave 1) plus mobile/responsive (§13) scope overlaps `improvement-129` and `improvement-096`. Scoped down to what isn't already owned: Query Block, Header/Tabs, surface system, typography, color discipline, vertical rhythm, dialogs, Timeline, User UI, attachments, Provider Profile visual refinement — plus the document's own Map-then-human-approval process before any implementation. `improvement-188` closed in full 2026-09-17 (Tasks 0/A/C/D all done). **Still waits on `improvement-129`'s open design questions being resolved** — sequenced last in Top for this reason. See the issue file for full rationale |
 | [improvement-039](tasks/improvement-039-dark-mode-lumo-tokens.md) | Migrated; its remaining scope was tracked as `improvement-188` Task B 2026-09-15/16, moved back here in full 2026-09-16 | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037. A real implementation attempt exists on the unmerged `improvement-039` branch: backend layer (theme_preference column, Port/Service/Repository) passes its own tests, but the UI wiring (header toggle, flash-prevention listener) is confirmed broken via manual testing — neither saving nor switching the theme works. Deprioritized to the very bottom of the whole backlog per explicit user request: **before resuming, decide whether this feature is actually wanted**, given the real effort the first attempt showed this needs |
 | [improvement-118](tasks/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable; pushed to the bottom 2026-07-25, not actionable in this environment |
+
+### Later — improvement-250
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-250](tasks/improvement-250-query-predicate-port-for-unbounded-cross-module-filters.md) | New (from the two research passes of improvement-249, the user asked for the plan to be prepared and not executed, 2026-11-09) | The rule "an id set where the result is bounded, a provider-built `SqlPredicate` where it can be unbounded", the two contract types, the Taxon predicate, both consumers, the decision-record updates and an ArchUnit guard |
 
 ### Later — improvement-237
 

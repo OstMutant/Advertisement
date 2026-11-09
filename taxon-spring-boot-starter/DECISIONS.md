@@ -5,6 +5,8 @@
 ## ADR-001: Filter resolves through `Set<Long>`, not SQL JOIN
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** Advertisement filtering by category requires joining `taxon_assignment` to
 `advertisement`. A direct JOIN would couple `AdvertisementRepository` SQL to `taxon_assignment`
 table — a starter-owned table that the marketplace module must not reference directly.
