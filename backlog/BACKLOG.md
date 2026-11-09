@@ -98,11 +98,11 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 240 | improvement-240 — the AI commands and documentation checks: `/sync-docs` default scope, report and related documents, five multi-line comments of two test classes and the map generator, a full documentation sync, `/optimize` renamed to `/reduce-code` (in development), a new `/tighten-ai` |
 | Top | 🟡 | 246 | improvement-246 — technical debt investigation of the project, ten hypotheses (Dockerfile, ADR files, rules size, skill duplication, dependency versions, version compatibility, compiler options, ADR index, CI complexity, other), read-only |
 | Top | ⚪ | 244 | improvement-244 — research: does the project need a wiki, and can a documentation tool replace the Architecture Control Plane, or is it better to keep it |
 | Top | 🟡 | 243 | improvement-243 — the sort line of the list pages shows the order of the fields in the panel, not the real sort order, and no test checks it; `WHERE 1=1` in two repositories |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
+| Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Later | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Before public launch | 🟡 | 100, 052 | improvement-100 — no password-recovery flow (needs an email-infrastructure decision); improvement-052 — first-admin registration race, accepted risk until production hardening; both wait for the same trigger: the project nearing a public launch |
@@ -110,12 +110,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Nice to have | — | 036, 112, 191, 039, 118 | the lowest-priority tasks: anything that lands here is picked up after everything above. improvement-036 — actuator and structured JSON logs; the plan is researched and approved, execution not started. improvement-112 — a failing enrichment port blanks the advertisement list; the plan is researched, four decisions (edit and save paths, link-preview cache, REST/MCP note, other gaps) are unanswered, nothing implemented. improvement-191 — UI/UX modernization map (Query Block, Header/Tabs, surfaces, typography, dialogs, Timeline, User UI, attachments, Provider Profile); first step is a document, not code, and it waits on the open design questions of improvement-129; deliberately parked at the user's request. improvement-039 — dark mode: Dark mode — a real implementation attempt failed (UI wiring confirmed broken); deprioritized to the very bottom 2026-09-16 pending a decision on whether the feature is even wanted, not just how to build it. improvement-118 — manual check of the Open Graph preview in real Facebook and Telegram: F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-240
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-240](tasks/improvement-240-sync-docs-refactor.md) | New (the user asked for it at the top, 2026-11-07; merged with the former improvement-245 and improvement-247, 2026-11-08) | The `/sync-docs` refactor, the comment rule cleanup, a full documentation sync, `/optimize` renamed to `/reduce-code`, a new `/tighten-ai` |
 
 ### Top priority — improvement-246
 
@@ -140,6 +134,12 @@ Details, links, and per-batch rationale below.
 | Task | Origin | What |
 |---|---|---|
 | [improvement-242](tasks/improvement-242-remove-all-containers-script.md) | New (the user asked for it at the top, 2026-11-08) | A script that removes every project container and never the working session's own; a dry-run mode to check what it would remove |
+
+### Top priority — improvement-248
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-248](tasks/improvement-248-ai-instructions-tighten-and-doc-sync-remaining.md) | New (split from improvement-240 when it was closed, the user asked for it right after improvement-242, 2026-11-09) | The research pair and the analysts tightened, five multi-line comments in two test classes and the multi-line comments of the map generator, a full documentation sync, `/tighten-ai` on the rest |
 
 ### Nice to have — no internal priority order
 

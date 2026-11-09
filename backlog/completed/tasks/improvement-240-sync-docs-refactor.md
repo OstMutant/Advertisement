@@ -263,7 +263,10 @@ Open for the user: whether the lens or the researcher should also propose a patt
 
 Done 2026-11-09 (applied after the user's yes): `.claude/commands/reduce-code.md` is 137 lines and 14,000-odd characters; the hard limit, the kind `pattern`, the field `Source`, the brief's goal, where to look and completion criterion, the rejected-idea rule for a pattern against a settled decision, steps 7 and 8, the Apply model for a `pattern` entry and the Verify rule are in the text. Two read-only Sonnet passes found conflicts (the hard limit against the goal, no step carrying the researcher's pattern entries into the inventory, a missing source field, Haiku against Opus for a pattern edit, the status path of a `needs-poc` entry); all closed. The rule that a pattern entry must remove more than it adds (or remove a measured duplication or coupling) answers the open question of this plan: a pattern that only lowers coupling without a measured count is not proposed.
 
-## Status of this task on 2026-11-09: done and not done
+## Status of this task on 2026-11-09: closed, the rest moved to improvement-248
+
+The task is closed; its "Not done" list below was moved to [improvement-248](../../tasks/improvement-248-ai-instructions-tighten-and-doc-sync-remaining.md).
+
 
 Done and saved in the repository history (the entry `8823ab6a` and the entries before it):
 - `/optimize` renamed `/reduce-code`, marked as in development; new command `/tighten-ai` with its checklist; `/sync-docs` rewritten (252 lines instead of 400) with three read-only checks and a replay of both versions, its ambiguities settled; `/deep-review <a>..<b>`; the generator fails on a reference column without the marker, the two changelog hooks and the documentation skill remind about it; `scripts/collect-code.bat` fixed (CRLF, duplicated block removed); the module table of the root `README.md` checked by `check-module-lists.sh`; the research topic `tighten-ai-commands` removed.
