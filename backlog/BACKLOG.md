@@ -102,6 +102,8 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Top | ⚪ | 244 | improvement-244 — the Architecture Control Plane shows module READMEs, gets full-text search (MiniSearch) and is linked from the root README; the research found no tool that replaces it |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
+| Top | 🟡 | 252 | improvement-252 — the application is started once with each optional starter removed from `pom.xml`; the likely missing absent-safe `ComponentFactory` declaration is fixed |
+| Top | 🟡 | 251 | improvement-251 — deleting a provider profile is tested as one unit: a stale version or a failing later step leaves its reviews in place |
 | Nice to have | — | 096, 129, 028, 133, 223, 172, 142, 185, 226, 215 | everything else — no internal priority order, pick up opportunistically |
 | Later | 🔵 | 250 | improvement-250 — a Port returns a typed SQL predicate for a cross-module filter that can match an unbounded number of rows (Taxon category and city first), so no id set travels through Java; the plan, the decision-record texts and the execution steps are written, execution waits for the user's go |
 | Later | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
@@ -154,6 +156,18 @@ Details, links, and per-batch rationale below.
 | [improvement-191](tasks/improvement-191-ui-modernization-map-reconcile-188-096-129.md) | New (evaluated an external "UI/UX MODERNIZATION v2" directive against this codebase, filed 2026-09-15; user-requested top-of-backlog placement, 2026-09-15; execution order confirmed 2026-09-15) | The directive's own claims were verified against real code: its ArchUnit-boundary claim (`marketplace_app_must_not_depend_on_platform_commons_spi_directly`) and its "geometry-only Playwright pass hid a visually wrong result" lesson (`improvement-126`) both check out. But its theme-baseline investigation (§0/§16) duplicates `improvement-188` Task A's already-delivered "lean no" Aura go/no-go, and its AdvertisementCard (Wave 1) plus mobile/responsive (§13) scope overlaps `improvement-129` and `improvement-096`. Scoped down to what isn't already owned: Query Block, Header/Tabs, surface system, typography, color discipline, vertical rhythm, dialogs, Timeline, User UI, attachments, Provider Profile visual refinement — plus the document's own Map-then-human-approval process before any implementation. `improvement-188` closed in full 2026-09-17 (Tasks 0/A/C/D all done). **Still waits on `improvement-129`'s open design questions being resolved** — sequenced last in Top for this reason. See the issue file for full rationale |
 | [improvement-039](tasks/improvement-039-dark-mode-lumo-tokens.md) | Migrated; its remaining scope was tracked as `improvement-188` Task B 2026-09-15/16, moved back here in full 2026-09-16 | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037. A real implementation attempt exists on the unmerged `improvement-039` branch: backend layer (theme_preference column, Port/Service/Repository) passes its own tests, but the UI wiring (header toggle, flash-prevention listener) is confirmed broken via manual testing — neither saving nor switching the theme works. Deprioritized to the very bottom of the whole backlog per explicit user request: **before resuming, decide whether this feature is actually wanted**, given the real effort the first attempt showed this needs |
 | [improvement-118](tasks/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable; pushed to the bottom 2026-07-25, not actionable in this environment |
+
+### Top priority — improvement-252
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-252](tasks/improvement-252-application-starts-without-each-optional-starter.md) | New (the debt investigation, outside-scope finding, 2026-11-09) | Verify which optional starters cannot be removed without breaking startup, fix the declaration, add a test per starter |
+
+### Top priority — improvement-251
+
+| Task | Origin | What |
+|---|---|---|
+| [improvement-251](tasks/improvement-251-profile-delete-atomicity-test.md) | New (the deep verification in improvement-246, 2026-11-09) | A test that a stale version or a failing later step leaves the profile's reviews, replies, ratings and rating summary in place |
 
 ### Later — improvement-250
 

@@ -49,11 +49,9 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Version pinned here: the parent manages no ArchUnit version. -->
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
-            <version>1.4.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

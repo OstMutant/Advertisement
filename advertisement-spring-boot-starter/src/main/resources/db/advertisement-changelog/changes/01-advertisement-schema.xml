@@ -36,6 +36,9 @@
             </column>
         </createTable>
 
+        <createIndex indexName="idx_advertisement_title" tableName="advertisement">
+            <column name="title"/>
+        </createIndex>
         <createIndex indexName="idx_advertisement_created_at" tableName="advertisement">
             <column name="created_at"/>
         </createIndex>

@@ -181,7 +181,7 @@ For `path` and `paths`, keep the full file list: the result's `inspected` is che
      (every prefix) plus one, each further file the next number;
    - content: `**Type:**`, `**Module:**`, `**Priority:**`, `**When:**`, then `## Current state`,
      `## Why change`, `## Expected benefit`, `## Approach`, `## Related`;
-   - an `## Operational notes` block in the format of `.claude/rules.md`, from the real
+   - an `## Operational notes` block in the format of `.claude/rules/backlog-tasks.md`, from the real
      `subagent_tokens`/`tool_uses`/`duration_ms` each of your `Agent` calls returned, never
      estimated:
      - `token_cost_review`: sum over step-3 lens calls;

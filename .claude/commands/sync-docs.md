@@ -231,7 +231,7 @@ only with `--full-audit`.
 
 1. Parse every `## Operational notes` block in `backlog/completed/tasks/` and `backlog/tasks/` as
    `key: value` lines, not prose; the keys are defined by "Final reports record real operational data"
-   in `.claude/rules.md`. No audit date is recorded, so every block counts.
+   in `.claude/rules/backlog-tasks.md`. No audit date is recorded, so every block counts.
 2. Aggregate: token cost by purpose (`token_cost_review`, research, verification), sum and average, `n/a`
    excluded from the average, not counted as zero; `context_loading_matched` yes/no/n/a tally grouped by
    `context_loading_task_type`; `flows_matched` yes/no/n/a tally; `haiku_decomposition_used` yes/no tally

@@ -164,6 +164,179 @@ At the end give: the top 5 problems by priority; what must be fixed before the m
 
 **The main thing:** look not for what could be done differently but for what in the current changes can really break, worsen the work or create a hidden problem. Every conclusion must rest on concrete code, SQL, schema or a test. If the evidence is not enough, say so.
 
+## Investigation report 1: technical debt (run 2026-11-09, read-only)
+
+No build or test was run; two items stay `needs-further-check` because they need Maven (permission asked separately). Corrections to "Current state" above: `.claude/rules.md` has 16 sections with the warning sign (15 blockquote headings plus the heading on line 1), not 15; `adr-index.md` has 282 rows, not 283.
+
+### H1. The Dockerfile does not build the whole reactor
+**Status:** rejected
+**Evidence:** `Dockerfile:19` `COPY . .`; `Dockerfile:31` `./mvnw package -pl marketplace-app -am`. `marketplace-app/pom.xml` depends on `marketplace-orchestrator`, `marketplace-rest-api`, `marketplace-mcp` and `platform-commons`; `marketplace-orchestrator/pom.xml:31-77` pulls all 10 starters at `runtime` scope, and `-am` builds every reactor module a module depends on. `integration-tests` is test-only and not built, on purpose. `~/.m2` is only a cache mount (`Dockerfile:29`); reactor modules come from the reactor, not from `.m2`.
+**Root:** the premise is wrong; `COPY . .` is the fix for an earlier missing-module bug (commit `069d3eca`).
+**Impact:** none. A clean-environment build was not run.
+**Fix:** none. **Fix risk:** n/a.
+
+### H2. Eight `DECISIONS.md` files without `## ADR-NNN:` headings
+**Status:** rejected as debt (the fact is confirmed)
+**Evidence:** each file has 8-16 lines and calls itself a generated index with 1-3 links to ADRs that live in `marketplace-app`, `platform-commons` and `docs/api-collections` (17 links, 13 distinct ADRs). They own 0 ADRs.
+**Root:** pointer-only files generated from the `**Also affects:**` tag, by design.
+**Impact:** `adr-index.md` loses 0% coverage: the home ADRs are indexed (282 rows) and these files are listed under "Pointer-only files". Rewriting them to `## ADR-NNN` would only duplicate.
+**Fix:** none. **Fix risk:** n/a.
+
+### H3. `.claude/rules.md` has grown
+**Status:** confirmed
+**Evidence:** 919 lines, 60,170 bytes (about 15k tokens, bytes/4 estimate). 16 sections carry the warning sign (`rules.md:1`, and 15 `> ## ⛔` headings from line 34). "Happened multiple times / repeatedly" appears twice (lines 69, 141). Of the 16: 12 have a natural file trigger (75% by count, about 71% of the ⛔ text) and 4 must stay eager: "re-read all rules", "never commit", "code quality", "mechanical work goes to Haiku". Outside the ⛔ block: the UI pattern sections (Overlay, View, Query Layer, Service headers, DTO constants, Form handler, Breadcrumb, Reference implementations) are about 9.2k characters (15%) and already have a path-scoped home `.claude/rules/marketplace-app.md`; the `Operational notes` block is about 7.2k characters (12%) and is needed only when a task is created or closed. Together about 27% of the file can move without losing content. The file also breaks its own "abstract principle, not a case study" rule at lines 348, 360-361 and 428 ("confirmed directly", a named real file).
+**Root:** every lesson learned was appended to the always-loaded file.
+**Impact:** about 4k tokens in every session for rules that apply to one module or one moment.
+**Fix:** S - move the UI patterns to `marketplace-app.md`, the `Operational notes` format to the commands that create and close tasks.
+**Fix risk:** path-scoped rules load on a `Read`, not on a `Write` (see `.claude/rules/README.md`), so a brand-new file written before any read in that module would miss the rule.
+
+### H4. Duplication in `.claude/skills/`
+**Status:** confirmed, small
+**Evidence:** the four skills together are 81,739 bytes (`infra-doc-standards` alone 34 KB). A fuzzy sentence match (similarity above 0.8, sentences over 60 characters) found 20 similar pairs and 6 runs of two or more consecutive sentences, about 2,260 characters (about 560 tokens, 2.8%). Largest: "Applying this standard" in `module-readme-standards/SKILL.md:128` and `infra-readme-standards/SKILL.md:210` (5 sentences, 665 characters); then the "Atomic unit first" intro of the two doc skills, the "Aggregated cross-file facts" paragraph and the deferred-findings paragraph. The earlier 887-character figure used a stricter exact-sentence match.
+**Root:** each domain skill was written by copying its sibling.
+**Impact:** the cost is paid only when two skills are loaded together; the "one fact, one canonical home" rule governs facts, and these are parallel procedures, so the breach is weak.
+**Fix:** S - one shared procedure referenced by both.
+**Fix risk:** each skill stops being self-contained when loaded alone.
+
+### H5. Dependency convergence risks
+**Status:** confirmed in part; `dependencyConvergence` passing now is needs-further-check
+**Evidence:** `archunit-junit5` has a literal `1.4.2` in `marketplace-app/pom.xml:117-118` and `marketplace-mcp/pom.xml:55-56` and is not managed in the root. `jsoup` is managed in the root yet `${jsoup.version}` is repeated in `marketplace-app` and `html-sanitizer-lib`; `vaadin-dev` carries `${vaadin.version}`, and the 25.3.2 `vaadin-bom` does not manage it (checked in the BOM file), so that version is needed - the first draft of this report said otherwise. `caffeine` has no version in any pom (Spring Boot BOM) - refuted. `springdoc` is a root property used by one module - no risk. The root `dependencyManagement` mixes four literals (`commons-text`, `liquibase-core`, `commons-collections4`, `commons-io`) with properties; `owasp-java-html-sanitizer` has a literal in `html-sanitizer-lib`. The enforcer rule is inherited by every module (`pom.xml:232-241`, plugin 3.6.3). The root comment about aligning `swagger-annotations` "for the dependency-convergence rule" shows it was made to pass once; no run now.
+**Root:** versions are pinned where first needed.
+**Impact:** a new module is covered by the rule automatically; a divergent transitive version fails the build at once, not silently.
+**Fix:** XS - `archunit-junit5` into the root `dependencyManagement`; drop the repeated `jsoup` versions. Check with `mvn enforcer:enforce` (needs permission).
+**Fix risk:** minimal.
+
+### H6. Spring Boot 4.1.1, Vaadin 25.3.2, Java 25, Jackson 2 and 3
+**Status:** rejected (documentation drift confirmed)
+**Evidence:** Spring Boot 4.1.1 exists, latest 4.1.x is 4.1.2 ([Maven Central metadata](https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-starter-parent/maven-metadata.xml)). Vaadin 25.3.2 exists, latest 25.3.5 ([Maven Central metadata](https://repo.maven.apache.org/maven2/com/vaadin/vaadin-bom/maven-metadata.xml)). Vaadin 25.3 needs Java 21 or later, Spring Boot 4.1 or later, Node 24 or later ([compatibility page](https://vaadin.com/docs/v25/compatibility)); Java 25 satisfies "21 or later" but the page does not name it. Spring Boot 4.1 supports Java up to 27 ([system requirements](https://docs.spring.io/spring-boot/system-requirements.html)). Boot 4.1.1 manages both Jackson BOMs (2.21.5 and 3.1.5, `spring-boot-dependencies-4.1.1.pom:82-83`). Only `jackson-annotations` keeps the old package in Jackson 3 ([migration guide](https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md)); the guide warns that old-package databind annotations are silently ignored - the code has none (`com.fasterxml.jackson.databind.annotation/ser/deser` imports: 0). `platform-commons/pom.xml:22-37` declares both lines on purpose. Root `CLAUDE.md` says Spring Boot 4.1.0 and Vaadin 25.2.3, the pom has 4.1.1 and 25.3.2.
+**Root:** versions are repeated in prose that nobody updates.
+**Impact:** two patch releases behind; stale numbers in `CLAUDE.md`.
+**Fix:** XS - remove the version numbers from `CLAUDE.md` (the pom is their home).
+**Fix risk:** none.
+
+### H7. `<source>/<target>` instead of `<release>`
+**Status:** rejected as a problem; dead configuration confirmed
+**Evidence:** `pom.xml:201-202`. `spring-boot-starter-parent-4.1.1.pom:16` sets `maven.compiler.release=${java.version}` and the root sets `java.version=25` (`pom.xml:44`), so the plugin's `release` parameter is already filled. Not proven: that with both set the plugin passes only `--release` (the plugin's goal page states no precedence).
+**Root:** the lines predate the Boot parent's setting.
+**Impact:** none for Java 25 (source, target and release are all 25); the difference appears only with a JDK newer than the target.
+**Fix:** XS - delete the two lines; confirm with `mvn -X compile` (needs permission).
+**Fix risk:** minimal.
+
+### H8. Quality of `adr-index.md`
+**Status:** confirmed, moderate
+**Evidence:** 282 rows, 57,726 bytes (about 14k tokens). 14 rows have status "Superseded" (5.0%); 12 are "Accepted (done <date>)"; 10 are "Accepted (... portion reversed/corrected)": 36 rows (12.8%) describe a state on a date. 33 rows mention superseded, corrected or reversed anywhere. Four of the 14 are one chain in `scripts/ci`. `Applied` is filled in 58 rows, `Verified` in 7.
+**Root:** statuses are edited in place instead of the index hiding history.
+**Impact:** a superseded ADR cannot be deleted from `DECISIONS.md` (history, and other ADRs point to it); only the index can drop them, saving about 2.9 KB (5%).
+**Fix:** S - the generator omits "Superseded" rows and keeps a count.
+**Fix risk:** history search through the index is lost.
+
+### H9. CI complexity
+**Status:** confirmed in part
+**Evidence:** `scripts/ci/run.sh` 592 lines with 19 flags (lines 279-297); `scripts/ci/dagu/ci.yaml` 284 lines with 13 steps, 13 parameters, 5 env variables; 6 named volumes (`ci-m2-cache`, `ci-dagu-home`, `ci-tools-cache` in `run.sh`; `ci-maven-cache`, `ci-vaadin-cache`, `ci-test-reports` in `ci.yaml`) and 2 persistent containers. In the backlog files 18 of 19 flags appear in a CI context; used once: `--api-flows`, `--docs-only`, `--rebuild`, `--playwright-args`; never: `--teardown-e2e-after` (still named in `.claude/rules/scripts.md:259` and `scripts/ci/README.md:102`). "Unused" means "not mentioned in the backlog". The header text at `run.sh:36-39` says the flag is "on by default" while the README says the stacks stay up by default. Two separate Maven caches exist (`ci-m2-cache` at `run.sh:373,390`, `ci-maven-cache` at `ci.yaml:47`); whether they are redundant was not checked.
+**Root:** one flag per stage and per skip.
+**Impact:** a misleading header line; otherwise the flags are used.
+**Fix:** S - fix the header wording; merge the three `--no-*` skip flags into one mechanism.
+**Fix risk:** the CLI changes.
+
+### H10. Other debt
+**Status:** 1 finding (nothing invented)
+**Evidence:** `attachment-spring-boot-starter` (`AttachmentAutoConfiguration.java:3-4`, `AttachmentSnapshotRepository.java:4`) and `marketplace-app` (`JacksonConfig.java:3`) import `com.fasterxml.jackson.databind.ObjectMapper`, but their poms declare no Jackson; only `audit`, `platform-commons` and `user` do. They get it through `platform-commons`, whose own source imports only Jackson annotations from the 2.x line (`platform-commons/pom.xml:29-32`).
+**Root:** the dependency sits in the shared kernel instead of with its users.
+**Impact:** removing it from `platform-commons` would break `attachment` and `marketplace-app`; it works against starter independence.
+**Fix:** S - declare `jackson-databind` 2.x in the real users, remove it from `platform-commons`; check with `mvn dependency:analyze` (needs permission).
+**Fix risk:** compile errors in modules not inspected (`integration-tests` also imports it).
+Rejected: the logic in the `TaxonPort` default method is tested (`TaxonPortResolveCategoryAndCityFilterTest`); the two-port rule is enforced by `ArchitectureRulesTest`, and `EntityExistenceService` is a documented exception.
+
+### Summary
+
+| # | Status | Effort | Impact |
+|---|---|---|---|
+| H1 | rejected | - | - |
+| H2 | rejected | - | 0% index coverage lost |
+| H3 | confirmed | S | about 27% of the file, about 4k tokens per session |
+| H4 | confirmed | S | about 560 tokens, only when two skills load together |
+| H5 | confirmed (convergence: needs-check) | XS | one literal, two repeated versions |
+| H6 | rejected (drift in `CLAUDE.md`) | XS | two patch versions behind |
+| H7 | rejected (dead lines) | XS | none |
+| H8 | confirmed | S | index smaller by 5% |
+| H9 | confirmed in part | S | one misleading header, one flag never used |
+| H10 | 1 finding | S | a dependency in the wrong module |
+
+Top 3 to fix first: (1) H3, move the UI patterns and the `Operational notes` format out of the always-loaded file; (2) H10, move the Jackson 2.x databind dependency to its real users; (3) H5, H6 and H7 as one pom and documentation cleanup.
+
+## Investigation report 2: deep verification of recent changes (run 2026-11-09, read-only)
+
+Scope: commits `4b89a829` (database refactoring: promotion dates, unused columns and indexes, Dockerfile and orchestrator scope already in place) and `dfe14feb` (deleting a provider profile deletes its reviews). One `EXPLAIN` was run on a throwaway database in the dev PostgreSQL container (PostgreSQL 15, dropped afterwards). No Maven, no test run.
+
+### Confirmed bugs
+None.
+
+### Performance and regression findings
+
+**1. Removing `idx_advertisement_title` makes sorting by title scan the whole table at scale.** Severity: Medium. Status: Confirmed (measured).
+- Where: `advertisement-spring-boot-starter/.../01-advertisement-schema.xml` (index removed); the sort is user-reachable at `AdvertisementRepository.java:89` and `AdvertisementSortMeta.java:13`. The task's own table says the index "can only help ORDER BY title. Not measured."
+- Scenario: `WHERE deleted_at IS NULL ORDER BY a.title LIMIT 20`, 1M advertisements, 10% soft-deleted, random titles:
+
+| Query | With index | Without index |
+|---|---|---|
+| sort by title, first page | 0.4 ms | 230 ms (Parallel Seq Scan) |
+| sort by title descending, offset 1000 | 10.5 ms | 212 ms |
+| `ILIKE '%ab%'` filter plus sort by title | 1.6 ms | 396 ms |
+
+- Consequence: invisible at today's volume; at 1M rows every title-sorted page is a full scan. Default sorting by date is not affected.
+- Minimal fix: restore the index, or record that title sort is not needed at the expected size (XS).
+- Test that proves it: repeat the `EXPLAIN` on a realistic volume (a plan check, not a unit test).
+
+**2. Existing databases keep what the changelogs no longer create.** Severity: Low. Status: Confirmed.
+- Where: `promotion`, `taxon`, `attachment`, `advertisement`, `provider-profile`, `feedback`, `contact` changelogs, edited in place; all ten changesets carry `validCheckSum ANY` (added to `promotion` in this change), the recorded pre-launch policy.
+- Clean database: correct. Database with the old changesets applied: keeps `valid_from` (`NOT NULL DEFAULT NOW()`), `valid_until`, `assigned_by`, the seven removed indexes and the GIN index; the code works on both because no insert names a removed column and `valid_from` has a default. Database with real data: no row can have a non-null `valid_until` (nothing in the code writes it), so promoted status does not change.
+- Consequence: schema divergence on development databases only.
+- Minimal fix: a baseline changelog before the first release (data migration).
+
+**3. A review written while its profile is being deleted can stay behind.** Severity: Low. Status: Needs verification.
+- Where: `FeedbackRepository.deleteByEntity`, called from `ProviderProfileSaveService.delete`; no foreign key to the profile (by decision).
+- Scenario: another transaction inserts a review for that profile after the delete statement took its snapshot; the review and a recomputed aggregate row stay without a profile.
+- Not checked: whether `FeedbackWriteService` re-checks that the profile exists inside its own transaction. Test: two parallel transactions.
+
+**4. Content-row ownership is not constrained.** Severity: Low. Status: Likely.
+- Where: `feedback.content_id` and `feedback_comment.content_id` have no `UNIQUE`. If two rows ever shared a content row, the delete would fail on the foreign key and roll back whole; no silent data loss.
+
+**5. Promotion lookups (not changed by the diff).** Status: Needs verification, no measurement.
+- `enrichWithPromotion` for one profile loads all placements of the entity type; with the "promoted only" filter both the page and the count read them (`PromotionCatalogService.scopeFor`). The size depends on how many profiles pass the top-rated rule.
+
+**6. Docker build context.** Severity: Low. Status: Likely, not measured.
+- `COPY . .` (`Dockerfile:19`) invalidates the Maven layer on any changed file anywhere in the tree; the `.m2` and `.vaadin` cache mounts still save downloads but not compilation. `.dockerignore` does not exclude `private/` (git-ignored, one non-Markdown file reaches the builder stage). Nothing but the JAR reaches the final image.
+
+### Missing tests
+- No test that deleting a profile with a stale version, or a failure in a later step, leaves its reviews in place (the atomicity the change relies on). Test: call `ProviderProfileSaveService.delete` with an old version, assert the reviews, replies, ratings and aggregate still exist.
+- No parallel-transaction test for finding 3.
+- The repository and orchestrator tests that exist use a real PostgreSQL and cover: every row of the entity removed, other entities untouched, an entity without feedback, the feedback module absent.
+
+### Verified safe
+- The data-modifying statement is one statement; the intra-module foreign keys (`fk_feedback_content`, `fk_feedback_rating_feedback`, `fk_feedback_comment_content`, `fk_feedback_comment_feedback`) are checked at the end of the statement, so removing parents and children together is valid; an entity without feedback deletes zero rows.
+- Profile, contact, reviews, promotion placements and the audit entry are in one `TransactionTemplate` unit; the sitemap is invalidated after it.
+- An unknown id or a stale version makes `ProviderProfileRepository.delete` throw `StaleWriteException` (0 rows updated) before any feedback is touched, so the unauthenticated-path concern does not apply.
+- Feedback module absent: `FeedbackAccessService.deleteByEntity` uses `ifAvailable` and does nothing.
+- The other five removed indexes match the queries: `ad_kind` and `kind` have three values and only an `IN` filter (no sort by advertisement kind); `idx_feedback_comment_feedback` duplicates the `UNIQUE` constraint on `feedback_id`; `idx_promotion_placement_type_reason` is covered by the prefix of the unique index `(entity_type, entity_id, reason)` on a small table; no query reads `taxon_translation` by locale and name; no JSONB operator reads `changes_summary` (only `changes_summary::text`).
+- Promotion after the date columns were removed: UI, REST, MCP and sitemap read one source, `promotedPlacements()`; `getFiltered` reads the placements once for both the scope and the marks; `promotionValidUntil` is referenced nowhere outside the backlog and generated files.
+- `FeedbackPort.deleteByEntity(EntityType, Long)` follows the dominant Port shape (about 19 signatures use the pair, 2-3 use `EntityRef`); `ContactPort.delete` versus `FeedbackPort.deleteByEntity` is a small naming difference only.
+- `-pl marketplace-app -am` builds what the app needs; the wildcard `org.ost:*-spring-boot-starter` in the ten starters excludes only artifacts of group `org.ost` with that suffix.
+
+### Conclusion
+Top 5: (1) the title index, a performance optimization; (2) the atomicity test, test coverage; (3) old databases keep removed columns and indexes, a data migration before the first release; (4) the review-versus-delete race, needs verification; (5) the Docker build context, an optional improvement. Nothing blocks a merge. Needs real data: finding 1 with real titles and volumes, finding 3 with a parallel test. New backlog items that are really needed: one for the title index decision, one for the atomicity test; the rest goes to the deferred-findings bucket. Not found in the backlog while preparing this report (the backlog was not searched item by item): findings 2 and 6.
+
+Outside both prompts, deduced and not run: `ComponentFactory<XPort>` beans are declared only by the starter that provides the Port, so removing an optional starter likely fails Spring startup; a test that starts the context with each optional starter absent would show it.
+
+## Implementation log (2026-11-09)
+
+Done after the reports, at the user's request:
+- Task 251 (profile delete atomicity test) and task 252 (application starts without each optional starter) are filed and ranked in the backlog.
+- Pom and documentation cleanup (H5, H6, H7, H9 wording): `archunit-junit5` is managed in the root `pom.xml` (`archunit.version`) and the two literal versions are gone; the repeated `jsoup` versions are removed; `<source>/<target>` are removed from the compiler plugin (the Boot parent already sets `maven.compiler.release`); the version numbers are removed from `CLAUDE.md`; the `--teardown-e2e-after` header in `scripts/ci/run.sh` states the real default.
+- Jackson 2.x `jackson-databind` moved from `platform-commons` to the modules that import it (`attachment-spring-boot-starter`, `marketplace-app`, `integration-tests`); `platform-commons` keeps only the shared annotations.
+- `idx_advertisement_title` is back in the advertisement changelog (edited in place, as the changelog policy allows before launch); a database created since the removal keeps lacking it until it is recreated.
+- `.claude/rules.md` shrank from 919 lines and 60,170 bytes to 646 lines and 45,949 bytes: the Overlay, View, Query Layer, Form Handler, Breadcrumb and Reference sections moved into `.claude/rules/marketplace-app.md`; the `Operational notes` format moved into the new `.claude/rules/backlog-tasks.md` (loaded when a task file is read); the four commands and agents that pointed at `rules.md` for that format now point at the new file.
+- Not done: the Docker context items, the review-versus-delete race and the skill duplication stay as reported.
+
 ## Related
 
 - [improvement-244](improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.

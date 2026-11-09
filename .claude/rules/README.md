@@ -29,6 +29,7 @@ touched.
 - [`apikey-spring-boot-starter.md`](apikey-spring-boot-starter.md) — `apikey-spring-boot-starter/**`
 - [`attachment-spring-boot-starter.md`](attachment-spring-boot-starter.md) — `attachment-spring-boot-starter/**`
 - [`audit-spring-boot-starter.md`](audit-spring-boot-starter.md) — `audit-spring-boot-starter/**`
+- [`backlog-tasks.md`](backlog-tasks.md) — `backlog/tasks/**`, `backlog/completed/tasks/**`
 - [`contact-spring-boot-starter.md`](contact-spring-boot-starter.md) — `contact-spring-boot-starter/**`
 - [`feedback-spring-boot-starter.md`](feedback-spring-boot-starter.md) — `feedback-spring-boot-starter/**`
 - [`html-sanitizer-lib.md`](html-sanitizer-lib.md) — `html-sanitizer-lib/**`
