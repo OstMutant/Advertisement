@@ -164,6 +164,36 @@ Confirmed by the user on 2026-11-08, scope `.claude/commands/sync-docs.md` (400 
 
 `/sync-docs` has to make the AI find, every time, all the documents related to a change (by the list of changed files and by the content of the change), correct them against the code, and show a report of what was checked and what was not. The shortening is needed so that the command reads fast and has no duplicates and no ambiguity, but no requirement is lost: the scopes `<ref>` and `task <id>`, Step 2b, the re-reading after an edit, the report, and the `--full-audit` mode.
 
+## Tighten goal, second run: reduce-code.md
+
+Confirmed by the user on 2026-11-09, scope `.claude/commands/reduce-code.md` (160 lines, 9,816 characters, a command file):
+
+`/reduce-code` has to make the AI find, on every run, code and documentation the repository does not need to maintain, measure the saving, and remove it only in approved batches, without changing behaviour, contracts or architecture. The shortening is needed so that the command reads fast and has no duplicates and no ambiguity, but no requirement is lost: the four modes (discover, report, apply, verify), the entry format of the inventory, the hard limits, and the `topic` scope.
+
+The research on improving code by recognised patterns (GoF, GRASP) and best practices is a separate step after this one, with its own plan.
+
+## Tighten goals, third run: the review, research and analyst agents
+
+Confirmed by the user on 2026-11-09 (order: 1, 2, 3):
+
+1. The review family (`.claude/commands/deep-review.md`, `.claude/agents/review/deep-review-orchestrator.md` and the four lenses `dry-kiss-yagni-reviewer.md`, `solid-reviewer.md`, `precedent-reviewer.md`, `code-reduction-reviewer.md`; 6 files, 584 lines, about 38,500 characters): `/deep-review` has to make the orchestrator and the lenses find, every time, only confirmed problems of SOLID, DRY, KISS, YAGNI and of the project's own precedents, each verified against the code, and report what was checked and what was not; it writes no code. The shortening is needed so that the files read fast and have no duplicates between the orchestrator and the lenses and no ambiguity, but no requirement is lost: every scope form (current changes, one commit, `<a>..<b>`, `task <id>`, `module`, `path`, `all`), the separate verification of each finding, the `ReportFindings` format and the report.
+2. The research pair (`.claude/commands/deep-research.md`, `.claude/agents/research/deep-researcher.md`; 2 files, 164 lines, about 11,700 characters): `/deep-research` has to make the researcher do a deep research from primary sources and the project's practice, driven by the brief, and write the two plans, one for people and one for AI, changing nothing else in the project. The shortening loses no requirement: the brief, the stop rule, the loop signals, the formats of the plans.
+3. The analysts (`.claude/agents/sonar/sonar-analyst.md`, `.claude/agents/dagu/dagu-analyst.md`; 2 files, 96 lines, about 5,800 characters): each has to give structured data from its server, read-only; the shortening loses no requirement: what it calls, what it returns, what it forbids.
+
+The research of best practices for each kind reuses the checklist of `.claude/commands/tighten-ai.md`; no new research is run.
+
+### Third run, group 1 (the review family): applied 2026-11-09, files staged
+
+- Applied after one yes per file: `.claude/agents/review/deep-review-orchestrator.md`, `.claude/commands/deep-review.md` and the four lenses (`dry-kiss-yagni-reviewer.md`, `solid-reviewer.md`, `precedent-reviewer.md`, `code-reduction-reviewer.md`); `name`, `tools`, `model` and `description` of the orchestrator and the four lenses are identical to before (checked by `diff`). The texts were rewritten from the goal (the earlier scratchpad was gone) and went through four rounds of two read-only Sonnet checks (orchestrator with command, four lenses) until both said READY TO APPLY.
+- Size, lines and characters before and after: orchestrator 275 and 19404 to 247 and 16796; command 24 and 1583 to 61 and 3530; dry-kiss-yagni 74 and 4026 to 77 and 4391; solid 69 and 3745 to 78 and 4139; precedent 73 and 4194 to 78 and 4599; code-reduction 94 and 5751 to 120 and 6543; total 609 and 38703 to 661 and 36998 (4 percent fewer characters, 8 percent more lines). The size is not the point: the lenses grew because the findings asked for rules the old text left open.
+- What changed into what: the orchestrator opens with one list of hard limits and has two tables (options, scopes) and one fixed final-result template; the command has an argument table, numbered steps with their stops and a fixed final report, and passes only the scope; the lenses state their input (a file list, or a diff whose changed files are read in full while only what the diff introduces is reported), what `inspected.read` lists and one shared paragraph on what to flag.
+- Benefit against the goal: every finding is checked against the current file by a separate verifier before it is reported; a dropped candidate appears only under "Rejected"; the report names what was checked and what was not; the contradictions of the old text are closed (parallel against sequential modules, one response against waves of three, silent drops against the rejected list, a task id matching inside a longer id).
+- Added requirements, each disclosed in the coverage tables: the three default lenses return `inspected`; `task <id>` uses a regex with a boundary on both sides and the short id of the commit messages; a doc/code mismatch is a second finding listed only under "Doc/code mismatches"; the orchestrator defines the scope `paths <file>[,<file>]`; json mode returns `agent_calls`; the command asks two approval questions (task file, then its ranked backlog row).
+- Choices made by the main thread, not by the user: the hard-limit-4 filter does not run with `output: json` (as in the old text, so `/reduce-code` keeps pre-existing findings); the lenses may read outside the scope to confirm a finding but `locations[0]` must be inside it; duplicated wording across the three default lenses stays because each lens must work alone with only its own file; the frontmatter of the command is kept; a file deleted by a diff is named under "Not checked" and not reviewed.
+- Also applied: `.claude/agents/review/README.md` (scope pointer, verification wording, the precedent lens), `.claude/nav/flows.md` (the `all` scope row), and the architecture map regenerated and checked fresh.
+- Left open, inherited from the old text: the lens paragraph "do not flag what needs context outside the scope" now has an explicit exception, but a lens still has no rule for a very long single file beyond the offset and limit reads.
+- Groups 2 (the research pair) and 3 (the two analysts) are not started.
+
 ## Tighten proposal: sync-docs.md
 
 ### Decisions
@@ -205,10 +235,54 @@ The user left the choice of the 15 decisions of the research (`plan-human.md`, "
 - Ambiguities settled on 2026-11-09 by the user's instruction to take the highest-quality path, written into `.claude/commands/sync-docs.md` (264 lines, 19,135 characters): deleted and renamed files count as changed, their old path is matched against the table and verified against a search showing no current document names it; the generated-map row counts as a match for the early stop, and the stop still prints the `Files in scope` lines; Step 2b also searches the open tasks in `backlog/tasks/` (not `backlog/completed/`, not `backlog/research/`), a name counts when it identifies something the diff changes and a hit counts when the document states or depends on it; the Haiku dispatch is one agent per module with its changed files, plus one for a file outside any module; `--package` takes sub-packages only when the directory holds no `*.java` of its own; Step A0 always runs and Step A5 only with `--full-audit`; Full Audit Mode checks `pom.xml` headers and comments; a script group's `README.md` uses the section shape its standards skill defines; Steps 1, 2, A1 print their results, Steps A2 and A3 print nothing and write output files.
 - Not yet done: the first run of the new `/sync-docs` text with edits on a real change. The research topic was removed on the user's yes.
 
+## Tighten proposal: reduce-code.md
+
+### Proposal and result (shown and approved 2026-11-09)
+
+- Applied to `.claude/commands/reduce-code.md`: 160 lines and 9,816 characters before, 130 lines and 11,872 characters after (identical to the approved text). The lines fell by 19 percent and the characters rose by 21 percent: the text gained the scopes table, a fixed final-report template and explicit answers to what the old text left ambiguous. The research step of `/tighten-ai` reused the checklist of `.claude/commands/tighten-ai.md` (the kind of file is the same command file) and did not run a new research.
+- Requirements of the old text (75 inventory rows): 59 kept, 5 reworded, 2 merged, 3 pointers, the rest changed by a recorded choice; none lost. 21 choices are recorded; three read-only rounds by Sonnet closed the weakened sequencing of the researcher start, the check of `Where`, "for every mode", two final reports from one `apply`, and several ambiguities.
+- Choices made by the main thread, not by the user: a failed script or agent stops the run; an existing research topic is resumed or removed only after a direct yes; `verify <ID>` sets `verified` only for an entry with status `applied`; the kind of change of a batch is that of the first named ID; the research folder is called `<research-topic>` to separate it from the `topic` scope.
+- Defects found in the system, not fixed in this file: the `topic` scope sends the orchestrator `paths <file list>`, which `.claude/agents/review/deep-review-orchestrator.md` does not define; the decision record of this command says the command carries `disable-model-invocation: true`, while the file has `false`.
+- Accepted against the checklist: the in-development mark is a today fact because the user asked for it; Discover steps 5 and 8 stay dense.
+- The research on improving code by recognised patterns (GoF, GRASP) and best practices is a separate step, not started.
+
+## Patterns and best-practice research inside /reduce-code (plan, 2026-11-09)
+
+The user's wish: the research that `/reduce-code` already starts (the `deep-researcher` with a brief) also looks for improvements by recognised patterns (GoF, GRASP) and by the best practices of the project's stack, so that the code gets better and not only smaller; the research is part of the same command, which already carries rules for it.
+
+Plan (a few lines in `.claude/commands/reduce-code.md`; no new command, no new agent):
+
+1. Brief template, `## Goal`: one sentence is added: where a recognised pattern (GoF, GRASP) or a best practice of the stack (Java 25, Spring Boot, `JdbcClient`, Vaadin) gives a concrete gain in size, cohesion, coupling or readability in `<scope>`, name the pattern, the place and the change.
+2. Brief template, `## Where to look in the project`: the researcher takes the primary sources of the pattern and of the stack's practice from the web with links, and checks the decision records of the project (`.claude/nav/adr-index.md`) and `docs/best-practices.md` for a settled decision first.
+3. Brief template, `## Completion criterion`: every pattern entry names its source link, its place, its estimate and the project rule or decision it was checked against.
+4. Entry format: `**Kind:**` gets the value `pattern`.
+5. Hard limits: one line: a pattern is proposed only when it removes more than it adds or removes a measured duplication or coupling; never an abstraction for its own sake, never against a settled decision of the project.
+6. The result is checked by the mechanical literal check of the tightened text and one read-only Sonnet pass for conflicts; nothing else changes (the lens `code-reduction-reviewer` keeps finding reductions).
+
+Open for the user: whether the lens or the researcher should also propose a pattern that adds lines but lowers coupling (the plan says no: it must remove more than it adds).
+
+Done 2026-11-09 (applied after the user's yes): `.claude/commands/reduce-code.md` is 137 lines and 14,000-odd characters; the hard limit, the kind `pattern`, the field `Source`, the brief's goal, where to look and completion criterion, the rejected-idea rule for a pattern against a settled decision, steps 7 and 8, the Apply model for a `pattern` entry and the Verify rule are in the text. Two read-only Sonnet passes found conflicts (the hard limit against the goal, no step carrying the researcher's pattern entries into the inventory, a missing source field, Haiku against Opus for a pattern edit, the status path of a `needs-poc` entry); all closed. The rule that a pattern entry must remove more than it adds (or remove a measured duplication or coupling) answers the open question of this plan: a pattern that only lowers coupling without a measured count is not proposed.
+
+## Status of this task on 2026-11-09: done and not done
+
+Done and saved in the repository history (the entry `8823ab6a` and the entries before it):
+- `/optimize` renamed `/reduce-code`, marked as in development; new command `/tighten-ai` with its checklist; `/sync-docs` rewritten (252 lines instead of 400) with three read-only checks and a replay of both versions, its ambiguities settled; `/deep-review <a>..<b>`; the generator fails on a reference column without the marker, the two changelog hooks and the documentation skill remind about it; `scripts/collect-code.bat` fixed (CRLF, duplicated block removed); the module table of the root `README.md` checked by `check-module-lists.sh`; the research topic `tighten-ai-commands` removed.
+
+Done, staged, not yet in the history (the save was refused by the hook until the user says "зроби коміт" in a new message): `.claude/commands/reduce-code.md` tightened (137 lines) and extended with the research of patterns (kind `pattern`, field `Source`, the limits), and this task with the plan, the goals of the third run and the state below.
+
+Not done:
+- The review family (group 1) is applied (see the section above); its decisions and the left-open points are there.
+- Groups 2 (`deep-research.md`, `deep-researcher.md`) and 3 (`sonar-analyst.md`, `dagu-analyst.md`): not started.
+- Done 2026-11-09 (staged, not committed): the orchestrator defines the scope `paths <file>[,<file>]`, which the `topic` scope of `/reduce-code` sends; `reduce-code.md` carries `disable-model-invocation: true`, as its decision record says; `.claude/agents/review/README.md` says the precedent lens sends general quality concerns to the other two lenses.
+- The five multi-line comments in `TaxonServiceTest` and `ProviderProfilePaginationScenarioTest`, the multi-line comments of the map generator, and `/sync-docs --full-audit` (the full documentation sync).
+- `/tighten-ai` on the other commands, the rules files and the `.claude/` folder.
+- A first run of the new `/sync-docs` text with edits on a real change.
+- The deep-review step of the pattern research (the patterns edit of `/reduce-code` was checked by two read-only passes, not by `/deep-review`).
+
 ## Operational notes
-- token_cost_review: n/a
+- token_cost_review: 943379
 - token_cost_research: 178670
-- token_cost_verification: 405570
+- token_cost_verification: 713200
 - review_signal_ratio: n/a
 - context_loading_task_type: n/a
 - context_loading_consulted: n/a
@@ -217,8 +291,8 @@ The user left the choice of the 15 decisions of the research (`plan-human.md`, "
 - flows_chosen: /tighten-ai
 - flows_matched: yes
 - haiku_decomposition_used: yes
-- haiku_decomposition_dispatch_count: 1
-- haiku_decomposition_rework_needed: 0 / 1
+- haiku_decomposition_dispatch_count: 5
+- haiku_decomposition_rework_needed: 0 / 5
 - adrs_referenced: none
 
 ### Agent calls
@@ -228,8 +302,20 @@ The user left the choice of the 15 decisions of the research (`plan-human.md`, "
 - coverage check, round 1 (read-only) | subagent_type=general-purpose (sonnet) | tokens=117430 | tool_uses=14 | duration_s=117 | mode=background | batch=solo
 - coverage check, round 2 (read-only) | subagent_type=general-purpose (sonnet) | tokens=112788 | tool_uses=8 | duration_s=156 | mode=background | batch=solo
 - coverage check, round 3 (read-only) | subagent_type=general-purpose (sonnet) | tokens=108604 | tool_uses=11 | duration_s=128 | mode=background | batch=solo
+- new text and coverage table for reduce-code.md | subagent_type=general-purpose (opus) | tokens=131628 | tool_uses=27 | duration_s=337 | mode=background | batch=solo
+- coverage check of reduce-code.md, round 1 (read-only) | subagent_type=general-purpose (sonnet) | tokens=111285 | tool_uses=14 | duration_s=443 | mode=background | batch=solo
+- coverage check of reduce-code.md, round 2 (read-only) | subagent_type=general-purpose (sonnet) | tokens=99663 | tool_uses=7 | duration_s=112 | mode=background | batch=solo
+- coverage check of reduce-code.md, round 3 (read-only) | subagent_type=general-purpose (sonnet) | tokens=96682 | tool_uses=7 | duration_s=90 | mode=background | batch=solo
+- orchestrator `paths` scope, frontmatter value, README claim (three defect fixes) | subagent_type=general-purpose (haiku) | tokens=210452 | tool_uses=12 | duration_s=79 | mode=background | batch=parallel
+- first drafts of the six review-family texts and coverage tables | subagent_type=general-purpose (opus) | tokens=161878 | tool_uses=35 | duration_s=552 | mode=background | batch=solo
+- fixes of the review findings, rounds 1 to 3 (four calls) | subagent_type=general-purpose (opus) | tokens=684467 | tool_uses=204 | duration_s=2325 | mode=background | batch=solo
+- coverage checks of the review family, rounds 1 to 4 (eight calls) | subagent_type=general-purpose (sonnet) | tokens=943379 | tool_uses=93 | duration_s=1078 | mode=background | batch=parallel pairs
+- README and flows.md wording fixes | subagent_type=general-purpose (haiku) | tokens=147657 | tool_uses=13 | duration_s=68 | mode=background | batch=parallel
 
 ### Script/command runs
 - the mechanical check of the new text (shell, three runs) | duration_s=n/a | mode=foreground | result=pass
 - bash docs/architecture/scripts/generate-architecture-model.sh (after the command files changed; one run interrupted by mistake) | duration_s=n/a | mode=background | result=pass
 - bash docs/architecture/scripts/check-architecture-model-freshness.sh | duration_s=n/a | mode=background | result=pass
+- bash docs/architecture/scripts/generate-architecture-model.sh | duration_s=n/a | mode=background | result=pass
+- bash docs/architecture/scripts/check-architecture-model-freshness.sh | duration_s=n/a | mode=background | result=pass
+- bash .claude/nav/scripts/check-flows-completeness.sh | duration_s=n/a | mode=foreground | result=pass
