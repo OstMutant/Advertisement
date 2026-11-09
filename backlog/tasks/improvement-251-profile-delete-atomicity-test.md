@@ -23,7 +23,7 @@ In `integration-tests` level 2, next to the existing `FeedbackAccessServiceTest`
 
 ## Related
 
-- [improvement-246](improvement-246-technical-debt-investigation.md): the report with the finding.
+- [improvement-246](../completed/tasks/improvement-246-technical-debt-investigation.md): the report with the finding.
 - [improvement-239](../completed/tasks/improvement-239-delete-profile-deletes-its-feedback.md): added the delete.
 
 ## Operational notes

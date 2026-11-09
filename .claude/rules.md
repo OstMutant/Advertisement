@@ -345,10 +345,8 @@ for approval — never re-paraphrase the whole task back at length.
   Run `git status --short` and `git diff --cached --stat` (or fuller `git diff --cached` for a
   smaller change) and read the output before running `git commit`, every time, even when the
   change feels routine. "No untracked files showed up" is not the same check as "the staged diff
-  only contains what I meant to commit" — confirmed directly: build artifacts from a new module's
-  own `target/` directory landed in a commit because `.gitignore`'s per-module list was never
-  updated for that module, and `git add -A` staged them without complaint since nothing about that
-  looked untracked or unusual at a glance.
+  only contains what I meant to commit" — a blanket add can stage generated output that nothing
+  flags as unusual.
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
@@ -357,9 +355,7 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 `cmd.exe` reads `.bat` files in a legacy codepage, not UTF-8. A multi-byte UTF-8 character (em-dash
 `—`, smart quotes, etc.) anywhere in the file — even inside a `::`/`REM` comment — can corrupt
 `cmd.exe`'s own batch-label parsing, producing `The system cannot find the batch label specified`
-errors on real Windows for labels that objectively exist in the file (confirmed directly: an
-em-dash added to a comment in `scripts/collect-code.bat` broke `call :FindFiles`/`call :CountFiles`
-elsewhere in the same file). Use plain ASCII `-`/`--` instead of `—`/`–` in every `.bat` file,
+errors on real Windows for labels that exist in the file. Use plain ASCII `-`/`--` instead of `—`/`–` in every `.bat` file,
 including comments. Not an issue in `.sh` files (bash reads UTF-8 natively).
 
 ## Test Coverage After Bug Fixes
@@ -425,8 +421,7 @@ subdirectory, which belongs to that one group alone.
    result, or when explicitly asked for the current status — answer with the real current state
    then, never with continued silence. "Stay silent" means exactly that — no reply at all to a
    routine notification, not a placeholder acknowledgment ("...", "still running", "no change")
-   either; a placeholder is still unwanted chat noise on every tick, confirmed directly as a real
-   annoyance, not just a hypothetical one. Do not stop/restart the Monitor task to chase a quieter
+   either; a placeholder is still unwanted chat noise on every tick. Do not stop/restart the Monitor task to chase a quieter
    filter when it's firing on routine ticks — the Monitor keeps running regardless of whether a
    given notification gets a reply; responding to a routine tick with nothing is a valid, complete
    turn, not a gap that needs filling.

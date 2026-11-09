@@ -98,7 +98,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 246 | improvement-246 — technical debt investigation of the project, ten hypotheses (Dockerfile, ADR files, rules size, skill duplication, dependency versions, version compatibility, compiler options, ADR index, CI complexity, other), read-only |
 | Top | ⚪ | 244 | improvement-244 — the Architecture Control Plane shows module READMEs, gets full-text search (MiniSearch) and is linked from the root README; the research found no tool that replaces it |
 | Top | 🟡 | 242 | improvement-242 — no project script removes all project containers while keeping the working session's own container; the removal was done by hand with raw `docker` commands |
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
@@ -112,12 +111,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Nice to have | — | 036, 112, 191, 039, 118 | the lowest-priority tasks: anything that lands here is picked up after everything above. improvement-036 — actuator and structured JSON logs; the plan is researched and approved, execution not started. improvement-112 — a failing enrichment port blanks the advertisement list; the plan is researched, four decisions (edit and save paths, link-preview cache, REST/MCP note, other gaps) are unanswered, nothing implemented. improvement-191 — UI/UX modernization map (Query Block, Header/Tabs, surfaces, typography, dialogs, Timeline, User UI, attachments, Provider Profile); first step is a document, not code, and it waits on the open design questions of improvement-129; deliberately parked at the user's request. improvement-039 — dark mode: Dark mode — a real implementation attempt failed (UI wiring confirmed broken); deprioritized to the very bottom 2026-09-16 pending a decision on whether the feature is even wanted, not just how to build it. improvement-118 — manual check of the Open Graph preview in real Facebook and Telegram: F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-246
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-246](tasks/improvement-246-technical-debt-investigation.md) | New (the user asked for it at the top, 2026-11-08) | A read-only investigation of ten technical-debt hypotheses, with the report format and limits given by the user |
 
 ### Top priority — improvement-244
 

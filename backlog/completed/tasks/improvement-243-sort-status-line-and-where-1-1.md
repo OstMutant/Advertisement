@@ -47,7 +47,7 @@ Done 2026-11-09: steps 1 to 5 applied and verified by one full run (unit 953, in
 
 - [improvement-241](improvement-241-database-refactoring.md): the database refactoring in which `WHERE 1=1` was found.
 - ADR-003 (marketplace-app).
-- [improvement-246](../../tasks/improvement-246-technical-debt-investigation.md): its second investigation prompt (section A, SQL and indexes) can check the index question of step 5 on real data; the two tasks stay separate.
+- [improvement-246](improvement-246-technical-debt-investigation.md): its second investigation prompt (section A, SQL and indexes) can check the index question of step 5 on real data; the two tasks stay separate.
 
 ## Operational notes
 - token_cost_review: n/a

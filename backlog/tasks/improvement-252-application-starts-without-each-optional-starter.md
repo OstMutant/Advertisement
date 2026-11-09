@@ -26,7 +26,7 @@ Options and their cost are decided after step 1; record the decision with `/reco
 
 ## Related
 
-- [improvement-246](improvement-246-technical-debt-investigation.md): the report, outside-scope note.
+- [improvement-246](../completed/tasks/improvement-246-technical-debt-investigation.md): the report, outside-scope note.
 - [improvement-250](improvement-250-query-predicate-port-for-unbounded-cross-module-filters.md): depends on the same assumption.
 
 ## Operational notes

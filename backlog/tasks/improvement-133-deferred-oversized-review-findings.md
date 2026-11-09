@@ -456,3 +456,32 @@ is a product decision (privacy of the author's text against the stability of oth
 and a larger change: each affected profile needs its aggregate recounted and its promotion refreshed,
 and the cascade needs a feedback delete by author next to the one by owning entity. Decide first
 whether they go on deletion, on purge, or stay.
+
+### 41. A review written while its profile is being deleted can stay behind (found during improvement-246, 2026-11-09)
+
+`FeedbackRepository.deleteByEntity` runs as one statement with one snapshot and there is no foreign key to the profile, so a review inserted by another transaction after that snapshot stays, with a recomputed aggregate row, and no profile. Not checked: whether `FeedbackWriteService` re-checks that the profile exists inside its own transaction. A test with two parallel transactions decides it; a lock on the profile row is the fix if it is real. Severity Low.
+
+### 42. The content rows of a review and a reply are not constrained to one owner (found during improvement-246, 2026-11-09)
+
+`feedback.content_id` and `feedback_comment.content_id` have no `UNIQUE`. If two rows ever shared a content row, the delete by owning entity would fail on the foreign key and roll back whole; no data is lost silently, but the schema does not state the one-to-one assumption. Add `UNIQUE` on both columns in the changelog (edited in place before launch).
+
+### 43. The Docker build context copies everything and `private/` is not ignored (found during improvement-246, 2026-11-09)
+
+`Dockerfile` copies the whole tree, so any changed file anywhere invalidates the Maven layer, and `.dockerignore` does not exclude the git-ignored `private/` directory (one non-Markdown file reaches the builder stage; only the JAR reaches the final image). Not measured. Candidates: add `private/` to `.dockerignore`; measure how often the layer is rebuilt for a change outside the modules before deciding on a different copy order.
+
+### 44. Existing databases keep what the changelogs no longer create (found during improvement-246, 2026-11-09)
+
+The changelogs are edited in place with `validCheckSum ANY`, so a database created before an edit keeps removed columns and indexes (`promotion_placement.valid_from` and `valid_until`, `taxon_assignment.assigned_by`, the removed indexes) and does not get a restored one (`idx_advertisement_title`). The code works on both shapes. Before the first release with a database that cannot be reset, write a baseline changelog.
+
+### 45. Promotion lookups read every placement of the entity type (found during improvement-246, 2026-11-09)
+
+`PromotionCatalogService.promotedPlacements` loads all placements of the type for each list page and for each single-profile detail; with the "promoted only" filter both the page and the count read them. The size follows the number of profiles that pass the top-rated rule. Not measured; fetch placements for the page's ids only if the table grows.
+
+### 46. Smaller leftovers of the debt investigation (found during improvement-246, 2026-11-09)
+
+- The four standards skills repeat a shared procedure (about 560 tokens when two load together); one shared procedure referenced by both would remove it, at the cost of skills that are no longer self-contained.
+- `scripts/ci/run.sh` has three `--no-*` skip flags that could be one mechanism, and two Maven cache volumes (`ci-m2-cache`, `ci-maven-cache`) whose redundancy was not checked.
+- The ADR index cannot drop its 14 superseded rows: the architecture map builds its decision list from the same file.
+- Still in the always-loaded `.claude/rules.md`: the Scripts section and 12 warning-sign rules that have a file trigger; moving them is not worth it while a rule file is not loaded on a `Write`.
+- Not run: whether the compiler plugin ignores `source/target` once `release` is set (`mvn -X compile`), and `mvn dependency:analyze` for undeclared dependencies.
+- Spring Boot 4.1.1 and Vaadin 25.3.2 are two patch releases behind (4.1.2, 25.3.5).

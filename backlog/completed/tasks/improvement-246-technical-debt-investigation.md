@@ -339,8 +339,8 @@ Done after the reports, at the user's request:
 
 ## Related
 
-- [improvement-244](improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.
-- [improvement-243](../completed/tasks/improvement-243-sort-status-line-and-where-1-1.md): holds the decision about an index with `created_at` first on `audit_log`, which section A of the second prompt can check on real data; the two tasks stay separate.
+- [improvement-244](../../tasks/improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.
+- [improvement-243](improvement-243-sort-status-line-and-where-1-1.md): holds the decision about an index with `created_at` first on `audit_log`, which section A of the second prompt can check on real data; the two tasks stay separate.
 
 ## Operational notes
 - token_cost_review: n/a
@@ -350,10 +350,16 @@ Done after the reports, at the user's request:
 - context_loading_task_type: n/a
 - context_loading_consulted: n/a
 - context_loading_matched: n/a
-- flows_situation: new improvement request, not yet tracked
+- flows_situation: a pasted investigation prompt, then fixes chosen from its report
 - flows_chosen: /new-task
 - flows_matched: yes
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
 - adrs_referenced: none
+
+### Script/command runs
+- scripts/ci.sh (full, 9 stages) | duration_s=1455 | mode=background | result=pass
+- scripts/ci.sh (full, 9 stages) | duration_s=0 | mode=background | result=n/a (cut off when the session ended, containers exited with 255)
+- scripts/ci.sh (full, 9 stages) | duration_s=1404 | mode=background | result=pass
+- scripts/build-and-test.sh --unit --integration --sandbox | duration_s=0 | mode=background | result=n/a (stopped, the full CI covered it)
