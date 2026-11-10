@@ -35,6 +35,8 @@ flowchart TD
     D --> E
 ```
 
+The generator itself is assembled from parts that live beside it. The model-building code is the fragments in [`model/`](model/), sourced at top level in the fixed order the generator names them; the page is the CSS and JavaScript fragments in [`../page/`](../page/), joined in the order of [`../page/order.txt`](../page/order.txt) and written into the HTML after the model JSON. Before the HTML is written the generator checks that `order.txt` and the folder list the same files and that the joined script passes `node --check`, so a missing, unlisted or broken fragment stops the run instead of producing a broken page. The same joined script is linted by `bash playwright/run.sh --lint` (the `lint` stage of the local CI run) with the config in [`../page/eslint.config.js`](../page/eslint.config.js).
+
 `screenshot-architecture-map.sh` is a genuinely separate flow, not part of the chain above — it
 only reads the already-generated `architecture-map.html` (one level up) via a headless browser, no
 calls into any file in this directory.

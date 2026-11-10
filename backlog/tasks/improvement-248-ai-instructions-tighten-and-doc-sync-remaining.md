@@ -39,7 +39,7 @@ Each item below keeps the process used for the finished ones: the goal written a
 
 - [improvement-240](../completed/tasks/improvement-240-sync-docs-refactor.md): the task this was split from.
 - [improvement-246](../completed/tasks/improvement-246-technical-debt-investigation.md): its hypothesis about the size of `.claude/rules.md` and the duplication in the skills.
-- [improvement-244](improvement-244-research-wiki-or-keep-architecture-control-plane.md).
+- [improvement-244](../completed/tasks/improvement-244-research-wiki-or-keep-architecture-control-plane.md).
 
 ## Operational notes
 - token_cost_review: n/a

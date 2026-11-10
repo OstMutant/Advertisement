@@ -9,15 +9,14 @@
 #   installed once (skipped on later runs if already present), and the pinned npm package version
 #   must match the container's own pre-baked Playwright browser version (both hardcoded here as
 #   PLAYWRIGHT_VERSION -- bump both together, never independently). --lint is a separate mode that
-#   skips the app/DB entirely -- it only syncs the same spec/flow/helper files plus
-#   eslint.config.js/package.json, installs eslint/eslint-plugin-playwright, and runs `npx eslint .`.
+#   skips the app/DB entirely and lints instead of testing (see Usage, Input, Outputs, Returns).
 # Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--lint] [--grep <pattern>] [--workers <n>] [--repeat-each <n>]
 #   (no scenario)         run every *.spec.js file
 #   e2e                   run all e2e specs (skips the --full blocks by default)
 #   e2e --full            run e2e specs including the --full blocks
 #   <spec-name>           run a single spec file by name (with or without .spec.js)
 #   --ux                  also take screenshots (embedded in the HTML report)
-#   --lint                run ESLint over e2e/ instead of running any tests -- ignores scenario/--ux/--full/--grep
+#   --lint                run ESLint over e2e/ and the architecture-map page script instead of running any tests -- ignores scenario/--ux/--full/--grep
 #   --shot <url>          save a full-page PNG of any web page (for example the Dagu UI at http://localhost:8082)
 #                         instead of running any tests -- needs neither the app nor the database; the PNG lands in
 #                         scripts/logs/playwright/shots/ (see Outputs). Ignores scenario/--ux/--full/--grep
@@ -40,8 +39,9 @@
 #   PW_LINT_MAX_WARNINGS (default: the repo-root .env value) -- --lint fails when ESLint reports more
 #   warnings than this, so the count of raw locators can only go down.
 # Input: playwright/e2e/*.js, playwright/e2e/_flows/*.js,
-#   playwright/playwright.config.js. --lint also reads playwright/eslint.config.js/package.json,
-#   ignores playwright.config.js.
+#   playwright/playwright.config.js. --lint instead reads the same spec/flow/helper files plus
+#   playwright/eslint.config.js and package.json (ignores playwright.config.js), and for the page
+#   lint docs/architecture/page/eslint.config.js, order.txt and the fragments order.txt names.
 # Outputs: HTML report (a result) at playwright/pw-report/index.html. Full raw console log (same
 #   content streamed live to stdout, a process log, not a result) at scripts/logs/playwright/run.log
 #   -- kept in a separate host destination from pw-report/, same logs-vs-reports split
@@ -56,14 +56,16 @@
 #   .claude/nav/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
 #   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
 #   Restarts marketplace-app if the DB needed a reset. --lint produces no HTML report/run.log --
-#   ESLint output goes straight to stdout. --shot produces no HTML report/run.log either -- only
+#   ESLint output goes straight to stdout; it installs the package.json devDependencies and leaves
+#   the scratch directories /lint (e2e lint) and /lint-page (page lint, the joined page script) in pw-runner. --shot produces no HTML report/run.log either -- only
 #   scripts/logs/playwright/shots/<name>.png, a look-at-a-page image, not a test result.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
 #   the DB reset fails, or any test fails. Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON
 #   marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
 #   an AI agent reading raw script output to parse machine-readable status instead of scraping
-#   free text. --lint: 0 if ESLint reports no errors, non-zero otherwise -- same two JSON markers.
+#   free text. --lint: 0 if the e2e lint stays within PW_LINT_MAX_WARNINGS and, only then, the page
+#   lint (fixed zero-warning limit) is clean, non-zero otherwise -- same two JSON markers.
 #   --shot: 0 if the PNG was written, non-zero otherwise -- same two JSON markers.
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -184,6 +186,15 @@ if [ -n "$LINT" ]; then
   PW_LINT_MAX_WARNINGS="${PW_LINT_MAX_WARNINGS:-$(grep -E '^PW_LINT_MAX_WARNINGS=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
   docker exec "$PW_CONTAINER" bash -c "cd /lint && npx eslint . ${PW_LINT_MAX_WARNINGS:+--max-warnings $PW_LINT_MAX_WARNINGS}"
   EXIT_CODE=$?
+  if [ "$EXIT_CODE" -eq 0 ]; then
+    # Page script of the architecture map: fragments joined in page/order.txt order, linted with its own config and a zero warning limit
+    docker exec "$PW_CONTAINER" bash -c "rm -rf /lint-page && mkdir -p /lint-page && ln -s /lint/node_modules /lint-page/node_modules"
+    docker cp "$ROOT/docs/architecture/page/eslint.config.js" "$PW_CONTAINER":/lint-page/
+    while IFS= read -r page_file; do cat "$ROOT/docs/architecture/page/$page_file.js"; done < "$ROOT/docs/architecture/page/order.txt" \
+      | docker exec -i "$PW_CONTAINER" bash -c "cat > /lint-page/page.js"
+    docker exec "$PW_CONTAINER" bash -c "cd /lint-page && npx eslint . --max-warnings 0"
+    EXIT_CODE=$?
+  fi
   if [ "$EXIT_CODE" -ne 0 ]; then
     emit_agentic_error_block "business" "false" "eslint-lint" "ESLint found lint errors (exit $EXIT_CODE) -- see output above."
   else

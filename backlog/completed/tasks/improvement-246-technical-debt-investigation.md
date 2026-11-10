@@ -339,7 +339,7 @@ Done after the reports, at the user's request:
 
 ## Related
 
-- [improvement-244](../../tasks/improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.
+- [improvement-244](improvement-244-research-wiki-or-keep-architecture-control-plane.md): research on the documentation tools.
 - [improvement-243](improvement-243-sort-status-line-and-where-1-1.md): holds the decision about an index with `created_at` first on `audit_log`, which section A of the second prompt can check on real data; the two tasks stay separate.
 
 ## Operational notes

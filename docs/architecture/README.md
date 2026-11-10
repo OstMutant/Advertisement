@@ -5,7 +5,7 @@ this repo — every diagram and data table lives there, rendered from real repo 
 hand-maintained markdown. This directory holds the tool's two entry-point scripts
 (`architecture-doc.sh`/`.bat`) and the generated `architecture-map.html` itself; the generation
 logic lives in `docs/architecture/scripts/` (its own `README.md`), the generated/hand-written data
-files it reads and writes in `docs/architecture/data/` (its own `README.md`). The page loads its browser libraries (cytoscape, dagre, cytoscape-dagre, minisearch) from [`vendor/`](vendor/) next to it, so it opens without a network as long as that folder stays beside the page.
+files it reads and writes in `docs/architecture/data/` (its own `README.md`). The page loads its browser libraries (cytoscape, dagre, cytoscape-dagre, minisearch) from [`vendor/`](vendor/) next to it, so it opens without a network as long as that folder stays beside the page. The page's own CSS and JavaScript are the files in [`page/`](page/), joined into the HTML by the generator.
 
 ## What's in `architecture-map.html`
 

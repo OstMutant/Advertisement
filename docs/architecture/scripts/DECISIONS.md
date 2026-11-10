@@ -2,11 +2,31 @@
 
 ---
 
-## ADR-037: The architecture map shows each module's README on its module page, searches client-side with MiniSearch, and loads its four browser libraries from local files next to the page
+## ADR-038: The generator's page and model code live in separate source files that the generator joins, not in one 4,900-line script
 
 **Status:** Accepted
 
 **Applied:** 1
+
+**Context:** `generate-architecture-model.sh` held the model builder (about 2,400 lines of bash) and the whole page (CSS and about 2,470 lines of JavaScript inside heredocs) in one file. The page code had no syntax check or lint, an edit meant finding a place in a file nobody could read in one go, and the generated map had to stay byte-identical for the change to be safe.
+
+**Decision:**
+1. The page code is plain files in `docs/architecture/page/` (`style.css` and the JavaScript fragments). They are slices of one classic browser script, joined by the generator in the order of `page/order.txt` and written into the HTML after the model JSON. The generator stops when `order.txt` and the folder disagree.
+2. The model builder is the fragments in `docs/architecture/scripts/model/`, sourced at top level in a fixed order; each carries its own header.
+3. The generator runs `node --check` on the joined page script before writing the HTML. `playwright/run.sh --lint` (the existing `lint` stage) lints the same joined script with `page/eslint.config.js`, warning limit 0. The config reads the names of functions called from inline `on*="..."` attributes from the script itself and takes browser globals from the `globals` package, so there are no hand-kept lists.
+4. The split was checked by comparing the generated model and HTML byte for byte before and after.
+
+**Rejected alternatives:** the browser loading the page files separately (the map is one self-contained file that opens from disk and is shared as one file); a Node rewrite of the generator with a bundler (a new runtime and build step for a tool that needs only `cat`); linting each fragment alone (the fragments use each other's functions and the page globals, so every file would report errors).
+
+**Consequences:** a new page file is added to the folder and one line of `order.txt`; a function called only from generated markup needs no registration; the generator header embedded in the model changes with every header edit, so a comparison baseline is renewed after one.
+
+---
+
+## ADR-037: The architecture map shows each module's README on its module page, searches client-side with MiniSearch, and loads its four browser libraries from local files next to the page
+
+**Status:** Accepted
+
+**Applied:** 2
 
 **Context:** The map held every module's `README.md` in its model but showed it nowhere, had no search, and the root README never linked to it. A research on wiki and documentation-site tools found none that draws diagrams from `pom.xml`, Java source or Liquibase, and a second site would be a second source of truth. The page also loaded its libraries from a CDN, so it needed a network.
 
@@ -26,7 +46,7 @@
 
 **Status:** Accepted
 
-**Applied:** 1
+**Applied:** 2
 
 **Context:** Mermaid.js stayed on the page for two uses only: the Database ERD (a Mermaid `erDiagram`
 built by `buildDbErdMermaidSource()`) and the fenced mermaid blocks of README files shown inside the

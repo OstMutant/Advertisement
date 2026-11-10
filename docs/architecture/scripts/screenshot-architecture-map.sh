@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────
 # Description: Screenshots the screens of architecture-map.html through a headless Playwright browser
-#   in the long-lived container arch-map-shot (left running, warm, like playwright/run.sh's
-#   pw-runner), since the generated file has no automated visual test of its own, and checks what a
+#   in the reusable container arch-map-shot (stopped when the run ends, kept with its installed
+#   playwright package so the next run starts fast), since the generated file has no automated
+#   visual test of its own, and checks what a
 #   picture cannot show: every Database ERD table sits in a module frame, every ERD and Module
 #   Dependencies arrow has a target row, every ERD Links link has a target row and a click on it
 #   flashes that row, every README flowchart block is drawn with the edge count
@@ -18,7 +19,7 @@
 #   03-diagram-module-deps,04-module-detail,04b-back-to-diagram-via-breadcrumb,05-diagram-spi,
 #   06-diagram-spi-zoomed,07-pipelines,08-backlog,09-diagram-erd,09b-erd-graph,10-readme-flow-system,
 #   11-readme-flow-tooling,11b-flow-block}.png (gitignored, ephemeral verification artifacts; every
-#   run first deletes the existing PNGs in that folder); the Playwright driver /tmp/arch-map-shot.js on the host; the arch-map-shot container is left running.
+#   run first deletes the existing PNGs in that folder); the Playwright driver /tmp/arch-map-shot.js on the host; the arch-map-shot container is stopped, not removed, on every exit.
 # Returns: 0 when every screen was captured and every check held; 1 when the map file is missing, a
 #   check failed or the page raised a JavaScript error.
 # ─────────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ STATUS=$(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null)
 if [ "$STATUS" != "running" ]; then
   docker start "$CONTAINER" >/dev/null
 fi
+trap 'docker stop "$CONTAINER" >/dev/null' EXIT
 
 # Install the playwright npm package once per container lifetime, not on every run.
 if ! docker exec "$CONTAINER" test -d /tmp/shot/node_modules/playwright; then
@@ -197,4 +199,4 @@ for f in "${SHOT_NAMES[@]}"; do
 done
 
 echo "Wrote ${#SHOT_NAMES[@]} screenshots to $OUT_DIR"
-echo "Container '$CONTAINER' left running (warm, like pw-runner) -- stop with: docker rm -f $CONTAINER"
+echo "Container '$CONTAINER' will be stopped on exit and kept for the next run -- remove it with: docker rm -f $CONTAINER"
