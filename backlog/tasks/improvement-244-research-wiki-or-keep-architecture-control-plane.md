@@ -31,9 +31,13 @@ Readers: a mix of the owner and new developers who clone the repository; outside
 Extend the map; do not add or replace anything. All three parts below read the data the map already holds — no fact is copied into a second place.
 
 - Chosen: show each module's README on its module page; full-text search with MiniSearch built in the browser from `MODEL`; a link to the map in the root README; fix the wrong claim in `docs/architecture/README.md` in the same change.
-- Chosen (recommended, taken as the basis for development): MiniSearch loaded from `unpkg.com` like the other three scripts, not embedded; the hand-written markdown renderer stays (`marked` would add two scripts — `marked` plus DOMPurify — for one nested list and a few italic words rendered imperfectly).
+- Chosen (by the user, 2026-11-09): the four libraries are kept as files in `docs/architecture/vendor/` and loaded by relative script tags, so the map works without a network; CDN loading, inlining and gzip-plus-base64 inlining were tried or weighed and dropped (no gain worth the added start-up code for a file opened from disk). The hand-written markdown renderer stays (`marked` would add two scripts — `marked` plus DOMPurify — for one nested list and a few italic words rendered imperfectly).
 - Not chosen: a doc site next to the map, a replacement of the map, Structurizr, Backstage, MkDocs Material, Docusaurus, VitePress, Starlight, docsify, Pagefind (indexes built HTML after a site build).
 - Open question recorded in the ADR (step 4): the new script goes against the earlier decision that reduced the page to one drawing engine and fewer scripts; search is a new capability, not a second engine.
+
+## Progress
+
+- 2026-11-09: step 1 (module README on the module page), step 2 (search, widened to script-tree folders, libraries local) and step 3 (README links and corrections) are written; the page has not yet been opened in a browser (that is step 5). Steps 4 and 5 are open; step 6 is added below.
 
 ## Execution plan
 
@@ -64,9 +68,9 @@ Nothing here has been executed. Rules for every step: the Approval Rule applies 
 - **Verify:** regenerate (step 5); the module page of `query-lib` ends with its README text and a `Source:` link; a module whose README has a Flow diagram shows the drawn graph, not code text.
 
 ### Step 2 — full-text search
-- **Executor:** sonnet. **Depends on:** step 1 (same file; run after it).
+- **Executor:** sonnet. **Depends on:** step 1 (same file; run after it). Scope widened on 2026-11-09 at the user's request: script-tree folders (commands, skills, agents, rules, scripts, playwright) are indexed too.
 - **File:** `docs/architecture/scripts/generate-architecture-model.sh` only.
-- **Library.** Add `<script src="https://unpkg.com/minisearch@7.2.0/dist/umd/index.js"></script>` next to the three existing script tags in `HTML_HEAD`. Checked on 2026-11-09: that path exists (86 KB, 19 KB gzipped, global `MiniSearch`, MIT); the path in the research plan, `dist/umd/index.min.js`, returns 404 — do not use it.
+- **Library.** All four libraries (the three the page already used and MiniSearch 7.2.0, `dist/umd/index.js`, 86 KB, global `MiniSearch`, MIT; the research plan's `index.min.js` path returns 404) are plain files in `docs/architecture/vendor/`, each with its LICENSE, and the page loads them with relative `<script src="vendor/...">` tags: no network, but the folder must stay next to the map. Done 2026-11-09; the screenshot script copies the folder into its container too.
 - **Search box.** One `<input type="search" id="search-box">` inside `<header>`, beside `#breadcrumb`, with a few lines of CSS in the existing `<style>` block using the existing CSS variables (works in the light and the dark palette, if the page has both). A `<div id="search-results">` dropdown under it.
 - **Index.** Build once at load, after the data indices (`byId`, `moduleNodes`, `backlogNode`), in one function `buildSearchIndex()`. Each document is `{ id, kind, title, text, open }`: `title` and `text` are indexed (`title` boosted), `kind` and `title` are stored, `open` is a closure that navigates. Documents, all read from `MODEL`, none copied into the generator:
   - **Module** (`moduleNodes`): title `n.id`; text from `description`, `domain`, `tables`, the names in `entities`/`keyServices`/`contracts` (read `renderNamedFileListHtml` for their shape), and `readme`; open `navigate({screen:"module", id:n.id})`.
@@ -74,12 +78,13 @@ Nothing here has been executed. Rules for every step: the Approval Rule applies 
   - **Backlog task** (`backlogNode.openIssues` and `completedIssues`): title, description, priority, file; open `openIssuePopup("open"|"completed", index)`.
   - **Table** (`MODEL.dbErd.tables`): title `t.name`; text `t.module`, `t.remarks`, the column names and their remarks (read `renderDbErdTableSchemas` for the column shape); open `navigateToTable(t.name)`.
   - **Root documents**: `rootReadme` → `navigate({screen:"system"})`, `rootInfrastructure` → `navigate({screen:"pipelines"})`, `rootBestPractices` → `navigate({screen:"codequality", section:"practices"})`.
-  - Not in this step: commands, skills, agents and script-group READMEs (their navigation is a tree path; see "Not in scope").
+  - **Script-tree folders** (`scriptGroupNodes` and every node under their `children`, the three roots `scripts`, `playwright`, `.claude`): title is the node `id`; text is `readme` plus the file names in `files` and the `description` of each `headers` entry; so a command, a skill folder or an agent is found by its folder README and its file name, and the result opens that folder's page. The model holds no per-command description (the command files appear only as names inside their folder node), so the search lands on the folder, not on one file; adding per-file descriptions would be a generator change of its own and is not part of this step.
+  - **Id-to-path helper** `treeLocation(nodeId)` returns `{ groupId, path }` for `navigate({screen:"pipelines", groupId, path})`: an id under `.claude` gives `groupId:"ai-tooling"` and the path segments after `.claude` (the primary root is implicit, see `scriptTreeNodeAt`); an id under `scripts` gives `groupId:"scripts-tree"` and the segments after `scripts`; an id under `playwright` gives `groupId:"scripts-tree"` and `["playwright", ...rest]`; the root node itself gives an empty path. Read `renderScriptTree` and `scriptTreeNodeAt` first; the helper must round-trip with `scriptTreeNodeAt` for every indexed id (check all of them once in the browser console).
 - **Options.** `prefix: true`, `fuzzy: 0.2`, title boosted. Show at most 20 results: a kind label and the title. Open a result by click or by Enter on the first one; Escape or a click outside closes the dropdown.
 - **No inline interpolation of ids.** `esc()` does not escape quotes and ADR ids contain parentheses; results carry their index in a `data-` attribute and one delegated listener calls `open`.
 - **Degrade.** If `typeof MiniSearch === "undefined"` (offline or script blocked), hide the box and build nothing; the rest of the page must work with no console error from the search code.
 - **Constraints:** no other library, no build step, no new generator flag, nothing precomputed into the JSON (the index is built in the browser, so regeneration stays byte-reproducible).
-- **Verify:** regenerate (step 5); in the opened map a search for a module name, `ADR-036`, a table name, a task title and a word that occurs only in a module README each return a result and each click opens the right place; with the script URL broken the page still renders and the box is hidden.
+- **Verify:** regenerate (step 5); in the opened map a search for a module name, `ADR-036`, a table name, a task title, a word that occurs only in a module README, a command name such as `autopilot` and a word from the `.claude/rules` folder README each return a result and each click opens the right place; with the script URL broken the page still renders and the box is hidden.
 
 ### Step 3 — links and documentation
 - **Executor:** haiku. **Depends on:** steps 1 and 2 (the text must describe what exists). Before editing, read `.claude/skills/app-readme-standards/SKILL.md` for `README.md` and `.claude/skills/infra-readme-standards/SKILL.md` for `docs/architecture/README.md`.
@@ -105,7 +110,7 @@ Nothing here has been executed. Rules for every step: the Approval Rule applies 
 
 ### Step 4 — record the decision
 - **Executor:** sonnet. **Depends on:** steps 1–3.
-- Run `/record-decision docs/architecture/scripts — <title>`; it regenerates `.claude/nav/adr-index.md` (the standing rule). Content: the map shows module READMEs and has client-side search with MiniSearch loaded from the CDN; rejected — a doc site, Structurizr, Backstage, MkDocs Material, Docusaurus, VitePress/Starlight, docsify, Pagefind, `marked` for now (reasons in "Decision" above); the tension with the one-drawing-engine decision and why search is a new capability, not a second engine; the CDN-versus-embed choice.
+- Run `/record-decision docs/architecture/scripts — <title>`; it regenerates `.claude/nav/adr-index.md` (the standing rule). Content: the map shows module READMEs and has client-side search with MiniSearch; the browser libraries are local files in `docs/architecture/vendor/`; rejected — a doc site, Structurizr, Backstage, MkDocs Material, Docusaurus, VitePress/Starlight, docsify, Pagefind, `marked` for now (reasons in "Decision" above); the tension with the one-drawing-engine decision and why search is a new capability, not a second engine; local files versus CDN or inlined libraries.
 - If the one-drawing-engine decision still matches the code after step 2 (the page loads Cytoscape only, no Mermaid), stamp its `**Verified:**` line with the date, in the same operation.
 
 ### Step 5 — regenerate and verify the whole
@@ -115,19 +120,30 @@ Nothing here has been executed. Rules for every step: the Approval Rule applies 
 - `git diff --stat` touches only: the generator, the regenerated `architecture-map.html` and `data/architecture-model.json`, `README.md`, `docs/architecture/README.md`, `docs/architecture/scripts/DECISIONS.md`, `.claude/nav/adr-index.md` (and the ADR index's generated neighbours, if the generator rewrites them).
 - Estimated effort: about half a day of review; about 300–450k executor tokens (haiku 30–60k for steps 1 and 3, sonnet 200–350k for step 2, about 50k for the ADR). Estimates, not measured.
 
+### Step 6 — decompose the generator (page and model out of one 4,900-line bash file)
+- **Why:** `generate-architecture-model.sh` has about 2,285 lines of bash that build the model, about 170 lines of HTML and CSS and about 2,470 lines of page JavaScript (97 functions) inside heredocs; the page code gets no syntax highlighting, no lint and no per-file check. The user asked for this on 2026-11-09 as a step of this task, and chose the highest-quality variant that keeps the tool count small.
+- **Executor:** sonnet for each sub-step, the main thread for the comparison. **Depends on:** steps 1 to 5 done and committed (the comparison baseline is the output of the committed generator).
+- **Safety net first (6a).** Before any change, regenerate once and keep the two outputs (`architecture-model.json`, `architecture-map.html`) as the baseline outside the repository. After every sub-step regenerate and compare byte for byte with the baseline; a sub-step is accepted only when the outputs are identical. The existing reproducibility check of `architecture-doc.sh` must still pass.
+- **6b — the page leaves bash.** Create `docs/architecture/page/style.css` and `docs/architecture/page/*.js`, one file per area of the page (shared helpers and state, `system`, `modules`, `diagrams`, `pipelines`, `backlog`, `popups`, `search`, start-up) in the order the code runs today; the generator writes the HTML head, inlines the CSS and each JS file in that order, and keeps the model JSON where it is. Output stays one HTML file plus `vendor/`; the baseline comparison must pass with no byte of difference. No behaviour change, no rename, no cleanup in this sub-step.
+- **6c — the model leaves one file.** Split the bash that builds the model into sourced files per section (`model-modules.sh`, `model-adrs.sh`, `model-db-erd.sh`, `model-backlog.sh`, `model-metrics.sh`, names to be fixed by the executor after reading the sections), `generate-architecture-model.sh` stays the entry point and its header the contract. Same byte-for-byte comparison.
+- **6d — checks.** Run ESLint over `docs/architecture/page/*.js` from the existing lint stage (read `playwright/run.sh --lint` and the lint step of `scripts/ci/dagu/ci.yaml` first; extend, do not add a stage), and `node --check` on the concatenated page script in `check-architecture-model-freshness.sh` if it fits there. Fix only what the linter calls an error; style findings go to the deferred bucket.
+- **6e — documentation.** Update the headers of the changed scripts, `docs/architecture/scripts/README.md` and `docs/architecture/README.md` (what lives where), run `/sync-docs` and `/check-architecture-map`; record one decision with `/record-decision docs/architecture/scripts` (page sources are files joined by the generator; rejected: separate files loaded by the browser, a rewrite in Node with a bundler).
+- **Out of this step:** a rewrite of the model builder in another language, a bundler, unit tests of the model (possible follow-ups once the files exist).
+- **Verify:** every baseline comparison identical; the page opens and the five searches, a module page with a README flow diagram, and the diagrams work as in step 5; lint is green; the full `/ci` passes.
+- Estimated effort: about a day of review, 600 to 900k executor tokens (an estimate, not measured).
+
 ## Risks
 
-- One more script loaded from the network; offline the search is hidden but the page works (the map already needs the network for its diagrams).
+- The map needs the `vendor/` folder beside it: sent alone, the page shows no diagrams and no search.
 - Long module READMEs make module pages longer, and the page then shows both the generated sections and the README prose.
 - ADR bodies are searchable only in a `--with-adr-details` build; the default build searches ADR ids, titles, modules and statuses.
 - The backlog description in the model is cut short, so search finds a task by title and its first lines, not by its full text.
 
 ## Not in scope (possible follow-ups)
 
-- Search over commands, skills, agents and script-group READMEs: their screens are reached by a tree path (`groupId` plus `path`), which needs a small id-to-path helper.
+- Search that lands on one command, skill or agent file instead of its folder: needs each file's own description in the model (read from the frontmatter by the generator).
 - Replacing the hand-written markdown renderer with `marked` + DOMPurify.
 - Publishing the map (for example on GitHub Pages) or a doc site, if outside readers become a target.
-- Embedding the libraries into the file so the map works offline.
 
 ## Related
 
@@ -147,7 +163,7 @@ Nothing here has been executed. Rules for every step: the Approval Rule applies 
 - haiku_decomposition_used: n/a
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
-- adrs_referenced: ADR-036 (docs/architecture/scripts)
+- adrs_referenced: ADR-036 (docs/architecture/scripts), ADR-037 (docs/architecture/scripts)
 
 ### Agent calls
 - deep research of the wiki-or-keep question | subagent_type=deep-researcher (model fable) | tokens=119395 | tool_uses=47 | duration_s=386 | mode=background | batch=solo

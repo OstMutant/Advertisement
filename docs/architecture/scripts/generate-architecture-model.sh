@@ -30,7 +30,9 @@
 #   (only with --with-archunit), SonarQube's server data (only with --with-sonar), pom.xml, Java source + Javadoc, Liquibase changelogs, every module's DECISIONS.md,
 #   .claude/nav/adr-index.md, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents,
 #   backlog/, root CLAUDE.md, .claude/rules/*.md (including html/markdown embedded sections marked
-#   with <!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->).
+#   with <!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->), and the browser libraries the page
+#   loads from docs/architecture/vendor/, which must stay next to architecture-map.html (cytoscape 3.28.1, dagre 0.8.5, cytoscape-dagre 2.5.0, minisearch 7.2.0, all MIT, each with its
+#   own LICENSE file; to update one, replace its file there).
 # Outputs: .claude/nav/adr-index.md (regenerated in place), docs/architecture/data/architecture-model.json,
 #   docs/architecture/architecture-map.html, docs/architecture/data/arch-embed-index.md. JSON/HTML
 #   built to temp siblings and moved into place only on full success (atomic -- interrupted runs
@@ -40,6 +42,10 @@
 #   key and no "References <table>(<column>), no FK" marker in its remarks=.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
+
+# Fixed collation so host and container runs sort identically
+unset LC_ALL
+export LC_COLLATE=C
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
@@ -191,7 +197,7 @@ declare -A SCRIPT_GROUP_FILE_ORDER=(
   [.claude/nav/scripts]="generate-adr-index.sh check-hardcoded-counts.sh check-flows-completeness.sh check-module-lists.sh check-rule-path-globs.sh md-to-decisions-json.js"
   [docs/architecture]="architecture-doc.sh architecture-doc.bat"
   [docs/architecture/scripts]="generate-architecture-model.sh liquibase-schema-to-json.js check-architecture-model-freshness.sh screenshot-architecture-map.sh Dockerfile"
-  [docs/architecture/data]="architecture-model.json arch-embed-index.md runtime-notes.md"
+  [docs/architecture/data]="arch-embed-index.md runtime-notes.md"
   [scripts]="build-and-test.sh deploy-and-run.sh ci.sh run-all-tests.sh playwright.sh sonar.sh reset.sh run-local.bat build-and-test.bat deploy-and-run.bat ci.bat run-all-tests.bat playwright.bat sonar.bat claude.bat clean.bat collect-code.bat"
   [scripts/sonar]="run.sh docker-compose.sonar.yml sonar-project.properties"
   [scripts/build-and-test]="run.sh build.sh build-and-test.properties Dockerfile"
@@ -2289,9 +2295,10 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <head>
 <meta charset="UTF-8">
 <title>Architecture Control Plane</title>
-<script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
-<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
-<script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+<script src="vendor/cytoscape/cytoscape.min.js"></script>
+<script src="vendor/dagre/dagre.min.js"></script>
+<script src="vendor/cytoscape-dagre/cytoscape-dagre.js"></script>
+<script src="vendor/minisearch/minisearch.umd.js"></script>
 <style>
   :root {
     --ink: #1a202c; --muted: #718096; --line: #e2e8f0; --bg: #f7f8fa; --card: #ffffff;
@@ -2304,6 +2311,16 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
   header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 24px; position: sticky; top: 0; z-index: 5; }
   header h1 { font-size: 17px; margin: 0 0 6px; }
   header .subtitle { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  #search-wrap { position: relative; width: 280px; max-width: 100%; }
+  #search-box { width: 100%; font-size: 13px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--bg); }
+  #search-box:focus { outline: none; border-color: var(--accent); }
+  #search-results { position: absolute; right: 0; top: 100%; margin-top: 4px; width: 420px; max-width: 90vw; max-height: 60vh; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 10; }
+  .search-hit { padding: 7px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .search-hit:last-child { border-bottom: none; }
+  .search-hit:hover, .search-hit.first { background: var(--bg); }
+  .search-kind { display: inline-block; min-width: 64px; margin-right: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  .search-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); font-style: italic; }
   #breadcrumb { font-size: 13px; }
   #breadcrumb a { color: var(--accent); text-decoration: none; cursor: pointer; }
   #breadcrumb a:hover { text-decoration: underline; }
@@ -2424,7 +2441,13 @@ cat > "$HTML_OUTPUT" <<'HTML_HEAD'
 <header>
   <h1>Architecture Control Plane</h1>
   <div class="subtitle">Generated from pom.xml, DECISIONS.md, backlog/, .claude/nav/flows.md, .claude/commands, .claude/skills, .claude/agents, root CLAUDE.md — regenerate via <code>bash docs/architecture/scripts/generate-architecture-model.sh</code>.</div>
-  <nav id="breadcrumb"></nav>
+  <div class="header-row">
+    <nav id="breadcrumb"></nav>
+    <div id="search-wrap">
+      <input type="search" id="search-box" placeholder="Search modules, ADRs, tasks, tables, docs" autocomplete="off">
+      <div id="search-results" hidden></div>
+    </div>
+  </div>
 </header>
 <main id="content"></main>
 <dialog id="adr-popup">
@@ -3330,9 +3353,13 @@ function renderModule() {
   if ((n.edges.DEPENDS_ON_OPTIONAL||[]).length) html += `<section class="block"><h3>Depends on (optional)</h3>${renderDepList(n.edges.DEPENDS_ON_OPTIONAL, "optional", "")}</section>`;
   html += `<section class="block"><h3>Depended on by</h3>${renderDepList(n.edges.DEPENDED_ON_BY, "", "Nothing in this repo depends on it directly (leaf module).")}</section>`;
 
+  if (n.readme) {
+    html += `<section class="block">${mdBlockToHtml(n.readme, n.id)}<div class="empty-hint">Source: ${sourceLink(`${n.id}/README.md`)}</div></section>`;
+  }
   html += `<div class="empty-hint">Evidence: <code class="path">${esc(n.evidence[0].file)}</code></div>`;
 
   document.getElementById("content").innerHTML = html;
+  renderFlowBlocks();
 }
 
 // ── Tooling & Pipelines screen ───────────────────────────────────────────────────────────────
@@ -4805,6 +4832,99 @@ const GLOSSARY = [
   ` }
 ];
 
+// ── Full-text search ─────────────────────────────────────────────────────────────────────────
+// Maps a script-tree node id to the navigate() target of its folder page (see scriptTreeNodeAt).
+function treeLocation(nodeId) {
+  const segs = nodeId.split("/");
+  if (segs[0] === ".claude") return { groupId: "ai-tooling", path: segs.slice(1) };
+  if (segs[0] === "playwright") return { groupId: "scripts-tree", path: segs };
+  return { groupId: "scripts-tree", path: segs.slice(1) };
+}
+
+let searchDocs = [];
+let searchHits = [];
+let searchIndex = null;
+
+const SEARCH_KIND_LABELS = { module: "Module", adr: "ADR", task: "Task", table: "Table", doc: "Doc", folder: "Folder" };
+
+function buildSearchIndex() {
+  if (typeof MiniSearch === "undefined") {
+    document.getElementById("search-wrap").hidden = true;
+    return;
+  }
+  const docs = [];
+  const add = (kind, title, parts, open) => docs.push({ id: docs.length, kind, title, text: parts.filter(Boolean).join(" "), open });
+  const names = items => (items || []).map(it => `${it.name} ${it.description || ""}`);
+
+  moduleNodes.forEach(n => add("module", n.id,
+    [n.description, n.domain, (n.tables || []).join(" "), ...names(n.entities), ...names(n.keyServices), ...names(n.contracts), n.readme],
+    () => navigate({ screen: "module", id: n.id })));
+
+  MODEL.allAdrs.forEach(a => {
+    const homeNode = byId[a.module];
+    const found = homeNode && homeNode.decisions && homeNode.decisions.adrs.find(x => x.id === a.id.split(" (")[0]);
+    add("adr", a.id + " — " + a.title, [a.module, a.status, found && found.body],
+      () => openAdrPopupForAdr(a.id, a.module, a.title, a.status));
+  });
+
+  [["open", backlogNode.openIssues], ["completed", backlogNode.completedIssues]].forEach(([kind, items]) => {
+    (items || []).forEach((it, i) => add("task", it.title, [it.description, it.priority, it.file], () => openIssuePopup(kind, i)));
+  });
+
+  MODEL.dbErd.tables.forEach(t => add("table", t.name,
+    [t.module, t.remarks, ...t.columns.map(c => `${c.name} ${c.remarks || ""}`)],
+    () => navigateToTable(t.name)));
+
+  add("doc", "README.md", [MODEL.rootReadme], () => navigate({ screen: "system" }));
+  add("doc", "INFRASTRUCTURE.md", [MODEL.rootInfrastructure], () => navigate({ screen: "pipelines" }));
+  add("doc", "Best practices", [MODEL.rootBestPractices], () => navigate({ screen: "codequality", section: "practices" }));
+
+  const treeNodes = [];
+  const collect = n => { treeNodes.push(n); (n.children || []).forEach(collect); };
+  TREE_ROOTS["scripts-tree"].concat(TREE_ROOTS["ai-tooling"]).forEach(r => {
+    const root = scriptGroupNodes.find(n => n.id === r);
+    if (root) collect(root);
+  });
+  treeNodes.forEach(n => add("folder", n.id,
+    [n.readme, (n.files || []).join(" "), ...(n.headers || []).map(h => h.description)],
+    () => { const loc = treeLocation(n.id); navigate({ screen: "pipelines", groupId: loc.groupId, path: loc.path }); }));
+
+  searchDocs = docs;
+  searchIndex = new MiniSearch({
+    fields: ["title", "text"],
+    storeFields: ["kind", "title"],
+    searchOptions: { prefix: true, fuzzy: 0.2, boost: { title: 3 }, combineWith: "AND" }
+  });
+  searchIndex.addAll(docs);
+
+  const box = document.getElementById("search-box");
+  const results = document.getElementById("search-results");
+  const closeResults = () => { results.hidden = true; };
+  const openHit = k => { const hit = searchHits[k]; if (hit) { closeResults(); searchDocs[hit.id].open(); } };
+
+  box.addEventListener("input", () => {
+    const q = box.value.trim();
+    if (!q) { closeResults(); return; }
+    searchHits = searchIndex.search(q).slice(0, 20);
+    results.innerHTML = searchHits.length
+      ? searchHits.map((h, k) => `<div class="search-hit${k === 0 ? " first" : ""}" data-hit="${k}"><span class="search-kind">${esc(SEARCH_KIND_LABELS[h.kind] || h.kind)}</span>${esc(h.title)}</div>`).join("")
+      : `<div class="search-empty">No results.</div>`;
+    results.hidden = false;
+  });
+  box.addEventListener("keydown", e => {
+    if (e.key === "Enter") openHit(0);
+    else if (e.key === "Escape") closeResults();
+  });
+  results.addEventListener("click", e => {
+    const el = e.target.closest("[data-hit]");
+    if (el) openHit(Number(el.dataset.hit));
+  });
+  document.addEventListener("click", e => {
+    if (!document.getElementById("search-wrap").contains(e.target)) closeResults();
+  });
+}
+
+buildSearchIndex();
 render();
 </script>
 </body>

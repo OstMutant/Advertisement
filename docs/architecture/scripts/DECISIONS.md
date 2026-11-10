@@ -2,6 +2,26 @@
 
 ---
 
+## ADR-037: The architecture map shows each module's README on its module page, searches client-side with MiniSearch, and loads its four browser libraries from local files next to the page
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Context:** The map held every module's `README.md` in its model but showed it nowhere, had no search, and the root README never linked to it. A research on wiki and documentation-site tools found none that draws diagrams from `pom.xml`, Java source or Liquibase, and a second site would be a second source of truth. The page also loaded its libraries from a CDN, so it needed a network.
+
+**Decision:**
+1. A module page ends with that module's own README, with a link to its source file; README flowcharts are drawn by the existing `renderFlowBlocks()`.
+2. Search is built in the browser from the model the page already holds (modules, ADRs, backlog tasks, database tables, the root documents and every script-tree folder), with MiniSearch: prefix and fuzzy matching, title boosted, at most 20 results, an opening action per result and no ids in inline handlers. Nothing is precomputed into the JSON. A command, skill or agent is found by its folder README and file name and opens its folder.
+3. The four browser libraries (cytoscape, dagre, cytoscape-dagre, minisearch) are plain files in `docs/architecture/vendor/`, each with its LICENSE, loaded by relative script tags. The page works without a network and needs that folder beside it; the screenshot script copies it too.
+4. The root README links to the map.
+
+**Rejected alternatives:** a documentation site next to the map, or a replacement of the map (Structurizr, Backstage, MkDocs Material, Docusaurus, VitePress, Starlight, docsify, Pagefind: none draws from the code, and a second site means a second source of truth); loading the libraries from a CDN (needs a network); inlining them into the HTML, plain or as gzip plus base64 (a single file to send, but it adds start-up code and about 500 KB for no gain on a file opened from disk); `marked` for the README renderer (two more scripts for a few rendered details).
+
+**Consequences:** The page grows by the README text only; searching by ADR body text works only in a build with `--with-adr-details`. Sent alone, the HTML shows no diagrams and no search. A new library goes into `vendor/` with its license.
+
+---
+
 ## ADR-036: The architecture map draws every diagram with Cytoscape — Mermaid.js is removed from the page
 
 **Status:** Accepted

@@ -12,7 +12,8 @@
 # Uses: bash, docker (the same pinned Playwright image and version as playwright/run.sh), node and
 #   playwright inside that container.
 # Env: None.
-# Input: docs/architecture/architecture-map.html (must already exist and be current).
+# Input: docs/architecture/architecture-map.html (must already exist and be current) and the
+#   docs/architecture/vendor/ folder it loads its libraries from.
 # Outputs: docs/architecture/scripts/architecture-map-screenshots/{01-system,02-diagrams-list,
 #   03-diagram-module-deps,04-module-detail,04b-back-to-diagram-via-breadcrumb,05-diagram-spi,
 #   06-diagram-spi-zoomed,07-pipelines,08-backlog,09-diagram-erd,09b-erd-graph,10-readme-flow-system,
@@ -50,6 +51,8 @@ if ! docker exec "$CONTAINER" test -d /tmp/shot/node_modules/playwright; then
 fi
 
 docker cp "$HTML" "$CONTAINER:/tmp/shot/architecture-map.html"
+docker exec "$CONTAINER" rm -rf /tmp/shot/vendor
+docker cp "$REPO_ROOT/docs/architecture/vendor" "$CONTAINER:/tmp/shot/vendor"
 
 cat > /tmp/arch-map-shot.js <<'JS_EOF'
 const { chromium } = require('playwright');

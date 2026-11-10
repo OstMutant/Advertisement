@@ -16,6 +16,11 @@ yet — not zero.
 
 | ADR | Module | Status | Verified | Applied | Title |
 |---|---|---|---|---|---|
+| ADR-005 (.claude) | .claude | Accepted |  | 1 | `/reduce-code` reuses `deep-review-orchestrator` with a selectable lens instead of its own review pipeline |
+| ADR-003 (.claude) | .claude | Accepted |  |  | `/autopilot` step 2 and `/sync-docs` diff-mode apply the standing per-unit Haiku-dispatch rule, with rework-rate metrics to validate it |
+| ADR-004 (.claude) | .claude | Accepted |  | 2 | Per-task ADR usage tracking, counted in each ADR's own `**Applied:**` line |
+| ADR-002 (.claude) | .claude | Accepted |  |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
+| ADR-001 (.claude) | .claude | Accepted |  |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
 | ADR-015 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  |  | Server-side attachment content-type validation via Apache Tika |
 | ADR-001 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  |  | Attachment domain logic extracted from marketplace-app |
 | ADR-002 (attachment-spring-boot-starter) | attachment-spring-boot-starter | Accepted |  |  | S3 storage merged into this module; storage-s3-starter deleted |
@@ -48,11 +53,6 @@ yet — not zero.
 | ADR-022 (audit-spring-boot-starter) | audit-spring-boot-starter | Superseded (2026-07-03, snapshot-cleanup — `isRestorable()` and `CategoryChangeSnapshotDto` were removed; every row is restorable now, so plain `items.size()` is correct again and `restorableCount` no longer exists in code) |  |  | restorableCount replaces items.size() for restore button visibility |
 | ADR-023 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-23) |  |  | Top-level Timeline tab replaces inline timeline tabs |
 | ADR-024 (audit-spring-boot-starter) | audit-spring-boot-starter | Accepted (done 2026-06-26) |  |  | captureRestore() — dedicated method for restore audit events |
-| ADR-005 (.claude) | .claude | Accepted |  | 1 | `/reduce-code` reuses `deep-review-orchestrator` with a selectable lens instead of its own review pipeline |
-| ADR-003 (.claude) | .claude | Accepted |  |  | `/autopilot` step 2 and `/sync-docs` diff-mode apply the standing per-unit Haiku-dispatch rule, with rework-rate metrics to validate it |
-| ADR-004 (.claude) | .claude | Accepted |  | 2 | Per-task ADR usage tracking, counted in each ADR's own `**Applied:**` line |
-| ADR-002 (.claude) | .claude | Accepted |  |  | Formalize `/deep-review`'s reasoning layer as real, isolated `.claude/agents/*.md` subagents |
-| ADR-001 (.claude) | .claude | Accepted |  |  | Split module-specific AI guidance into path-scoped `.claude/rules/*.md`; deduplicate memory against canonical rules |
 | ADR-002 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted **Applied:** 1 |  |  | Only a provider profile owns contact_info; an advertisement shows its owner's contact |
 | ADR-001 (contact-spring-boot-starter) | contact-spring-boot-starter | Accepted **Applied:** 1 **Verified:** 2026-10-27 |  |  | New contact-spring-boot-starter module owns contact_info/contact_view, generic over owning entity |
 | ADR-004 (docs/api-collections) | docs/api-collections | Accepted **Verified:** 2026-11-02 **Applied:** 2 |  |  | MCP flows are a separate Postman collection run by the shared runner, cover every tool of the server, and make sure the default administrator exists before the flows, and skip the flows that need an administrator when it is missing |
@@ -62,6 +62,7 @@ yet — not zero.
 | ADR-003 (docs/api-collections) | marketplace-mcp | Accepted **Applied:** 3 |  |  | The flow runner page is served only behind a property, from the REST module's classpath, and is never switched on by a file a real deployment reuses |
 | ADR-002 (docs/api-collections) | docs/api-collections | Accepted **Verified:** 2026-11-02 |  | 5 | API collection flows repeat on an empty or a used database, create what they need, never provoke a limiter, and run by role |
 | ADR-001 (docs/api-collections) | docs/api-collections | Superseded by ADR-002 **Applied:** 1 |  |  | API collection flows repeat without a reset, build unique values per run and never provoke a limiter |
+| ADR-037 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | 1 | The architecture map shows each module's README on its module page, searches client-side with MiniSearch, and loads its four browser libraries from local files next to the page |
 | ADR-036 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | 1 | The architecture map draws every diagram with Cytoscape — Mermaid.js is removed from the page |
 | ADR-035 (docs/architecture/scripts) | docs/architecture/scripts | Accepted |  | 1 | Code Quality screen always shows real test reports and run logs, grouped by folder under a session ID; cards are plain relative links |
 | ADR-034 (docs/architecture/scripts) | docs/architecture/scripts | Accepted — the small hand-curated list kept by decision #3 was later removed entirely: every conceptual relationship is derived from a `remarks=` marker and no hand-typed list remains |  |  | Database ERD's no-FK point relationships derived from a `remarks=` marker convention, not a hand-curated list |
@@ -260,6 +261,17 @@ yet — not zero.
 | ADR-005 (query-lib) | query-lib | Accepted |  |  | `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically |
 | ADR-006 (query-lib) | query-lib | Accepted |  |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted |  |  | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
+| ADR-017 (scripts) | scripts | Accepted |  | 1 | AI dev containers (Claude Code, opencode) install their CLI with an explicit tag and `--engine-strict`; versions are Dockerfile ARGs, Node 24 |
+| ADR-016 (scripts) | scripts | Accepted |  |  | MinIO → SeaweedFS local dev/CI storage backend swap |
+| ADR-015 (scripts) | scripts | Accepted |  |  | `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out) |
+| ADR-014 (scripts) | scripts | Accepted |  |  | Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool |
+| ADR-013 (scripts) | scripts | Accepted |  |  | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |
+| ADR-001 (scripts) | scripts | Accepted |  |  | All operations via project scripts — no raw commands |
+| ADR-002 (scripts) | scripts | Accepted, with one carved-out exception — see the update note below. |  |  | scripts/ folder for all developer scripts |
+| ADR-003 (scripts) | scripts | Accepted |  |  | deploy-and-run.sh startup detection |
+| ADR-004 (scripts) | scripts | Accepted |  |  | run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright) |
+| ADR-009 (scripts) | scripts | Accepted |  |  | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
+| ADR-012 (scripts) | scripts | Accepted |  |  | `deploy-dev.sh` eliminated |
 | ADR-016 (scripts/ci) | scripts/ci | Accepted **Applied:** 1 |  |  | The DAG builds the reactor once; Sonar runs after unit and integration and imports their JaCoCo reports |
 | ADR-015 (scripts/ci) | scripts/ci | Accepted **Applied:** 1 |  |  | The CI uses only its own volumes, container names and ports; one `reset_ci_cache` parameter wipes its build cache |
 | ADR-014 (scripts/ci) | scripts/ci | Accepted |  |  | `ci.sh` refuses concurrent runs and assigns its own Dagu run id, so `--foreground` always watches the run it started |
@@ -274,17 +286,6 @@ yet — not zero.
 | ADR-008 (scripts/ci) | scripts/ci | Superseded by ADR-009 -- the DAG has separate `unit` and `integration` steps; the reactor is installed once in the `build` step (ADR-016) |  |  | `unit`/`integration` stages merged into one `build_and_test` stage |
 | ADR-009 (scripts/ci) | scripts/ci | Accepted -- the stage graph statement is revised by ADR-016 |  |  | `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted -- the statement that every stage writes into one shared `maven-cache` volume is revised by ADR-015 |  |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
-| ADR-017 (scripts) | scripts | Accepted |  | 1 | AI dev containers (Claude Code, opencode) install their CLI with an explicit tag and `--engine-strict`; versions are Dockerfile ARGs, Node 24 |
-| ADR-016 (scripts) | scripts | Accepted |  |  | MinIO → SeaweedFS local dev/CI storage backend swap |
-| ADR-015 (scripts) | scripts | Accepted |  |  | `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out) |
-| ADR-014 (scripts) | scripts | Accepted |  |  | Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool |
-| ADR-013 (scripts) | scripts | Accepted |  |  | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |
-| ADR-001 (scripts) | scripts | Accepted |  |  | All operations via project scripts — no raw commands |
-| ADR-002 (scripts) | scripts | Accepted, with one carved-out exception — see the update note below. |  |  | scripts/ folder for all developer scripts |
-| ADR-003 (scripts) | scripts | Accepted |  |  | deploy-and-run.sh startup detection |
-| ADR-004 (scripts) | scripts | Accepted |  |  | run-all-tests.sh — real 3-way parallelism (unit, integration, Playwright) |
-| ADR-009 (scripts) | scripts | Accepted |  |  | DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive |
-| ADR-012 (scripts) | scripts | Accepted |  |  | `deploy-dev.sh` eliminated |
 | ADR-011 (scripts/sonar) | scripts/sonar | Accepted **Applied:** 1 |  |  | The SonarQube server and the project `advertisement` are shared between the CI and manual runs by decision |
 | ADR-010 (scripts/sonar) | scripts/sonar | Accepted -- with `SONAR_JACOCO_FROM` set the tests are skipped and reports imported (see ADR-016 in `scripts/ci`) |  |  | JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration` |
 | ADR-001 (scripts/sonar) | scripts/sonar | Accepted — the "no pom.xml changes" constraint is partially revised by ADR-010 (`jacoco-maven-plugin` added to root `pom.xml`); every other decision in this entry (Docker-based scanner, no Sonar-specific plugin/properties in `pom.xml`) still holds. |  |  | SonarQube setup via Docker, no pom.xml changes |

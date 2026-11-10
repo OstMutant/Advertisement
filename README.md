@@ -17,7 +17,7 @@ features — not a toy example, and not (yet) a finished product:
 - clear responsibility boundaries between layers, enforced at both the UI and service level
 
 **Skim it (5 min):** [If you have 5 minutes](#if-you-have-5-minutes) · [Module map](#module-layout)
-**Go deep:** [Architecture](#architectural-principles) · [Testing Strategy](#testing-strategy) · [Backlog](backlog/BACKLOG.md)
+**Go deep:** [Architecture](#architectural-principles) · [Testing Strategy](#testing-strategy) · [Backlog](backlog/BACKLOG.md) · [Architecture map](docs/architecture/architecture-map.html)
 
 ---
 
