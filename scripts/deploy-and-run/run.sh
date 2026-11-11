@@ -46,7 +46,8 @@
 #   (<APP_CONTAINER>-jar), SEAWEEDFS_IMAGE (chrislusf/seaweedfs:latest) -- all overridable,
 #   used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
-#   hardcoded default; POSTGRES_IMAGE is the same, with postgres:18-alpine as its hardcoded default.
+#   hardcoded default. POSTGRES_IMAGE has no default: it comes from the environment or the repo-root
+#   .env, and the script stops with an error when neither has it.
 #   MAVEN_CACHE_VOLUME (default maven-cache) -- name of the Docker volume the app jar is copied from.
 # Input: repo source, .env (POSTGRES_IMAGE and the DB_*/S3_* fallback defaults, as the docker-compose
 #   files read them),
@@ -96,7 +97,7 @@ SEAWEEDFS_CONSOLE_PORT="${SEAWEEDFS_CONSOLE_PORT:-9333}"
 SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:latest}"
 APP_PORT="${APP_PORT:-8081}"
 DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
-POSTGRES_IMAGE="${POSTGRES_IMAGE:-${ENV_POSTGRES_IMAGE:-postgres:18-alpine}}"
+POSTGRES_IMAGE="${POSTGRES_IMAGE:-${ENV_POSTGRES_IMAGE:?POSTGRES_IMAGE is set neither in the environment nor in the repo-root .env}}"
 SEAWEEDFS_VOLUME="${SEAWEEDFS_VOLUME:-advertisement_seaweedfs_data}"
 DB_NAME="${DB_NAME:-${ENV_DB_NAME:-experiments}}"
 DB_USER="${DB_USER:-${ENV_DB_USER:-experiments_user}}"
