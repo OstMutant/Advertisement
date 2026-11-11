@@ -23,6 +23,7 @@ it does, its flags, and its exact behavior; not restated here.
 | [`integration-tests/run.sh`](../integration-tests/run.sh) | self-contained — a direct alternative to `build-and-test.sh`, needs a local Java install |
 | [`sonar.sh`](sonar.sh) / [`.bat`](sonar.bat) | [`scripts/sonar/run.sh`](sonar/run.sh) |
 | [`reset.sh`](reset.sh) / [`.bat`](reset.bat) | [`scripts/deploy-and-run/reset.sh`](deploy-and-run/reset.sh) — a faster, narrower alternative to `deploy-and-run.sh --reset`: only truncates tables (~1s, containers/volumes stay intact) vs. `--reset`'s full container+volume wipe and rebuild (~7-10 min) |
+| [`docker-clean.sh`](docker-clean.sh) / [`.bat`](docker-clean.bat) | self-contained, the `.bat` runs it through WSL — the union of the narrower resets above, for a clean host before a full run |
 | [`clean.bat`](clean.bat) | self-contained (no delegation) |
 | [`pull-logs.bat`](pull-logs.bat) | self-contained (no delegation) |
 | [`collect-code.bat`](collect-code.bat) | self-contained (no delegation) |

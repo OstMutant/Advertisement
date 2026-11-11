@@ -226,6 +226,16 @@ needed here.
 
 ---
 
+## Cleaning the Docker host
+
+```bash
+bash scripts/docker-clean.sh --dry-run --all     # plan only, nothing removed
+bash scripts/docker-clean.sh --caches            # containers + rebuildable caches
+```
+Containers only by default; every volume or cache scope is a flag named by what it loses, and a scope that is not a pure cache asks for the typed word `DELETE` (or `--yes`). The working session's container is recognised by a host-bound `/app` together with the host-bound Docker socket and is never removed, nor is a volume a surviving container still mounts. Nothing calls it automatically; `/docker-clean` wraps it with a plan and a question. The flags and the exact lists are in the script's own header.
+
+---
+
 ## Local CI Runner (isolated, parameterized, Dagu-backed)
 
 Lives in `scripts/ci/` (own `DECISIONS.md`/`README.md`, matching `scripts/sonar/`'s nested-module

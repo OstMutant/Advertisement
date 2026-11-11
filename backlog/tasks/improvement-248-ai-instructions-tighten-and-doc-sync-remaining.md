@@ -2,7 +2,7 @@
 
 **Type:** improvement — the rest of the work opened in improvement-240, split off when that task was closed
 **Module:** `.claude/commands/`, `.claude/agents/research/`, `.claude/agents/sonar/`, `.claude/agents/dagu/`, `integration-tests`, `docs/architecture/scripts/generate-architecture-model.sh`, `.claude/rules/`, `.claude/skills/`, `CLAUDE.md`
-**Priority:** 🟡 high, right after improvement-242
+**Priority:** 🟡 high, at the top of the backlog
 **When:** independent, no blockers
 
 ## Current state

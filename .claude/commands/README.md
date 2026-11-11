@@ -42,5 +42,6 @@ self-contained entry point, described below and linked to its real file.
   run.
 - [`/sonar`](sonar.md) — Run SonarQube static analysis for the marketplace app.
 - [`/check-architecture-map`](check-architecture-map.md) — Check that the architecture map files on disk still match what the generator produces
+- [`/docker-clean`](docker-clean.md) — Remove the project's Docker containers, and only the volumes and caches the user names, without ever touching the working session's own container.
 - [`/sync-docs`](sync-docs.md) — Analyze what changed in the codebase and update only the affected
   architecture documentation.
