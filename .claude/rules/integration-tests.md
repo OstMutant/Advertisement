@@ -24,6 +24,8 @@ Java package root: `org.ost.integrationtests`
   the proxies of the Spring Data repositories) and asserts the context starts and the ports of the missing starter report unavailable.
   `level2.restapi.OptionalStarterRestAbsenceTest` does the same with the REST adapter and security in the context and calls
   every REST operation: none may end in a server fault, and the operations that need the missing starter must answer 503.
+  `ProviderProfileDeleteTransactionTest` pins that deleting a provider profile is one all-or-nothing unit: a stale version or a failing
+  last step leaves the profile, its contact, its reviews, replies and rating summary in place.
 - **Level 3** — `org.ost.integrationtests.level3.restapi` — HTTP-level scenario tests against
   `marketplace-rest-api`'s controllers, real `MockMvc` bound to the real `WebApplicationContext`
   (`MockMvcBuilders.webAppContextSetup(...)`, real security filter chain included) driving real
