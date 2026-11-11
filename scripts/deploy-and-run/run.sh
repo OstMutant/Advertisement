@@ -8,14 +8,15 @@
 #   e.g. a removed FK constraint, while the local dev DB still has the old version applied) is
 #   detected automatically and self-heals: wipes dev DB/SeaweedFS volumes and retries once, same as
 #   --reset, no re-run needed -- dev-only, a real deployed database needs a proper migration, not a
-#   wipe. See DECISIONS.md for the full reuse-jar rationale.
+#   wipe. See .claude/nav/adr-index.md for the reuse-jar rationale.
 # Usage: bash scripts/deploy-and-run.sh [--reset] [--restart-infra] [--file] [--no-cache]
 #   [--reset-only-db] [--with-tests] [--from-scratch] [--prune-all] [--dev-tools] [--reuse-jar]
 #   (no flags)       reuse scripts/build-and-test.sh's shared jar -- no Docker image built, no
 #                    tests run, no data wipe -- start all services on port 8081
 #   --reset          wipe DB/SeaweedFS volumes, then rebuild
-#   --restart-infra  restart infra containers only (no rebuild)
-#   --file           filtered console output + full log to /tmp/deploy.log
+#   --restart-infra  recreate the DB and SeaweedFS containers (volumes kept), then continue the normal deploy
+#   --file           on failure print the app logs and the log path; with --from-scratch the image build
+#                    output is filtered and written in full to /tmp/deploy.log
 #   --no-cache       force rebuild ignoring Docker layer cache
 #   --reset-only-db  truncate app tables (reset-clean.sql) before starting the app, via reset.sh
 #   --with-tests     also run unit+integration tests as part of the build-and-test.sh reuse step
@@ -33,22 +34,24 @@
 #                    build -- HOST-WIDE, not scoped to this app, will remove any other stopped
 #                    container / unused volume on the machine. Opt-in only, never automatic -- see
 #                    .claude/nav/adr-index.md for the incident that made this explicit.
-# Uses: bash, docker, docker compose, docker buildx (--from-scratch only, via
+# Uses: bash, docker, curl, docker buildx (--from-scratch only, via
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
+#   scripts/utils/session-id.sh.
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
 #   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081), DB_VOLUME
-#   (advertisement_postgres_data), SEAWEEDFS_VOLUME (advertisement_seaweedfs_data) -- all overridable,
+#   (advertisement_postgres_data), SEAWEEDFS_VOLUME (advertisement_seaweedfs_data), APP_JAR_VOLUME
+#   (<APP_CONTAINER>-jar), SEAWEEDFS_IMAGE (chrislusf/seaweedfs:latest) -- all overridable,
 #   used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
-#   hardcoded default.
+#   hardcoded default; POSTGRES_IMAGE is the same, with postgres:18-alpine as its hardcoded default.
 #   MAVEN_CACHE_VOLUME (default maven-cache) -- name of the Docker volume the app jar is copied from.
-# Input: repo source, .env (DB_*/S3_* fallback defaults -- NOT POSTGRES_IMAGE: this script's own
-#   Postgres container always hardcodes postgres:15-alpine, unlike docker-compose.db.yml which
-#   does honor POSTGRES_IMAGE), the Maven cache Docker volume (its jar is copied into the app
-#   container's own <APP_CONTAINER>-jar volume unless --from-scratch).
+# Input: repo source, .env (POSTGRES_IMAGE and the DB_*/S3_* fallback defaults, as the docker-compose
+#   files read them),
+#   the Maven cache Docker volume (its jar is copied into the app container's own <APP_CONTAINER>-jar volume
+#   unless --from-scratch).
 # Outputs: running marketplace-app container on APP_PORT (its REST write limit raised to 100000 per
 #   minute, since e2e seeding and API flows exceed the production default) -- a real, separately
 #   built and tagged "marketplace-app" image only with --from-scratch; the default path runs
@@ -58,6 +61,10 @@
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
 #   an AI agent reading raw script output to parse machine-readable per-step status instead of
 #   scraping free text.
+#   An existing advertisement-db container is reused as-is, so a changed POSTGRES_IMAGE takes
+#   effect only when the container is created again (--reset or --restart-infra); its volume
+#   is mounted at /var/lib/postgresql, so a volume written by another PostgreSQL major version
+#   needs --reset.
 # Returns: 0 on success, non-zero on build/startup failure.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -69,11 +76,7 @@ LOG=/tmp/deploy.log
 
 source "$ROOT/scripts/utils/agentic-output.sh"
 
-# Load shared credential/port defaults from the repo-root .env (also read natively by
-# scripts/deploy-and-run/docker-compose*.yml and integration-tests' Testcontainers) into ENV_*-prefixed
-# vars -- NOT exported/sourced directly, so an already-exported override (e.g. DB_PORT=15432 from
-# scripts/ci/dagu/ci.yaml's isolated e2e stack) is never clobbered. Used only as the fallback
-# default below, same precedence every other var here already has.
+# Load the repo-root .env defaults into ENV_*-prefixed vars (not exported), so an already-exported override is never clobbered.
 if [ -f "$ROOT/.env" ]; then
   while IFS='=' read -r _env_key _env_value; do
     [[ "$_env_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
@@ -93,6 +96,7 @@ SEAWEEDFS_CONSOLE_PORT="${SEAWEEDFS_CONSOLE_PORT:-9333}"
 SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:latest}"
 APP_PORT="${APP_PORT:-8081}"
 DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
+POSTGRES_IMAGE="${POSTGRES_IMAGE:-${ENV_POSTGRES_IMAGE:-postgres:18-alpine}}"
 SEAWEEDFS_VOLUME="${SEAWEEDFS_VOLUME:-advertisement_seaweedfs_data}"
 DB_NAME="${DB_NAME:-${ENV_DB_NAME:-experiments}}"
 DB_USER="${DB_USER:-${ENV_DB_USER:-experiments_user}}"
@@ -223,7 +227,7 @@ reset_infra() {
 start_infra() {
   docker network create "$NETWORK" 2>/dev/null || true
 
-  pull_if_missing "postgres:15-alpine"
+  pull_if_missing "$POSTGRES_IMAGE"
   pull_if_missing "$SEAWEEDFS_IMAGE"
 
   ensure_running "$DB_CONTAINER" \
@@ -232,8 +236,8 @@ start_infra() {
       -e POSTGRES_DB="$DB_NAME" \
       -e POSTGRES_USER="$DB_USER" \
       -e POSTGRES_PASSWORD="$DB_PASSWORD" \
-      -v "$DB_VOLUME":/var/lib/postgresql/data \
-      postgres:15-alpine
+      -v "$DB_VOLUME":/var/lib/postgresql \
+      "$POSTGRES_IMAGE"
 
   ensure_running "$SEAWEEDFS_CONTAINER" \
     docker run -d --name "$SEAWEEDFS_CONTAINER" --network "$NETWORK" \
@@ -282,17 +286,13 @@ if ! $FROM_SCRATCH && ! $REUSE_JAR; then
   echo "=== Step 1.5: Build via build-and-test.sh (shared maven-cache jar) ==="
   BUILD_AND_TEST_FLAGS=(--no-unit --no-integration)
   $WITH_TESTS && BUILD_AND_TEST_FLAGS=(--unit --integration)
-  # Distinct container name (not build-and-test.sh's own default) -- this call can run
-  # concurrently with a caller-level direct build-and-test.sh invocation (e.g.
-  # scripts/run-all-tests.sh runs both from one top-level command), and Docker container names
-  # must be unique -- see scripts/build-and-test/run.sh's own Env doc for why.
+  # Distinct container name so this call can run beside a direct build-and-test.sh run (see its Env doc).
   BUILD_CONTAINER_NAME="advertisement-build-only-deploy" bash "$ROOT/scripts/build-and-test.sh" "${BUILD_AND_TEST_FLAGS[@]}"
 elif $REUSE_JAR; then
   echo "=== Step 1.5 skipped (--reuse-jar): starting from the marketplace-app.jar already in the shared maven-cache ==="
 fi
 
-# ── Step 2: Build (--from-scratch only -- the default path copies the shared jar into its own
-# volume and runs java from there in Step 3 below, no image build at all) ─────────────────────
+# ── Step 2: Build (--from-scratch only; the default path needs no image build) ──
 if $FROM_SCRATCH; then
   echo ""
   echo "=== Step 2: Build image ==="
@@ -311,8 +311,7 @@ if $FROM_SCRATCH; then
     docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT"
   fi
 
-  # Only dangling (untagged) images are pruned automatically -- by definition unreferenced by any
-  # tag/container, so this can never touch another stack's active image.
+  # Only dangling images are pruned, so another stack's active image is never touched.
   docker image prune -f
 fi
 
@@ -349,9 +348,7 @@ start_app_container() {
   if $FROM_SCRATCH; then
     docker run "${RUN_FLAGS[@]}" "$APP_IMAGE"
   else
-    # No built image at all -- the jar is copied out of the Maven cache volume into a volume
-    # of this container's own, so a later build that rewrites that volume cannot change the jar of
-    # the running application (it loads classes lazily and fails on a replaced file).
+    # Copy the jar into a volume of this container's own so a later build cannot replace the running jar.
     docker volume rm "$APP_JAR_VOLUME" 2>/dev/null || true
     docker volume create "$APP_JAR_VOLUME" >/dev/null
     docker run --rm -v "${MAVEN_CACHE_VOLUME:-maven-cache}":/src:ro -v "$APP_JAR_VOLUME":/dst --entrypoint cp \
@@ -364,8 +361,7 @@ start_app_container() {
   fi
 }
 
-# ── Helper: wait for the app to start. Returns 0 = started, 1 = Liquibase
-# checksum mismatch (stale dev DB, auto-recoverable), 2 = any other failure.
+# ── Helper: wait for the app to start; returns 0 = started, 1 = Liquibase checksum mismatch, 2 = other failure ──
 wait_for_app() {
   echo "Waiting for application to start..."
   local end=$((SECONDS + 180))

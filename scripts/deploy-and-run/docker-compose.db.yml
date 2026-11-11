@@ -10,7 +10,9 @@
 # Env: POSTGRES_IMAGE, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT -- all read from the repo-root .env
 #   (via --project-directory), no hardcoded fallback in this file.
 # Input: repo-root .env.
-# Outputs: advertisement-db container, publishing DB_PORT -> 5432, named volume postgres_data.
+# Outputs: advertisement-db container, publishing DB_PORT -> 5432, named volume postgres_data mounted at
+#   /var/lib/postgresql (the layout of the PostgreSQL 18 image; a volume written by another major version
+#   is not reusable and must be removed first).
 # ────────────────────────────────────────────────────────────────────────────
 version: '3.8'
 
@@ -26,7 +28,7 @@ services:
     ports:
       - "${DB_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
