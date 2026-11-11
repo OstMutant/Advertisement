@@ -217,7 +217,7 @@ lives in that module's own `spi/` package, a legal import since `marketplace-app
 on `marketplace-orchestrator`. Enforced by
 `ArchitectureRulesTest.marketplace_app_must_not_depend_on_platform_commons_spi_directly` (bans any
 other direct `platform-commons` `*.spi` import from `marketplace-app`; `AuthenticatedPrincipal` is
-the one allow-listed exception — see that test's own comment for why).
+the one allow-listed exception — it is the adapter-specific boundary where Spring Security's generic principal becomes a typed contract, and routing it through the orchestrator would stop a future adapter such as REST from resolving identity its own way).
 Forwarder implementations are also called from the REST API, so they must not depend on a UI-scoped bean (they get the language from the orchestrator's `CurrentLocaleService`, see `.claude/nav/adr-index.md`'s matching decision).
 
 **Autoconfiguration entry point:** `OrchestratorAutoConfiguration` (`@ComponentScan` over

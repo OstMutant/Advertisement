@@ -12,9 +12,9 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.junit.jupiter.api.Test;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
-import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -52,22 +52,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * {@code marketplace-app/DECISIONS.md} for the rationale (two real violations previously reached
  * working code unnoticed under the prose-only approach).
  * Scans the whole {@code org.ost} tree, which this module's test classpath can already see in
- * full (every starter reaches marketplace-app transitively via marketplace-orchestrator, plus
- * platform-commons + query-lib direct).
+ * full (every starter reaches marketplace-app transitively via marketplace-orchestrator, and
+ * platform-commons is a direct dependency).
  */
 @AnalyzeClasses(packages = "org.ost", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureRulesTest {
 
     private static final List<String> STARTER_PACKAGES = discoverStarterPackages();
 
-    // Discovers each sibling *-spring-boot-starter module's own base package by scanning its
-    // src/main/java/org/ost/ directory (exactly one subdirectory per starter) instead of a
-    // hand-maintained list -- not derivable from the module directory name by a fixed string
-    // transform (provider-profile-spring-boot-starter's real package is org.ost.provider, not
-    // org.ost.providerprofile), but reliably discoverable from the filesystem. Maven always sets a
-    // module's own test working directory to that module's own directory, so ".." reliably
-    // resolves to the reactor root regardless of how `mvn test` is invoked.
+    // Finds each starter's base package from its src/main/java/org/ost/ subdirectory; it cannot be derived from the module name (provider-profile's is org.ost.provider).
     private static List<String> discoverStarterPackages() {
+        // A module's test working directory is the module itself, so ".." is the reactor root.
         Path reactorRoot = Paths.get("..").toAbsolutePath().normalize();
         try (Stream<Path> modules = Files.list(reactorRoot)) {
             return modules
@@ -93,11 +88,7 @@ class ArchitectureRulesTest {
         }
     }
 
-    // Safety net: a bug in discoverStarterPackages() returning an empty list wouldn't fail loudly
-    // -- starters_must_not_import_sibling_starters/marketplace_must_not_import_starter_internals
-    // below would just trivially pass on nothing to check, silently disabling real architecture
-    // enforcement instead of erroring. Deliberately does not assert an exact count/list -- that
-    // would reintroduce the same hand-maintained-list drift risk this discovery replaces.
+    // Fails when no starter package is found, so the rules over STARTER_PACKAGES cannot pass on an empty list.
     @Test
     void starterPackagesDiscoveryFoundAtLeastOneStarter() {
         assertFalse(STARTER_PACKAGES.isEmpty(),
@@ -112,7 +103,7 @@ class ArchitectureRulesTest {
             noClasses().that().resideInAPackage("org.ost.marketplace.ui..")
                     .should().dependOnClassesThat().resideInAPackage("..repository..")
                     .because("the UI layer must go through a *Port, never a Repository directly — "
-                            + "see .claude/rules.md \"Strict Boundaries\"");
+                            + "see root CLAUDE.md \"Strict Boundaries\"");
 
     @ArchTest
     static final ArchRule starters_must_not_depend_on_vaadin =
@@ -121,7 +112,7 @@ class ArchitectureRulesTest {
                             "org.ost.advertisement..", "org.ost.taxon..", "org.ost.apikey..")
                     .should().dependOnClassesThat().resideInAPackage("com.vaadin..")
                     .because("starters have no Vaadin dependency — UI code lives only in "
-                            + "marketplace-app, see each starter's own CLAUDE.md \"Key constraints\"");
+                            + "marketplace-app, see each starter's rules file under .claude/rules/, \"Key constraints\"");
 
     @ArchTest
     static final ArchRule ports_live_only_in_platform_commons =
@@ -129,14 +120,10 @@ class ArchitectureRulesTest {
                     .should().resideInAPackage("org.ost.platform..")
                     .because("*Port SPI interfaces live in platform-commons so marketplace always "
                             + "sees the type regardless of which starters are present — see "
-                            + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
+                            + ".claude/rules/platform-commons.md \"Why ports and hooks must live in "
                             + "platform-commons\"");
 
-    // UiLabelHook/SessionActorHook/UiLocaleHook/SettingsChangeHook/CurrentUserHook are the
-    // named exceptions: called only by marketplace-orchestrator (a mandatory, non-optional
-    // dependency of marketplace-app, never absent), never by a starter, so the
-    // starter-optionality reasoning below doesn't apply to this set — they live in
-    // org.ost.orchestrator.spi instead. See marketplace-orchestrator/CLAUDE.md.
+    // The forwarder SPIs live in org.ost.orchestrator.spi, not platform-commons: see .claude/rules/marketplace-orchestrator.md "Forwarder SPI pattern".
     private static final List<String> ORCHESTRATOR_HOOK_ALLOWLIST = List.of(
             "UiLabelHook", "SessionActorHook", "UiLocaleHook", "SettingsChangeHook", "CurrentUserHook");
 
@@ -152,17 +139,13 @@ class ArchitectureRulesTest {
                     .should().resideInAPackage("org.ost.platform..")
                     .because("*Hook SPI interfaces live in platform-commons so marketplace always "
                             + "sees the type regardless of which starters are present — see "
-                            + "platform-commons/CLAUDE.md \"Why ports and hooks must live in "
+                            + ".claude/rules/platform-commons.md \"Why ports and hooks must live in "
                             + "platform-commons\". UiLabelHook/SessionActorHook/UiLocaleHook/"
                             + "SettingsChangeHook/CurrentUserHook are allow-listed above: called only by "
                             + "the mandatory marketplace-orchestrator dependency, never a starter, so they live in "
                             + "org.ost.orchestrator.spi.");
 
-    // AuthenticatedPrincipal is the one named exception: marketplace-app's AuthContextService
-    // reads it via instanceof from Spring Security's Authentication.getPrincipal() -- the
-    // adapter-specific boundary where a generic Object becomes a typed contract, deliberately not
-    // routed through the orchestrator so a future adapter (e.g. REST) can resolve identity its own
-    // way instead of inheriting Vaadin's session-based resolution. See improvement-150.
+    // AuthenticatedPrincipal is the one allowed exception: see .claude/rules/marketplace-orchestrator.md "Forwarder SPI pattern".
     private static final List<String> PLATFORM_SPI_ALLOWLIST = List.of("AuthenticatedPrincipal");
 
     @ArchTest
@@ -179,7 +162,7 @@ class ArchitectureRulesTest {
                     })
                     .because("marketplace-app and marketplace-rest-api should have zero direct "
                             + "*Port/*Hook usage from platform-commons — cross-domain composition "
-                            + "routes through marketplace-orchestrator instead, see improvement-150. "
+                            + "routes through marketplace-orchestrator instead, see .claude/rules/marketplace-orchestrator.md \"Key constraints\". "
                             + "AuthenticatedPrincipal is allow-listed above.");
 
     @ArchTest
@@ -188,13 +171,13 @@ class ArchitectureRulesTest {
                     .should().beAnnotatedWith(PreAuthorize.class)
                     .because("Vaadin initializes view beans before authentication; a class-level "
                             + "@PreAuthorize on a service causes AuthorizationDeniedException during "
-                            + "view wiring — see marketplace-app/CLAUDE.md \"Security\"");
+                            + "view wiring — see .claude/rules/marketplace-app.md \"Security: @PreAuthorize and Vaadin\"");
 
     @ArchTest
     static final ArchRule no_optional_method_parameters =
             noClasses().should(new ArchCondition<>("not declare Optional method parameters") {
                 @Override
-                public void check(JavaClass javaClass, com.tngtech.archunit.lang.ConditionEvents events) {
+                public void check(JavaClass javaClass, ConditionEvents events) {
                     for (JavaMethod method : javaClass.getMethods()) {
                         boolean hasOptionalParam = method.getRawParameterTypes().stream()
                                 .anyMatch(p -> p.isEquivalentTo(Optional.class));
@@ -202,7 +185,7 @@ class ArchitectureRulesTest {
                             events.add(SimpleConditionEvent.violated(method,
                                     method.getFullName() + " declares an Optional method parameter — "
                                             + "callers must resolve it before calling, see root "
-                                            + "CLAUDE.md \"No Optional parameters\""));
+                                            + "CLAUDE.md \"No `Optional` parameters\""));
                         }
                     }
                 }
@@ -212,7 +195,7 @@ class ArchitectureRulesTest {
     static final ArchRule config_packages_not_configuration =
             noClasses().should().resideInAPackage("..configuration..")
                     .because("all modules use `config`, not `configuration`, for Spring "
-                            + "configuration packages — see root CLAUDE.md \"Package structure\"");
+                            + "configuration packages — see .claude/rules/marketplace-app.md \"Package structure\"");
 
     @ArchTest
     static final ArchRule port_and_hook_impl_classes_are_pure_delegation =
@@ -221,7 +204,7 @@ class ArchitectureRulesTest {
                     .should().dependOnClassesThat().resideInAPackage("java.util.stream..")
                     .orShould().dependOnClassesThat().resideInAPackage("com.fasterxml.jackson..")
                     .because("*PortImpl/*HookImpl classes are pure delegation, no business logic — "
-                            + "see platform-commons/CLAUDE.md \"Hook and Port Implementation Rules\". "
+                            + "see .claude/rules/platform-commons.md \"Hook and Port Implementation Rules\". "
                             + "Coordination-layer implementations use the Default*Port naming instead "
                             + "(e.g. DefaultTaxonPort), which this rule intentionally does not match.");
 
@@ -354,17 +337,13 @@ class ArchitectureRulesTest {
                                     javaClass.getFullName() + " calls TaxonPort.replaceAssignments() directly — "
                                             + "category/city assignment writes must go through "
                                             + "marketplace-orchestrator's TaxonAssignmentWriteService, "
-                                            + "see .claude/rules.md guideline 2 \"Three layers, not two\""));
+                                            + "see root CLAUDE.md guideline 2 \"Three layers, not two\""));
                         }
                     });
                 }
             });
 
-    // Counts only ComponentFactory<XPort>-wrapped (optional cross-domain composition) fields --
-    // a direct, mandatory *Port field (e.g. UserAccountPort in a user-owned use case) is not the
-    // fan-out shape this rule guards against, see marketplace-orchestrator/CLAUDE.md.
-    // Named exception: EntityExistenceService's findExisting() is pure per-EntityType routing with
-    // no cross-port composition, see marketplace-orchestrator/CLAUDE.md's <=2-port rule section.
+    // Only ComponentFactory<XPort> fields count, not direct mandatory ports; see .claude/rules/marketplace-orchestrator.md "Key constraints", which also names the allow-listed class.
     private static final List<String> ORCHESTRATOR_PORT_COUNT_ALLOWLIST = List.of(
             "org.ost.orchestrator.services.EntityExistenceService");
 
@@ -393,7 +372,7 @@ class ArchitectureRulesTest {
                                         javaClass.getFullName() + " depends on " + portTypes.size()
                                                 + " domain *Port types via ComponentFactory " + portTypes
                                                 + " — split into smaller, composed use-case services "
-                                                + "instead, see marketplace-orchestrator/CLAUDE.md"));
+                                                + "instead, see .claude/rules/marketplace-orchestrator.md \"Key constraints\""));
                             }
                         }
                     });
@@ -461,14 +440,14 @@ class ArchitectureRulesTest {
                     .because("marketplace-orchestrator composes results from domain Ports only, no "
                             + "direct persistence access — mirrors the pure-delegation discipline "
                             + "port_and_hook_impl_classes_are_pure_delegation enforces one layer down, "
-                            + "see marketplace-orchestrator/CLAUDE.md");
+                            + "see .claude/rules/marketplace-orchestrator.md \"Key constraints\"");
 
     @ArchTest
     static final ArchRule util_classes_are_non_instantiable =
             classes().that().haveSimpleNameEndingWith("Util")
                     .should().haveOnlyPrivateConstructors()
                     .because("*Util classes are static-only utilities — "
-                            + "see marketplace-app/CLAUDE.md \"Class suffixes\"");
+                            + "see .claude/rules/marketplace-app.md \"Class suffixes\"");
 
     @ArchTest
     static final ArchRule config_classes_are_spring_configuration =
@@ -476,7 +455,7 @@ class ArchitectureRulesTest {
                     .and().areTopLevelClasses()
                     .should().beAnnotatedWith(Configuration.class)
                     .because("*Config classes are Spring @Configuration classes — "
-                            + "see marketplace-app/CLAUDE.md \"Class suffixes\". Nested classes named "
+                            + "see .claude/rules/marketplace-app.md \"Class suffixes\". Nested classes named "
                             + "*Config (e.g. a Parameters-style record) are a different, unrelated "
                             + "naming collision and are excluded.");
 
@@ -486,9 +465,9 @@ class ArchitectureRulesTest {
                     .and().doNotHaveSimpleName("I18nConfig")
                     .should().dependOnClassesThat().areAssignableTo(MessageSource.class)
                     .because("never use raw MessageSource directly — use I18nService.get(I18nKey) "
-                            + "instead, see marketplace-app/CLAUDE.md \"I18n\". I18nConfig is the "
-                            + "Spring @Bean factory method that constructs the MessageSource bean "
-                            + "itself and is excluded.");
+                            + "instead, see .claude/rules/marketplace-app.md \"I18n\". I18nConfig is the "
+                            + "@Configuration class whose messageSource() @Bean method constructs the "
+                            + "MessageSource itself, and is excluded.");
 
     @ArchTest
     static final ArchRule packages_are_free_of_cycles =
@@ -508,7 +487,7 @@ class ArchitectureRulesTest {
                     .should().notBeAnnotatedWith(Primary.class)
                     .because("when multiple ObjectMapper beans coexist, every injection site must use "
                             + "an explicit @Qualifier — never @Primary to resolve the ambiguity "
-                            + "implicitly, see root CLAUDE.md \"No @Primary on ObjectMapper beans\"");
+                            + "implicitly, see root CLAUDE.md \"No `@Primary` on `ObjectMapper` beans\"");
 
     @ArchTest
     static final ArchRule shared_hooks_do_not_depend_on_the_ui_locale_provider =

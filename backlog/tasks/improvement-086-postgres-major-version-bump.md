@@ -9,8 +9,7 @@ pull/run — see `improvement-044`'s still-open follow-up about consolidating th
 support cycle from its 2022 release), no forced-EOL pressure yet. Trigger-based, not immediately
 actionable.
 **When:** deferred — do when data volume/feature needs justify it, or when PostgreSQL 15's support
-window starts actually approaching its end, whichever comes first. Same trigger shape as
-[improvement-038](improvement-038-pg-trgm-title-index.md) (also deferred, also DB-related).
+window starts actually approaching its end, whichever comes first.
 
 ## Problem
 
@@ -21,7 +20,7 @@ major versions behind. Unlike the routine library bumps in
 [improvement-040](../completed/tasks/improvement-040-spring-boot-vaadin-minor-bump.md), a Postgres **major** version
 bump is a genuinely different risk category:
 
-- Extension compatibility (`pg_trgm`, if/when improvement-038 lands, plus anything else in use)
+- Extension compatibility (`pg_trgm`, used by the trigram index on `advertisement.title`, plus anything else in use)
   needs re-verification against the target major version.
 - Behavioral changes across 3 major versions (15→16→17→18) can affect query planner behavior,
   default configuration values, and deprecated-syntax removal — not just a recompile-and-go bump.
@@ -32,8 +31,7 @@ bump is a genuinely different risk category:
 
 ## Suggested fix
 
-Not scoped in detail here since this is deferred/trigger-based (same treatment as
-improvement-038) — when picked up:
+Not scoped in detail here since this is deferred/trigger-based — when picked up:
 
 1. Re-check the current latest stable major version before starting (this issue's data is from
    2026-07-19; PostgreSQL 19 GA in September 2026 would make that the more current target instead
@@ -52,8 +50,8 @@ improvement-038) — when picked up:
 
 ## Related
 
-- [improvement-038](improvement-038-pg-trgm-title-index.md) — same "deferred, trigger-based, do as
-  data volume grows" treatment; listed together in `BACKLOG.md`'s Deferred section.
+- [improvement-038](../completed/tasks/improvement-038-pg-trgm-title-index.md) (completed) — added the trigram index whose
+  extension (`pg_trgm`) the bump must be re-verified against.
 - [improvement-044](../completed/tasks/improvement-044-shared-env-config-consolidation.md) (completed) — established
   `POSTGRES_IMAGE` as the single source of truth this bump would update; also the source of the
   still-open note that `scripts/deploy.sh`'s own Postgres pull/run is a separate, still-hardcoded

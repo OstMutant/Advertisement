@@ -59,7 +59,7 @@ target; how each target is checked and corrected is in Step 3.
 | `**/*.java`, `**/pom.xml` | `.claude/rules/<module>.md` and `DECISIONS.md` of each changed module; `backlog/tasks/`; the module's own `README.md` (`module-readme-standards`) |
 | `**/*.java` | that file's class-level and method-level Javadoc (`module-doc-standards`) |
 | `**/pom.xml` | that file's file-level header and its touched `<dependency>`/`<exclusion>`/version-pin comments (`module-doc-standards`) |
-| `**/db/*changelog/**` | the `remarks=` of every new or changed `<column>`/`<createTable>` (root `CLAUDE.md`) |
+| `**/db/*changelog/**` | the `remarks=` of every new or changed `<column>`/`<createTable>` (root `CLAUDE.md`) and the `Description:` header of every changed change file (`module-doc-standards`) |
 | `**/DECISIONS.md` | `.claude/nav/adr-index.md` |
 | `scripts/**`, `docker-compose*.yml`, any other root-level infra/tooling file | root `INFRASTRUCTURE.md` (`app-readme-standards`); the `README.md` of the script group the file belongs to (`infra-readme-standards`) |
 | any infra/tooling file: `scripts/**`, `docker-compose*.yml`, `.properties`/`.env`, YAML config, `.gitignore`/`.gitattributes`, bash/batch/JS/Python | that file's file-level and per-function header (`infra-doc-standards`) |
@@ -101,7 +101,7 @@ A related document mentions what the change touched without being a target of St
      `docs/architecture/scripts/generate-architecture-model.sh` (the generator); editing a marked
      section and regenerating is the update of that content. The generator also reads line 5 of each
      `.claude/rules/<module>.md` as that module's one-line description.
-   - Changelog: the `remarks=` is written in the changelog itself, never in a generated document.
+   - Changelog: the `remarks=` and the `Description:` header are written in the changelog itself, never in a generated document.
    - `DECISIONS.md`: mark a realized open goal done, with the date; update the Status of a superseded
      entry; annotate an entry whose pattern no longer exists in code as superseded, never delete it; a
      new architectural pattern or constraint gets a new ADR only through `/record-decision`.
