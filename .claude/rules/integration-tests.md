@@ -19,6 +19,11 @@ Java package root: `org.ost.integrationtests`
   integration tests, composing multiple domain starters through a real use-case service instead of
   one starter's own repository. Scaffolded only once a concrete test needs it — not built ahead of
   need.
+  `OptionalStarterAbsenceTest` is the level 2 test of the start-up itself: it starts the orchestrator and the starters
+  once per optional starter with that starter's configuration left out (a filtered class loader is not used: it breaks
+  the proxies of the Spring Data repositories) and asserts the context starts and the ports of the missing starter report unavailable.
+  `level2.restapi.OptionalStarterRestAbsenceTest` does the same with the REST adapter and security in the context and calls
+  every REST operation: none may end in a server fault, and the operations that need the missing starter must answer 503.
 - **Level 3** — `org.ost.integrationtests.level3.restapi` — HTTP-level scenario tests against
   `marketplace-rest-api`'s controllers, real `MockMvc` bound to the real `WebApplicationContext`
   (`MockMvcBuilders.webAppContextSetup(...)`, real security filter chain included) driving real

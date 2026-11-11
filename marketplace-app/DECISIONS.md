@@ -1579,6 +1579,7 @@ correlate.
 ## ADR-033: Optional-port UI components use `ComponentFactory<Port>`, never `@ConditionalOnBean` on the component class
 
 **Status:** Accepted
+**Applied:** 1
 
 **Context:** `AttachmentGalleryService`, `AttachmentGallery`, and `AuditActivityPanel` inject
 `AttachmentPort`/`AuditPort` directly as hard constructor parameters. In a genuinely optional

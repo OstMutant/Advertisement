@@ -12,6 +12,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.junit.jupiter.api.Test;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.context.MessageSource;
@@ -22,11 +23,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,9 +48,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Codifies the cross-module architecture rules from the root {@code CLAUDE.md}/{@code rules.md}
- * as build-breaking tests instead of prose enforced by review alone — see improvement-030 and
- * {@code marketplace-app/DECISIONS.md} for the rationale (two real violations, improvement-011 and
- * improvement-010, previously reached working code unnoticed under the prose-only approach).
+ * as build-breaking tests instead of prose enforced by review alone — see
+ * {@code marketplace-app/DECISIONS.md} for the rationale (two real violations previously reached
+ * working code unnoticed under the prose-only approach).
  * Scans the whole {@code org.ost} tree, which this module's test classpath can already see in
  * full (every starter reaches marketplace-app transitively via marketplace-orchestrator, plus
  * platform-commons + query-lib direct).
@@ -371,11 +377,11 @@ class ArchitectureRulesTest {
                             if (ORCHESTRATOR_PORT_COUNT_ALLOWLIST.contains(javaClass.getFullName())) {
                                 return;
                             }
-                            java.util.Set<String> portTypes = new java.util.HashSet<>();
-                            for (java.lang.reflect.Field field : javaClass.reflect().getDeclaredFields()) {
+                            Set<String> portTypes = new HashSet<>();
+                            for (Field field : javaClass.reflect().getDeclaredFields()) {
                                 if (field.getType().getSimpleName().equals("ComponentFactory")
-                                        && field.getGenericType() instanceof java.lang.reflect.ParameterizedType pt) {
-                                    for (java.lang.reflect.Type arg : pt.getActualTypeArguments()) {
+                                        && field.getGenericType() instanceof ParameterizedType pt) {
+                                    for (Type arg : pt.getActualTypeArguments()) {
                                         if (arg instanceof Class<?> c && c.getSimpleName().endsWith("Port")) {
                                             portTypes.add(c.getName());
                                         }
@@ -391,6 +397,60 @@ class ArchitectureRulesTest {
                             }
                         }
                     });
+
+    // The orchestrator and every starter, each of which must stay startable when another starter is absent.
+    private static final String[] FACTORY_CONSUMER_PACKAGES = Stream
+            .concat(Stream.of("org.ost.orchestrator"), STARTER_PACKAGES.stream())
+            .map(p -> p + "..").toArray(String[]::new);
+
+    @ArchTest
+    static final ArchRule component_factory_consumers_declare_their_own_factory =
+            classes().that().resideInAnyPackage(FACTORY_CONSUMER_PACKAGES)
+                    .should(new ArchCondition<JavaClass>("declare a @Bean ComponentFactory in their own module for every ComponentFactory type they hold") {
+                        private final Map<String, Set<String>> declaredByModule = new HashMap<>();
+
+                        @Override
+                        public void init(Collection<JavaClass> allObjectsToTest) {
+                            for (JavaClass javaClass : allObjectsToTest) {
+                                for (Method method : javaClass.reflect().getDeclaredMethods()) {
+                                    if (method.isAnnotationPresent(Bean.class)) {
+                                        factoryTypeOf(method.getGenericReturnType()).ifPresent(type ->
+                                                declaredByModule.computeIfAbsent(moduleOf(javaClass), k -> new HashSet<>()).add(type));
+                                    }
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void check(JavaClass javaClass, ConditionEvents events) {
+                            for (Field field : javaClass.reflect().getDeclaredFields()) {
+                                factoryTypeOf(field.getGenericType()).ifPresent(type -> {
+                                    if (!declaredByModule.getOrDefault(moduleOf(javaClass), Set.of()).contains(type)) {
+                                        events.add(SimpleConditionEvent.violated(javaClass,
+                                                javaClass.getFullName() + " holds ComponentFactory<" + type + "> but "
+                                                        + moduleOf(javaClass) + " declares no @Bean for it"));
+                                    }
+                                });
+                            }
+                        }
+                    })
+                    .because("a ComponentFactory bean declared only by the starter that owns the port is missing "
+                            + "when that starter is removed, and the holder then fails to start");
+
+    private static Optional<String> factoryTypeOf(Type type) {
+        if (type instanceof ParameterizedType parameterized
+                && ComponentFactory.class.equals(parameterized.getRawType())
+                && parameterized.getActualTypeArguments()[0] instanceof Class<?> argument) {
+            return Optional.of(argument.getName());
+        }
+        return Optional.empty();
+    }
+
+    private static String moduleOf(JavaClass javaClass) {
+        return Stream.concat(Stream.of("org.ost.orchestrator"), STARTER_PACKAGES.stream())
+                .filter(p -> javaClass.getPackageName().equals(p) || javaClass.getPackageName().startsWith(p + "."))
+                .findFirst().orElseThrow();
+    }
 
     @ArchTest
     static final ArchRule orchestrator_has_no_persistence_access =

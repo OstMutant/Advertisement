@@ -3,6 +3,7 @@ package org.ost.restapi.api.error;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.platform.apikey.model.ApiKeyAlreadyRevokedException;
 import org.ost.platform.core.EditWindowClosedException;
+import org.ost.platform.core.OptionalComponentUnavailableException;
 import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
@@ -25,7 +26,7 @@ import java.util.stream.Collectors;
 
 /**
  * Maps the exceptions the external REST API's own controllers can throw to HTTP status codes —
- * scoped to this package only, never touches Vaadin's own error handling.
+ * scoped to {@code org.ost.restapi.api} and its sub-packages, never touches Vaadin's own error handling.
  */
 @RestControllerAdvice(basePackages = "org.ost.restapi.api")
 public class ApiExceptionHandler {
@@ -85,6 +86,13 @@ public class ApiExceptionHandler {
         return new ErrorResponse(ex.getMessage());
     }
 
+    // The feature's starter is not installed in this application, so the request cannot be served here.
+    @ExceptionHandler(OptionalComponentUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleOptionalComponentUnavailable(OptionalComponentUnavailableException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
     @ExceptionHandler(TooManyAttemptsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex) {
         ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
@@ -92,7 +100,7 @@ public class ApiExceptionHandler {
         return response.body(new ErrorResponse(ex.getMessage()));
     }
 
-    // Reaching here is a genuine unexpected-state bug, not a rate-limit signal -- those throw TooManyAttemptsException, handled above.
+    // An unexpected-state bug: answers 500 with the exception's message.
     @ExceptionHandler(IllegalStateException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleIllegalState(IllegalStateException ex) {

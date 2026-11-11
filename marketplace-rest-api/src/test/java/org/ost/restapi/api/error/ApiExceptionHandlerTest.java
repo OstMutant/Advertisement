@@ -3,13 +3,16 @@ package org.ost.restapi.api.error;
 import org.junit.jupiter.api.Test;
 import org.ost.orchestrator.services.AccessDeniedException;
 import org.ost.platform.core.EditWindowClosedException;
+import org.ost.platform.core.OptionalComponentUnavailableException;
 import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.StaleWriteException;
 import org.ost.platform.core.TooManyAttemptsException;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.feedback.model.FeedbackNotModeratableException;
 import org.ost.platform.taxon.model.TaxonNotDeletedException;
+import org.ost.platform.feedback.spi.FeedbackPort;
 import org.ost.restapi.api.patch.PatchValidationException;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -17,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.time.Duration;
 import java.util.List;
@@ -31,6 +35,23 @@ import static org.mockito.Mockito.when;
 class ApiExceptionHandlerTest {
 
     private final ApiExceptionHandler handler = new ApiExceptionHandler();
+
+    @Test
+    void handleOptionalComponentUnavailable_answersWithTheMessageNamingTheMissingComponent() {
+        ErrorResponse response = handler.handleOptionalComponentUnavailable(
+                new OptionalComponentUnavailableException(FeedbackPort.class, new NoSuchBeanDefinitionException(FeedbackPort.class)));
+
+        assertThat(response.message()).contains("FeedbackPort");
+    }
+
+    @Test
+    void handleOptionalComponentUnavailable_isMappedToServiceUnavailable() throws NoSuchMethodException {
+        ResponseStatus status = ApiExceptionHandler.class
+                .getMethod("handleOptionalComponentUnavailable", OptionalComponentUnavailableException.class)
+                .getAnnotation(ResponseStatus.class);
+
+        assertThat(status.value()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    }
 
     @Test
     void handleAccessDenied_returnsMessage() {
@@ -137,9 +158,6 @@ class ApiExceptionHandlerTest {
         assertThat(response.getHeaders().containsHeader(HttpHeaders.RETRY_AFTER)).isFalse();
     }
 
-    // Confirms the fix for the real bug this rescoping closed: a genuinely unrelated
-    // IllegalStateException (e.g. UserPreferencesRepository's "No user_preferences row") must
-    // never be silently mapped to 429 just because it shares a supertype with rate-limit rejections.
     @Test
     void handleIllegalState_returnsMessage_distinctFromTooManyAttempts() {
         ErrorResponse response = handler.handleIllegalState(new IllegalStateException("No user_preferences row for actorId=1"));

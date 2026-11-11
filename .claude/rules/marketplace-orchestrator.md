@@ -257,6 +257,12 @@ inventing a second wiring approach for one module).
   four single-port classes plus a coordinator would be ceremony with no cohesion benefit. This is a
   case-by-case exception evaluated on its own merit, not a loosened threshold — a new class that
   exceeds 2 ports still fails the test unless it earns the same explicit allowlist entry.
+- **Declares the `ComponentFactory` of every port it consumes.** `OrchestratorAutoConfiguration` holds one
+  `@Bean @ConditionalOnMissingBean ComponentFactory<XPort>` per port type a service here injects, so the module
+  starts with any optional starter absent; a starter that also declares the same factory changes nothing, the first
+  registered wins. A new `ComponentFactory<XPort>` field needs its bean in the same change:
+  `ArchitectureRulesTest.component_factory_consumers_declare_their_own_factory` fails otherwise, and
+  `OptionalStarterAbsenceTest` (integration tests, level 2) starts the module once per optional starter without it.
 - **Feedback not-found errors are `NoSuchElementException`.** The feedback services in this module
   and the feedback starter beneath them report an unknown feedback, reply or profile by throwing
   `NoSuchElementException`, never a feedback-specific type; callers map it to 404.

@@ -161,7 +161,7 @@ yet — not zero.
 | ADR-028 (marketplace-app) | marketplace-app | Accepted |  |  | SettingsPaginationService — per-user ownership on bindings, detach-based cleanup |
 | ADR-029 (marketplace-app) | marketplace-app | Accepted |  |  | Optimistic locking via a stored version column — no auto-reload on conflict |
 | ADR-032 (marketplace-app) | marketplace-app | Accepted |  |  | Request correlation id via SLF4J MDC, plus closing silent-service logging gaps |
-| ADR-033 (marketplace-app) | marketplace-app | Accepted |  |  | Optional-port UI components use `ComponentFactory<Port>`, never `@ConditionalOnBean` on the component class |
+| ADR-033 (marketplace-app) | marketplace-app | Accepted **Applied:** 1 |  |  | Optional-port UI components use `ComponentFactory<Port>`, never `@ConditionalOnBean` on the component class |
 | ADR-034 (marketplace-app) | marketplace-app | Accepted |  | 1 | No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention |
 | ADR-034 (marketplace-app) | advertisement-spring-boot-starter | Accepted |  | 1 | No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention |
 | ADR-035 (marketplace-app) | marketplace-app | Accepted |  |  | `advertisement` stores no denormalized attachment columns — media summary enriched at read time via a bulk `AttachmentPort` lookup |
@@ -227,7 +227,7 @@ yet — not zero.
 | ADR-002 (platform-commons) | platform-commons | Accepted |  |  | Package semantics — api vs spi vs dto |
 | ADR-003 (platform-commons) | platform-commons | Accepted |  |  | SPI naming convention — Port and Hook suffixes |
 | ADR-004 (platform-commons) | platform-commons | Accepted |  |  | Shared kernel — contracts only, no implementations |
-| ADR-006 (platform-commons) | platform-commons | Accepted |  |  | ComponentFactory<T> — typed wrapper over ObjectProvider<T> |
+| ADR-006 (platform-commons) | platform-commons | Accepted **Applied:** 1 **Verified:** 2026-11-11 |  |  | ComponentFactory<T> — typed wrapper over ObjectProvider<T> |
 | ADR-008 (platform-commons) | platform-commons | Accepted |  |  | AuditableSnapshot uses Id.NAME polymorphism; no subtype registration in starter |
 | ADR-009 (platform-commons) | platform-commons | Superseded (2026-07-03, snapshot-cleanup) |  |  | AuditableSnapshot.isRestorable() default method |
 | ADR-010 (platform-commons) | platform-commons | Accepted |  |  | Attachment lifecycle — SPI ports replace ApplicationEvents |

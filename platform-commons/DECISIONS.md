@@ -337,6 +337,8 @@ must be pure Java with no Spring context dependency.
 
 ## ADR-006: ComponentFactory<T> — typed wrapper over ObjectProvider<T>
 **Status:** Accepted
+**Applied:** 1
+**Verified:** 2026-11-11
 
 **Context:** Optional starter dependencies in marketplace-app need typed, ergonomic access
 without unchecked casts. Raw `ObjectProvider<T>` doesn't know about the `Configurable<T, P>`
@@ -356,6 +358,13 @@ compile time, only at runtime once the dependent starter is actually absent from
 **Consequences:**
 - All optional starter components in marketplace-app use `ComponentFactory<T>` injection; direct
   `ObjectProvider<T>` fields are not used for this purpose.
+- The "every consuming config class" rule above is enforced: an architecture test requires a `@Bean`
+  `ComponentFactory<T>` in the same module for every `ComponentFactory<T>` field the orchestrator or a starter
+  holds, and a level-2 integration test starts the application's beans once per optional starter without it.
+- `get()` on a factory whose component is not installed throws `OptionalComponentUnavailableException`, which carries the
+  missing type, instead of Spring's own missing-bean exception, so a caller can answer "not available here" without reading
+  the message text; several candidates stay Spring's exception, since that is a wiring fault. The REST adapter answers 503 for it, and a level-2 test calls every REST operation with each optional
+  starter left out and accepts no other server fault.
 - Rejected: singleton factory with `<T> T get(Class<T> type)` — pushes a type token to every call
   site, requires an unchecked cast, unsound at compile time.
 - Rejected: a single generic `InjectionPoint`-resolved factory bean — one explicit `@Bean` per

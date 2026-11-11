@@ -485,3 +485,14 @@ The changelogs are edited in place with `validCheckSum ANY`, so a database creat
 - Still in the always-loaded `.claude/rules.md`: the Scripts section and 12 warning-sign rules that have a file trigger; moving them is not worth it while a rule file is not loaded on a `Write`.
 - Not run: whether the compiler plugin ignores `source/target` once `release` is set (`mvn -X compile`), and `mvn dependency:analyze` for undeclared dependencies.
 - Spring Boot 4.1.1 and Vaadin 25.3.2 are two patch releases behind (4.1.2, 25.3.5).
+
+### 47. `ArchitectureRulesTest` comments and references that break the project's own comment rules (found during improvement-252, 2026-11-11)
+
+A documentation audit of the file found, all in code that predates the change that prompted it, so none of it was fixed in place:
+
+- Two task-number citations (`improvement-150`) in a comment and in the `.because()` text of one rule.
+- Five block comments of five to seven lines; the rule is one line or none, the rationale belongs in the decision records.
+- Thirteen references to module `CLAUDE.md` files that no longer exist (marketplace-app, platform-commons, marketplace-orchestrator); that guidance now lives in `.claude/rules/<module>.md`. One comment cites a guideline of `.claude/rules.md` that is in the root `CLAUDE.md`.
+- The `LocaleProvider` import sits after the `org.ost.platform.*` imports, and one `ConditionEvents` is written fully qualified although the import exists.
+
+Does not fit now: it touches most of a 500-line file and the rationale trimmed out of the long comments has to be routed to the decision records first. Fix it as one pass over the file with `module-doc-standards`.
