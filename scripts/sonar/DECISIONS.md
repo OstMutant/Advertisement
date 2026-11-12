@@ -138,6 +138,8 @@ avoids that side effect entirely.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** `run.sh`'s server-container logic only acted when the API health check
 (`curl .../api/system/status`) failed — if the container was already running, `run.sh` never
 checked whether its image was current, and never explicitly handled "container doesn't exist" as

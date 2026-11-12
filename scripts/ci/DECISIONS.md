@@ -533,6 +533,8 @@ with `--unit`/`--no-unit` and `--integration`/`--no-integration` set accordingly
 
 **Status:** Accepted -- the stage graph statement is revised by ADR-016
 
+**Applied:** 1
+
 **Context:** ADR-002's `docker cp`-polled `progress.txt` gives no live per-stage view, no clickable
 trigger, and no run history beyond one text file per run. Dagu (https://github.com/dagucloud/dagu)
 is a single-binary DAG engine with a built-in web UI — clickable "Start", live per-stage status/
@@ -601,8 +603,7 @@ container's real `ENTRYPOINT` now) — it downloads each binary only if missing 
 `ci-tools-cache` named volume (mounted at `/root/.ci-tools`), the same pattern already used for
 `ci-m2-cache`/`ci-dagu-home`. Since this volume survives independently of image rebuilds, a rebuild
 never re-triggers these downloads regardless of what else invalidated the image's layer cache.
-`scripts/ci/run.sh --refresh-tools` forces a re-download of all three regardless of cache state
-(e.g. after bumping `DAGU_VERSION`).
+The Dagu binary is installed into a folder named after `DAGU_VERSION` and linked into the tools directory, so a version change downloads the new binary at the next container start; buildx and compose stay cached until the `ci-tools-cache` volume is removed.
 
 **A fifth problem, found when Dagu moved to 2.26: the watched DAG directory must live outside `/app`.** `run.sh` wipes and re-extracts `/app`
 before every run; Dagu 2.26's scheduler stops with `failed to watch directory ... no such file
@@ -615,8 +616,8 @@ run starts from that path. The steps still run in `/app` (`working_dir`) and cal
 **Consequences:**
 - `scripts/ci/run.sh` no longer produces a `scripts/ci/reports/<timestamp>/` tree at all — Dagu's
   own run history (backed by the `ci-dagu-home` volume) and web UI replace ADR-002 through ADR-004
-  in full. `--keep-reports`/`--report-dir` are gone; `--refresh-tools` and `--no-rebuild` (trigger
-  a new DAG run against the already-running container instead of rebuilding it) are new.
+  in full. `--keep-reports`/`--report-dir` are gone; `--no-rebuild` (trigger
+  a new DAG run against the already-running container instead of rebuilding it) is new.
 - The container name is fixed (`ci-runner`, `ci-runner-dagu-proxy`), not templated per run
   (ADR-002's `ci-runner-<timestamp>`) — concurrent invocations now queue through Dagu's own
   scheduler rather than through separate containers; no new isolation problem observed, but not

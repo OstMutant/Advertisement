@@ -263,7 +263,7 @@ yet — not zero.
 | ADR-006 (query-lib) | query-lib | Accepted |  |  | `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate |
 | ADR-007 (query-lib) | query-lib | Accepted |  |  | `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping |
 | ADR-017 (scripts) | scripts | Accepted |  | 1 | AI dev containers (Claude Code, opencode) install their CLI with an explicit tag and `--engine-strict`; versions are Dockerfile ARGs, Node 24 |
-| ADR-016 (scripts) | scripts | Accepted |  |  | MinIO → SeaweedFS local dev/CI storage backend swap |
+| ADR-016 (scripts) | scripts | Accepted |  | 1 | MinIO → SeaweedFS local dev/CI storage backend swap |
 | ADR-015 (scripts) | scripts | Accepted |  |  | `--in-container` mode — sync reliability (no `exec`, container-internal directory restoration, OverlayFS `sync` before copy-out) |
 | ADR-014 (scripts) | scripts | Accepted |  |  | Activity Monitor — token-efficient step-checklist narration wrapping backgrounded scripts, chained ahead of the agent's own Monitor tool |
 | ADR-013 (scripts) | scripts | Accepted |  |  | Agentic JSON output envelope (AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK) for script results |
@@ -285,14 +285,14 @@ yet — not zero.
 | ADR-004 (scripts/ci) | scripts/ci | Superseded by ADR-009 — the `--keep-reports`/report-retention mechanism no longer exists in code |  |  | Report retention — keep the last N runs, prune the rest |
 | ADR-005 (scripts/ci) | scripts/ci | Superseded by ADR-015 -- the volumes, container names and ports are now the CI's own; the two remaining limits are restated there **Applied:** 1 |  |  | Concurrency with normal dev work — genuine isolation, one real resource caveat |
 | ADR-008 (scripts/ci) | scripts/ci | Superseded by ADR-009 -- the DAG has separate `unit` and `integration` steps; the reactor is installed once in the `build` step (ADR-016) |  |  | `unit`/`integration` stages merged into one `build_and_test` stage |
-| ADR-009 (scripts/ci) | scripts/ci | Accepted -- the stage graph statement is revised by ADR-016 |  |  | `progress.txt` polling replaced by a persistent Dagu server; problems only found by running it for real |
+| ADR-009 (scripts/ci) | scripts/ci | Accepted -- the stage graph statement is revised by ADR-016 |  | 1 | `progress.txt` polling replaced by a persistent Dagu server; problems only found by running it for real |
 | ADR-010 (scripts/ci) | scripts/ci | Accepted -- the statement that every stage writes into one shared `maven-cache` volume is revised by ADR-015 |  |  | CI pipeline metrics + ArchUnit export as DAG steps; three more real bugs; a genuine build-speed fix along the way |
 | ADR-011 (scripts/sonar) | scripts/sonar | Accepted **Applied:** 1 |  |  | The SonarQube server and the project `advertisement` are shared between the CI and manual runs by decision |
 | ADR-010 (scripts/sonar) | scripts/sonar | Accepted -- with `SONAR_JACOCO_FROM` set the tests are skipped and reports imported (see ADR-016 in `scripts/ci`) |  |  | JaCoCo coverage wired reactor-wide; `sonar.sh` now runs real tests, not `--no-unit --no-integration` |
 | ADR-001 (scripts/sonar) | scripts/sonar | Accepted — the "no pom.xml changes" constraint is partially revised by ADR-010 (`jacoco-maven-plugin` added to root `pom.xml`); every other decision in this entry (Docker-based scanner, no Sonar-specific plugin/properties in `pom.xml`) still holds. |  |  | SonarQube setup via Docker, no pom.xml changes |
 | ADR-003 (scripts/sonar) | scripts/sonar | Accepted |  |  | `sonar.java.libraries` intentionally left empty |
 | ADR-004 (scripts/sonar) | scripts/sonar | Accepted |  |  | Quality gate blocking by default, opt-out via `--no-gate` |
-| ADR-006 (scripts/sonar) | scripts/sonar | Accepted |  |  | SonarQube server and scanner containers get a pull-then-up freshness check, not just an API health check |
+| ADR-006 (scripts/sonar) | scripts/sonar | Accepted |  | 1 | SonarQube server and scanner containers get a pull-then-up freshness check, not just an API health check |
 | ADR-008 (scripts/sonar) | scripts/sonar | Accepted |  |  | `sonar.sources`/`sonar.java.binaries` module list auto-validated against `pom.xml` before every run, not hand-maintained |
 | ADR-009 (scripts/sonar) | scripts/sonar | Accepted |  |  | dashboard browsable anonymously — `sonar.forceAuthentication` set to `false` every run, not once by hand |
 | ADR-001 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted |  | 1 | Filter resolves through `Set<Long>`, not SQL JOIN |

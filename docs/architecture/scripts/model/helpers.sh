@@ -2,7 +2,7 @@
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Node.js runner (host node, else a disposable node:22-alpine container), the option flags the generator's argument loop fills, and shared JSON/escaping helpers every other fragment uses.
 # Usage: sourced at top level by generate-architecture-model.sh in the order that script names, never run on its own.
-# Uses: node, docker (only when no host node).
+# Uses: node, docker (only when no host node), scripts/utils/docker-pull-retry.sh's docker_pull_missing_retry.
 # Env: None (reads REPO_ROOT and the variables set by the fragments sourced before it).
 # Input: None.
 # Outputs: defines run_node, json_escape and the WITH_* option variables (WITH_SONAR, NO_SONAR_RESCAN, WITH_ARCHUNIT, WITH_CI_METRICS, WITH_ADR_DETAILS).
@@ -14,12 +14,13 @@
 # uses for Java/Playwright/SonarScanner (build-and-test/playwright/sonar all run their runtime
 # inside a container rather than requiring it on the host) -- a host with Docker Desktop + WSL but
 # no host-level node install is a real, confirmed case, not hypothetical.
+source "$REPO_ROOT/scripts/utils/docker-pull-retry.sh"
 if command -v node >/dev/null 2>&1; then
   NODE_MODE=host
 else
   NODE_MODE=docker
   NODE_IMAGE="node:22-alpine"
-  docker image inspect "$NODE_IMAGE" >/dev/null 2>&1 || docker pull -q "$NODE_IMAGE" >/dev/null
+  docker_pull_missing_retry "$NODE_IMAGE"
 fi
 run_node() {
   if [ "$NODE_MODE" = host ]; then

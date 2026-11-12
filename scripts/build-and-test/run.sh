@@ -54,7 +54,8 @@
 #                                     only for callers that ran a full build in the same pipeline just before
 # Uses: bash, docker, tar, grep, sed, scripts/utils/agentic-output.sh
 #   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
-#   scripts/utils/session-id.sh (write_session_info).
+#   scripts/utils/session-id.sh (write_session_info), scripts/utils/docker-pull-retry.sh
+#   (docker_pull_missing_bases).
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
 #   this script can run concurrently without a Docker container-name collision (Docker container
 #   names must be unique; a fixed name means a second concurrent `docker run` with the same name
@@ -123,6 +124,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 BUILD_IMAGE="advertisement-build-env"
 BUILD_CONTAINER_NAME="${BUILD_CONTAINER_NAME:-advertisement-build-only}"
 DOCKERFILE="$ROOT/scripts/build-and-test/Dockerfile"
@@ -199,12 +201,14 @@ fi
 # or unconditionally with --rebuild-image) ────────────────────────────────────
 if $REBUILD_IMAGE || ! docker image inspect "$BUILD_IMAGE" >/dev/null 2>&1; then
   echo "Building $BUILD_IMAGE image..."
+  docker_pull_missing_bases "$DOCKERFILE"
   docker build -f "$DOCKERFILE" -t "$BUILD_IMAGE" "$ROOT"
 else
   IMAGE_CREATED_EPOCH=$(date -d "$(docker image inspect -f '{{.Created}}' "$BUILD_IMAGE")" +%s)
   DOCKERFILE_EPOCH=$(date -r "$DOCKERFILE" +%s)
   if [ "$DOCKERFILE_EPOCH" -gt "$IMAGE_CREATED_EPOCH" ]; then
     echo "Dockerfile changed since last build — rebuilding $BUILD_IMAGE image..."
+    docker_pull_missing_bases "$DOCKERFILE"
     docker build -f "$DOCKERFILE" -t "$BUILD_IMAGE" "$ROOT"
   fi
 fi

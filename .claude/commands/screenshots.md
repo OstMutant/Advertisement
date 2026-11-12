@@ -8,7 +8,7 @@ Usage:
 
 ## Step 1 — Extract name→file mapping from the HTML report
 
-The Playwright HTML report (playwright@1.65.0, the version this project pins) embeds a ZIP
+The Playwright HTML report (playwright, at the version this project pins in playwright/run.sh) embeds a ZIP
 archive as base64 inside a `<template id="playwrightReportBase64">` element — not inside a
 `<script>` tag, and not as a `window.playwrightReportBase64 = "..."` assignment (an older report
 shape that no longer matches; searching for it silently finds zero matches instead of erroring,

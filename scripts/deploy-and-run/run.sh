@@ -38,12 +38,12 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
-#   scripts/utils/session-id.sh, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh (docker_pull_retry).
+#   scripts/utils/session-id.sh, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh (docker_pull_retry, docker_pull_missing_bases).
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
 #   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081), DB_VOLUME
 #   (advertisement_postgres_data), SEAWEEDFS_VOLUME (advertisement_seaweedfs_data), APP_JAR_VOLUME
-#   (<APP_CONTAINER>-jar), SEAWEEDFS_IMAGE (chrislusf/seaweedfs:4.53) -- all overridable,
+#   (<APP_CONTAINER>-jar), SEAWEEDFS_IMAGE (default: the tag in docker-compose.seaweedfs.yml) -- all overridable,
 #   used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
 #   hardcoded default. POSTGRES_IMAGE has no default: it comes from the environment or the repo-root
@@ -96,7 +96,8 @@ APP_IMAGE="${APP_IMAGE:-marketplace-app}"
 DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"
 SEAWEEDFS_PORT="${SEAWEEDFS_PORT:-${ENV_S3_PORT:-9000}}"
 SEAWEEDFS_CONSOLE_PORT="${SEAWEEDFS_CONSOLE_PORT:-9333}"
-SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:4.53}"
+SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-$(sed -n 's/^x-seaweedfs-image: &seaweedfs_image //p' "$ROOT/scripts/deploy-and-run/docker-compose.seaweedfs.yml" | tr -d '\r')}"
+[ -n "$SEAWEEDFS_IMAGE" ] || { echo "ERROR: SeaweedFS image tag not found in docker-compose.seaweedfs.yml" >&2; exit 1; }
 APP_PORT="${APP_PORT:-8081}"
 DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
 POSTGRES_IMAGE="${POSTGRES_IMAGE:-${ENV_POSTGRES_IMAGE:?POSTGRES_IMAGE is set neither in the environment nor in the repo-root .env}}"
@@ -304,6 +305,7 @@ if $FROM_SCRATCH; then
   source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
   ensure_buildx
   docker rm -f "$APP_CONTAINER" 2>/dev/null || true
+  docker_pull_missing_bases "$ROOT/Dockerfile"
 
   BUILD_FLAGS=""
   $NO_CACHE && BUILD_FLAGS="--no-cache"

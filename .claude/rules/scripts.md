@@ -285,9 +285,6 @@ bash scripts/ci.sh --rebuild                                         # force an 
                                                                        # container recreation even
                                                                        # when the Dockerfile is
                                                                        # unchanged
-bash scripts/ci.sh --refresh-tools                                    # force re-download of
-                                                                        # buildx/compose/dagu even
-                                                                        # if already cached
 bash scripts/ci.sh --no-archunit-metrics                                # skip ArchUnit's
                                                                           # module-coupling export
                                                                           # (on by default)

@@ -20,7 +20,8 @@
 # Env: DEV_SHELL_CONTAINER (default "dev-shell"), DEV_SHELL_IMAGE (default "ci-runner"),
 #   DEV_SHELL_IDLE_SECONDS (default 3600 -- how long since the last ensure_dev_shell call before
 #   the container self-terminates).
-# Uses: docker, scripts/utils/project-label.sh
+# Uses: docker, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh
+#   (docker_pull_missing_bases)
 # Input: scripts/ci/Dockerfile (only read if the ci-runner image doesn't exist yet).
 # Outputs: a running container named $DEV_SHELL_CONTAINER with the project label (auto-removed by
 #   Docker once idle), a docker volume "dev-shell-m2-cache" (persists across container restarts,
@@ -37,6 +38,7 @@ ensure_dev_shell() {
   local idle_seconds="${DEV_SHELL_IDLE_SECONDS:-3600}"
   local root
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  source "$root/scripts/utils/docker-pull-retry.sh"
 
   if [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "true" ]; then
     docker exec "$container" touch /tmp/.dev-shell-last-used
@@ -45,6 +47,7 @@ ensure_dev_shell() {
 
   if ! docker image inspect "$image" >/dev/null 2>&1; then
     echo "=== Building $image image (shared by ci-runner and dev-shell) ===" >&2
+    docker_pull_missing_bases "$root/scripts/ci/Dockerfile"
     if ! docker build -f "$root/scripts/ci/Dockerfile" -t "$image" "$root"; then
       echo "ERROR: failed to build $image image for dev-shell" >&2
       return 1

@@ -98,7 +98,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🟡 | 253 | improvement-253 — dependency and tool upgrades in three batches: patches (Spring Boot 4.1.2, Vaadin 25.3.5, JaCoCo, Maven wrapper), minors with the changelog read first (springdoc, jsoup, ArchUnit, Tika, Maven plugins), test infrastructure (Playwright, SonarQube, Dagu, pins for floating images) |
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
 | Nice to have | — | 133 | everything else — no internal priority order, pick up opportunistically |
 | Nice to have | — | 223 | improvement-223 — a running collection of improvement ideas (not defects, not review findings); an entry is picked up only when the user takes it |
@@ -111,11 +110,10 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 Details, links, and per-batch rationale below.
 
-### Top priority — improvement-253, improvement-248
+### Top priority — improvement-248
 
 | Task | Origin | What |
 |---|---|---|
-| [improvement-253](tasks/improvement-253-dependency-and-tool-version-upgrades.md) | New (versions checked against the registries and release notes, the user asked for a task at the very top, 2026-11-11) | A table of what is behind and why it matters (Boot 4.1.2 brings newer Tomcat and the PostgreSQL driver; jsoup 1.24 changes HTML parsing; Playwright 1.65 drops Node 20), three batches with a full test run each, and what is left alone on purpose (Java 27 is not an LTS, release candidates and betas) |
 | [improvement-248](tasks/improvement-248-ai-instructions-tighten-and-doc-sync-remaining.md) | New (split from improvement-240 when it was closed, the user asked for it right after improvement-242, 2026-11-09) | The research pair and the analysts tightened, five multi-line comments in two test classes and the multi-line comments of the map generator, a full documentation sync, `/tighten-ai` on the rest |
 
 ### Nice to have — no internal priority order

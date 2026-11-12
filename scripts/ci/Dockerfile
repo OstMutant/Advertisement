@@ -26,33 +26,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# buildx/compose CLI plugins and the Dagu binary are NOT installed at build time -- they're
-# downloaded once into the ci-tools-cache named volume by scripts/ci/docker-entrypoint.sh, the
-# first time the container actually starts, and reused from there on every later start regardless
-# of how often this image gets rebuilt (a build-time RUN step here would re-download all ~190MB
-# every time any earlier layer's cache is invalidated, e.g. by any source-file change reaching the
-# COPY below). See docker-entrypoint.sh for the download-if-missing logic.
+# buildx/compose plugins and Dagu are downloaded at first start into the ci-tools-cache volume by docker-entrypoint.sh, so image rebuilds do not re-fetch them.
 ARG DAGU_VERSION=2.26.0
 ENV DAGU_VERSION=$DAGU_VERSION
 ENV PATH="/root/.ci-tools/bin:${PATH}"
 
-# Full repo. Unlike the app's own Dockerfile, this image runs mvn/docker commands live via Dagu's
-# DAG steps (scripts/ci/dagu/ci.yaml) at container *run* time, not at image *build* time -- there is
-# no dependency-download layer to cache here. Maven dependency caching instead comes from the
-# ci-m2-cache named volume mounted at /root/.m2 when the container is run.
+# Full repo copy; Maven dependencies are cached by the ci-m2-cache volume at run time, not by an image layer.
 COPY . .
 RUN chmod +x mvnw && sed -i 's/\r//' mvnw && chmod +x scripts/ci/docker-entrypoint.sh
 
-# Dagu's own run history/state lives under this path -- a named volume mounted here at
-# container-run time (not baked into the image) persists it across container recreations, the same
-# pattern already used for the ci-m2-cache volume.
+# Dagu run history/state lives here, persisted by a named volume mounted at run time.
 ENV DAGU_HOME=/root/.dagu
 ENV DAGU_PORT=18080
 # The DAG directory Dagu watches; outside /app because the per-run working-tree sync wipes /app.
 ENV DAGU_DAGS_DIR=/dagu-dags
 
-# This UI is reachable only via the localhost-bound proxy sidecar (scripts/ci/run.sh) -- no login
-# wizard/account needed for a single-user, local-only dev tool.
+# Auth is off because the UI is reachable only via the localhost-bound proxy sidecar (scripts/ci/run.sh).
 ENV DAGU_AUTH_MODE=none
 
 ENTRYPOINT ["scripts/ci/docker-entrypoint.sh"]

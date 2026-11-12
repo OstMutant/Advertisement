@@ -11,7 +11,8 @@
 #                         container publishing port 5432 if neither is set)
 # Uses: bash, docker, docker compose (only if no DB container exists at all, via
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose),
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
+#   scripts/utils/docker-pull-retry.sh (docker_pull_missing_retry).
 # Env: DB_CONTAINER (no default -- see Usage above), DB_NAME (experiments), DB_USER
 #   (experiments_user) -- all may be exported directly by a caller, falling back to the repo-root
 #   .env, then a hardcoded default.
@@ -29,6 +30,7 @@ SECONDS=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc): database reset error ==="; emit_agentic_error_block "transient" "true" "reset" "Database reset failed with exit code $_rc -- DB container may not have become ready, or psql failed."; exit $_rc' ERR
 
@@ -68,6 +70,9 @@ else
   echo "No DB container found — starting via docker compose..."
   source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
   ensure_docker_compose
+  DB_IMAGE="$(docker compose --project-directory "$ROOT" -f "$ROOT/scripts/deploy-and-run/docker-compose.db.yml" config --images | head -1)"
+  [ -n "$DB_IMAGE" ] || { echo "ERROR: DB image not resolved from docker-compose.db.yml (POSTGRES_IMAGE unset?)" >&2; exit 1; }
+  docker_pull_missing_retry "$DB_IMAGE"
   docker compose --project-directory "$ROOT" -f "$ROOT/scripts/deploy-and-run/docker-compose.db.yml" up -d
   CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
   until docker exec "$CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2>/dev/null; do sleep 1; done

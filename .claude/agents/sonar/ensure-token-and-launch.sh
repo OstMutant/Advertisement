@@ -11,7 +11,8 @@
 # Usage: invoked by Claude Code itself as sonar-analyst.md's mcpServers command -- never run
 #   directly.
 # Uses: bash, docker, curl, scripts/utils/ensure-sonar-token.sh's ensure_sonar_token,
-#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose.
+#   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, scripts/utils/docker-pull-retry.sh's
+#   docker_pull_missing_retry.
 # Env: SONARQUBE_URL, SONARQUBE_TOOLSETS -- set by the agent's own mcpServers env block, forwarded
 #   through unchanged (SONARQUBE_TOOLSETS scopes the MCP server to only the tools sonar-analyst
 #   actually needs -- quality-gates/issues/measures, keeping it within the ~4-5-tools-per-agent
@@ -29,6 +30,7 @@ set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 source "$ROOT/scripts/utils/ensure-sonar-token.sh"
 source "$ROOT/scripts/utils/ensure-docker-plugins.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 ensure_docker_compose
 
 COMPOSE_FILE="$ROOT/scripts/sonar/docker-compose.sonar.yml"
@@ -42,7 +44,7 @@ SONARQUBE_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2 | tr -d '\r')
 # Same pull-skip-by-default reasoning as scripts/sonar/run.sh's own image-freshness checks -- this
 # wrapper re-runs on every single agent dispatch (far more often than a scan), so checking Docker
 # Hub every time would add real, repeated latency for no benefit on the common path.
-docker image inspect sonarsource/sonarqube-mcp >/dev/null 2>&1 || docker pull -q sonarsource/sonarqube-mcp
+docker_pull_missing_retry sonarsource/sonarqube-mcp
 
 # --network host: the MCP server runs in its own container and must reach the sonarqube server
 # container's published port at localhost:9099 -- same reasoning as the scanner container in

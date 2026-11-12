@@ -9,9 +9,9 @@
 #   flashes that row, every README flowchart block is drawn with the edge count
 #   of its source, and the page raises no JavaScript error. Mirrors playwright/run.sh's container
 #   conventions but is a standalone tool, not part of the e2e suite.
-# Usage: bash docs/architecture/scripts/screenshot-architecture-map.sh
-# Uses: bash, docker (the same pinned Playwright image and version as playwright/run.sh), node and
-#   playwright inside that container.
+# Usage: None -- always run with no arguments.
+# Uses: bash, docker (Playwright version read from playwright/run.sh), node and
+#   playwright inside that container, scripts/utils/docker-pull-retry.sh's docker_pull_missing_retry.
 # Env: None.
 # Input: docs/architecture/architecture-map.html (must already exist and be current) and the
 #   docs/architecture/vendor/ folder it loads its libraries from.
@@ -26,10 +26,12 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$REPO_ROOT/scripts/utils/docker-pull-retry.sh"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 OUT_DIR="$REPO_ROOT/docs/architecture/scripts/architecture-map-screenshots"
 CONTAINER="arch-map-shot"
-PLAYWRIGHT_VERSION="1.65.0"
+PLAYWRIGHT_VERSION="$(sed -n 's/^PLAYWRIGHT_VERSION="\(.*\)"/\1/p' "$REPO_ROOT/playwright/run.sh")"
+[ -n "$PLAYWRIGHT_VERSION" ] || { echo "ERROR: Playwright version not found in playwright/run.sh" >&2; exit 1; }
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
 [ -f "$HTML" ] || { echo "ERROR: $HTML does not exist -- run generate-architecture-model.sh first."; exit 1; }
@@ -38,6 +40,7 @@ mkdir -p "$OUT_DIR"
 # ── Reuse a warm container across runs (same pattern as playwright/run.sh's pw-runner) ─────────
 if ! docker inspect "$CONTAINER" &>/dev/null; then
   echo "Starting $CONTAINER ($PLAYWRIGHT_IMAGE)..."
+  docker_pull_missing_retry "$PLAYWRIGHT_IMAGE"
   docker run -d --name "$CONTAINER" "$PLAYWRIGHT_IMAGE" sleep infinity >/dev/null
 fi
 STATUS=$(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null)
@@ -80,15 +83,12 @@ async function goSystem(page) {
   await page.waitForTimeout(300);
   await shot(page, '02-diagrams-list'); // Module Dependencies group should carry the "draggable" badge
 
-  // Module Dependencies -- now the domain-colored, click-navigable graph (moved off the old
-  // System page, one shared renderer instead of two -- see renderModuleDependencyGraph()).
+  // Module Dependencies: the domain-colored, click-navigable graph drawn by renderModuleDependencyGraph().
   await page.locator('.domain-group .card .card-title', { hasText: /^Dependency Graph$/ }).click();
   await page.waitForTimeout(1500); // cytoscape layout settle
   await shot(page, '03-diagram-module-deps');
 
-  // Confirm the module detail page (reached by clicking a node in the graph above) still renders
-  // correctly -- driven directly via the exposed navigate() rather than a canvas-coordinate click,
-  // since node positions depend on dagre's layout and aren't stable enough to hardcode a click at.
+  // The module detail page is opened through navigate(), not a canvas click, because dagre node positions are not stable.
   const depArrows = await page.evaluate(() => ({ edges: diagramCy.edges().length, withoutRow: diagramCy.edges().filter(e => !document.getElementById('dep-row-' + e.data('target'))).length }));
   console.log('Module Dependencies arrows/without table row:', JSON.stringify(depArrows));
   if (depArrows.withoutRow) jsErrors.push(depArrows.withoutRow + ' Module Dependencies arrows point at no table row');
@@ -96,8 +96,7 @@ async function goSystem(page) {
   await page.waitForTimeout(300);
   await shot(page, '04-module-detail');
 
-  // Breadcrumb must offer a way back to the diagram (not just all the way to System) -- click the
-  // "Module Dependencies — Dependency Graph" crumb segment and confirm it lands back on the graph.
+  // The breadcrumb's "Module Dependencies" crumb must lead back to the graph, not only to System.
   await page.locator('#breadcrumb a', { hasText: 'Module Dependencies' }).click();
   await page.waitForTimeout(800);
   await shot(page, '04b-back-to-diagram-via-breadcrumb');
@@ -105,10 +104,7 @@ async function goSystem(page) {
   await goSystem(page);
   await page.locator('.special-card:has-text("Diagrams")').click();
   await page.waitForTimeout(300);
-  // SPI map -- split one tab per subsystem (see MODEL.diagramGroups["02-spi-map"].diagrams), the
-  // group heading itself ("SPI Map") renders in an <h3>, not inside any .card -- click one real
-  // per-subsystem card instead. Advertisement is one of the densest subsystems, worth checking
-  // zoom on it.
+  // SPI map has one card per subsystem; Advertisement is one of the densest, so it is the zoom check target.
   await page.locator('.domain-group .card', { hasText: 'Advertisement Subsystem' }).click();
   await page.waitForTimeout(1200); // cytoscape layout settle
   await shot(page, '05-diagram-spi');
@@ -165,8 +161,7 @@ async function goSystem(page) {
   }
   if (notFlashed) jsErrors.push(notFlashed + ' clicks on ERD Links links did not flash their target row');
 
-  // README flow blocks on the System page (root README) and the Tooling page (INFRASTRUCTURE.md):
-  // every fence must be drawn, none left as raw Mermaid text.
+  // Every README flow fence on the System and Tooling pages must be drawn, none left as raw Mermaid text.
   for (const screen of ['System', 'Tooling']) {
     await goSystem(page);
     if (screen === 'Tooling') { await page.locator('.special-card:has-text("Tooling")').click(); await page.waitForTimeout(300); }

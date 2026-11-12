@@ -47,8 +47,6 @@
 #                                  Dockerfile/entrypoint are unchanged (normally the image is
 #                                  rebuilt only when they change; the working tree is streamed in
 #                                  fresh every run regardless)
-#   --refresh-tools              -- force re-download of buildx/compose/dagu into ci-tools-cache
-#                                    even if already cached (e.g. after bumping DAGU_VERSION)
 #   --no-archunit-metrics           -- skip ArchUnit's module-coupling export (on by default --
 #                                      cheap compared to e2e, feeds
 #                                      generate-architecture-model.sh --with-archunit)
@@ -66,11 +64,11 @@
 #                                        after triggering a run directly from Dagu's own web UI)
 # Uses: bash, docker, curl, scripts/utils/agentic-output.sh
 #   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
-#   scripts/utils/session-id.sh, scripts/utils/sync-source.sh, python3
+#   scripts/utils/session-id.sh, scripts/utils/sync-source.sh, scripts/utils/docker-pull-retry.sh
+#   (docker_pull_missing_bases, docker_pull_missing_retry), python3
 #   (--foreground only -- scripts/ci/dagu-rest-run-monitor.py polls the run and emits its own real
 #   per-step markers).
-# Env: None read directly -- every flag above is translated into either a container-start env var
-#   (FORCE_TOOLS_REFRESH, passed via `docker run -e`) or a Dagu param (passed via
+# Env: None read directly -- every flag above is translated into a Dagu param (passed via
 #   `dagu start ... -- key=value`).
 # Input: scripts/ci/Dockerfile, scripts/ci/docker-entrypoint.sh (mtime vs the image decides
 #   whether to rebuild), scripts/ci/dagu/ci.yaml, and the working tree itself -- the `git ls-files`
@@ -113,6 +111,7 @@ SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 # The volume name is read from the DAG file, the single place that sets it.
 CI_TEST_REPORTS_VOLUME="$(sed -n 's/^  - TEST_REPORTS_VOLUME=//p' "$ROOT/scripts/ci/dagu/ci.yaml")"
 [ -n "$CI_TEST_REPORTS_VOLUME" ] || { echo "ERROR: TEST_REPORTS_VOLUME not found in scripts/ci/dagu/ci.yaml" >&2; exit 1; }
@@ -133,7 +132,6 @@ RESET_E2E_STACK="false"
 RESET_CI_CACHE="false"
 FOREGROUND=""
 REBUILD=""
-REFRESH_TOOLS="false"
 ARCHUNIT_METRICS="true"
 LINT="true"
 SHELLCHECK="true"
@@ -141,33 +139,15 @@ SYNC_ARTIFACTS_ONLY=""
 PLAYWRIGHT_ARGS="e2e --full --ux"
 ANY_STAGE_FLAG=""
 
-# `docker cp`'s "local" side always resolves in the caller's own filesystem -- run from here (the
-# real host), not from inside a DAG step (confirmed directly: a step-side `docker cp` landed the
-# file inside ci-runner's own filesystem, not the host's, even with docker.sock mounted).
-# architecture-metrics.json/pipeline-metrics.json are copied best-effort (errors suppressed) since
-# a failed/partial run still surfaces whatever archunit_metrics/pipeline_metrics managed to produce
-# before failing. architecture-model.json/architecture-map.html are different: the docs DAG step
-# now regenerates them in place (see ci.yaml), so a copy failure here means the host's committed
-# copies were NOT actually refreshed -- returns non-zero in that case so callers can tell.
-# Whatever `docker cp` actually says on stderr is relayed into $CONTAINER itself (never just
-# $ROOT, the caller's own host filesystem) -- $CONTAINER is the one piece of shared, inspectable
-# state whoever triggered this run and whoever is debugging it both have access to, via
-# `docker exec $CONTAINER cat /tmp/ci-sync-diag.log`, independent of whose shell/host actually ran
-# run.sh (confirmed a real gap: a previous version only wrote to $ROOT, invisible cross-host).
-# `docker cp` writing straight to a WSL2 Windows-drive mount (/mnt/c, /mnt/d, ...) has been seen to
-# fail with "unlinkat ...: permission denied" on a real WSL2/Docker Desktop host, and a plain shell
-# `cp -f`/`mv` onto the same path hits the identical wall ("cp: cannot create regular file ...:
-# Permission denied", even for a brand-new file in that directory) -- this is DrvFs enforcing the
-# real Windows ACL underneath, which a WSL shell process cannot route around no matter which Linux
-# tool it uses. That failure is specifically an in-place-overwrite problem (the ACL blocks
-# replacing a file that already exists), so the fallback below routes the final write through a
-# throwaway container's own bind-mounted view of the destination directory and uses `mv` (a rename,
-# not an overwrite) to land it.
-#
-# Try the plain, single-step `docker cp` straight to the final destination first -- it succeeds on
-# some hosts (confirmed: this sandbox's own Docker Desktop VM has no such ACL restriction) and
-# needs none of the machinery below. Only fall back to the temp-file + bind-mount-container dance
-# when the direct copy actually fails, so a host where it works never pays for the elaborate path.
+#######################################
+# Copies a container file to the host: a direct docker cp first, and only when that fails a copy to a temp file that a throwaway
+# bind-mount container renames into place (a WSL2 DrvFs mount refuses an in-place overwrite with "permission denied", also for cp -f and mv;
+# a rename succeeds). It runs here, on the real host, because docker cp resolves its local side in the caller's own filesystem.
+# The log of every copy is appended inside $CONTAINER (/tmp/ci-sync-diag.log), the one place whoever triggered the run can read.
+# Callers whose file the docs stage regenerates in place treat a non-zero return as a failed sync; metrics copies are best-effort.
+# Arguments: $1 source (container:path), $2 host destination, $3 label for the log.
+# Returns: 0 when the file reached the host, non-zero otherwise.
+#######################################
 docker_cp_diag() {
   local src="$1" dst="$2" label="$3" out rc tmp tmp_dir tmp_name dst_dir dst_name direct_out
   direct_out="$(docker cp "$src" "$dst" 2>&1 >/dev/null)"
@@ -179,9 +159,7 @@ docker_cp_diag() {
     out="$(docker cp "$src" "$tmp" 2>&1 >/dev/null)"
     rc=$?
     if [ "$rc" -eq 0 ]; then
-      # Bind-mounting a single file whose target path doesn't already exist inside the image can
-      # get Docker to create a directory there instead (a real, confirmed gotcha) -- mount the
-      # temp file's own directory instead and reference it by name.
+      # A single-file bind mount of a not-yet-existing path can create a directory there -- mount the temp file's directory instead.
       tmp_dir="$(dirname "$tmp")"
       tmp_name="$(basename "$tmp")"
       dst_dir="$(cd "$(dirname "$dst")" && pwd)"
@@ -205,6 +183,7 @@ $out"
 }
 
 sync_artifacts() {
+  docker_pull_missing_retry alpine
   mkdir -p "$ROOT/scripts/build-and-test/reports" "$ROOT/scripts/ci/reports"
   docker cp "$CONTAINER:/app/scripts/build-and-test/reports/architecture-metrics.json" \
     "$ROOT/scripts/build-and-test/reports/architecture-metrics.json" 2>/dev/null
@@ -222,13 +201,7 @@ sync_artifacts() {
   docker_cp_diag "$CONTAINER:/app/.claude/nav/adr-index.md" \
     "$ROOT/.claude/nav/adr-index.md" "adr-index.md" || docs_synced=1
 
-  # Test-result artifacts (Playwright report, unit/integration Surefire+logs, Sonar's run log) are
-  # written directly into the shared `test-reports` named volume by the build/pw-runner/scanner
-  # containers -- pulled out here via a throwaway container mounting that volume (named-volume `-v`
-  # mounts are reliable in this sandbox, unlike host-path bind mounts -- see DECISIONS.md), the
-  # same established pattern scripts/run-all-tests/run.sh already uses. This does not depend on
-  # $CONTAINER (ci-runner) still holding its own copy of anything -- best-effort, errors suppressed,
-  # since a partial run still leaves whatever earlier steps produced worth pulling.
+  # Pulls test-result artifacts out of the shared test-reports volume via a throwaway container; best-effort, errors suppressed.
   local VOL_READER="ci-artifact-reader"
   docker rm -f "$VOL_READER" >/dev/null 2>&1
   docker run -d --name "$VOL_READER" --label "$PROJECT_LABEL" -v "$CI_TEST_REPORTS_VOLUME:/reports" alpine sleep 60 >/dev/null 2>&1
@@ -293,7 +266,6 @@ for arg in "$@"; do
     --reset-ci-cache)      RESET_CI_CACHE="true" ;;
     --foreground)          FOREGROUND=1 ;;
     --rebuild)             REBUILD=1 ;;
-    --refresh-tools)       REFRESH_TOOLS="true" ;;
     --no-archunit-metrics) ARCHUNIT_METRICS="false" ;;
     --no-lint)             LINT="false" ;;
     --no-shellcheck)       SHELLCHECK="false" ;;
@@ -324,8 +296,7 @@ if [ -n "$SYNC_ARTIFACTS_ONLY" ]; then
   fi
 fi
 
-# No explicit stage flag at all -> default to the most extensive run (mirrors
-# `playwright.sh e2e --full --ux` being the thorough option there).
+# No explicit stage flag at all -> default to the most extensive run.
 if [ -z "$ANY_STAGE_FLAG" ]; then
   STAGE_UNIT=1
   STAGE_INTEGRATION=1
@@ -336,13 +307,7 @@ fi
 
 bool() { [ -n "$1" ] && echo true || echo false; }
 
-# ── ci-runner lifecycle: rebuild the image only on real need, reuse the running container ──────
-# The ci-runner image bakes the repo in via `COPY . .`, and Docker's layer cache can silently
-# serve a stale copy of that layer (a generated file caught mid-rewrite has shipped as 0 bytes
-# this way -- see improvement-183). So the image is not trusted as the working-tree source: build
-# it only when scripts/ci/Dockerfile or scripts/ci/docker-entrypoint.sh changed since the image
-# was built (or the image is missing, or --rebuild is passed), keep the running container across
-# runs, and overlay /app with the live working tree via tar before every run (further below).
+# ── ci-runner lifecycle: build only when the Dockerfile/entrypoint is newer than the image (its cached COPY layer can be stale) ──
 IMAGE_CREATED_EPOCH="$(date -d "$(docker image inspect -f '{{.Created}}' "$IMAGE" 2>/dev/null)" +%s 2>/dev/null || echo 0)"
 DOCKERFILE_MTIME="$(stat -c %Y "$ROOT/scripts/ci/Dockerfile" "$ROOT/scripts/ci/docker-entrypoint.sh" 2>/dev/null | sort -n | tail -1)"
 DOCKERFILE_MTIME="${DOCKERFILE_MTIME:-0}"
@@ -363,6 +328,7 @@ fi
 
 if [ -n "$NEED_BUILD" ]; then
   echo "=== Building ci-runner image ==="
+  docker_pull_missing_bases "$ROOT/scripts/ci/Dockerfile"
   docker build -f "$ROOT/scripts/ci/Dockerfile" -t "$IMAGE" "$ROOT"
   BUILD_RC=$?
   if [ "$BUILD_RC" -ne 0 ]; then
@@ -382,15 +348,10 @@ if [ -n "$NEED_CONTAINER" ]; then
 
   echo ""
   echo "=== Starting ci-runner (Dagu server) ==="
-  # Captured by ID, not just started under $CONTAINER's name -- every liveness/CPU check below
-  # queries this specific ID, not the name, because the name is a mutable pointer: if this
-  # container is killed and anything else creates a new one reusing the same name, a name-based
-  # `docker inspect`/`docker stats` silently starts reporting on that *other* container and would
-  # never notice this one died. See DECISIONS.md.
+  # Addressed by ID below because a container name can be reused by another container, silently redirecting name-based inspect/stats.
   CONTAINER_ID="$(docker run -d --name "$CONTAINER" \
     --label "$PROJECT_LABEL" \
     --network host \
-    -e FORCE_TOOLS_REFRESH="$REFRESH_TOOLS" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v ci-m2-cache:/root/.m2 \
     -v ci-dagu-home:/root/.dagu \
@@ -401,21 +362,11 @@ if [ -n "$NEED_CONTAINER" ]; then
        "ci-tools-cache if not already cached there -- real duration depends on network speed, not" \
        "a fixed guess)..."
 
-  # Readiness is checked via `docker exec ... curl` (through the docker socket), never a direct
-  # `curl localhost:$DAGU_PORT` from this process. ci-runner runs --network host, so a direct curl
-  # only works when this script itself runs directly on the host, sharing that network namespace --
-  # confirmed directly to fail otherwise: Dagu was fully healthy and answering 200 from inside the
-  # container while a direct outer curl from the caller's own process never reached it at all,
-  # because that caller doesn't share ci-runner's network namespace (e.g. it's itself sandboxed
-  # without host networking). `docker exec` always works regardless of the caller's own network
-  # namespace, since it goes through the docker socket, not the network stack -- one mechanism that
-  # works whether this script runs on a bare host or inside another, non-host-networked container.
+  # Readiness uses docker exec curl because a direct curl cannot reach the --network host container unless this script shares the host network.
   dagu_ready() {
     docker exec "$CONTAINER_ID" curl -sf "http://localhost:$DAGU_PORT/" >/dev/null 2>&1
   }
 
-  # Typical-case wait: poll for up to TYPICAL_WAIT_SECONDS, same shape as before -- covers the
-  # common case where startup finishes within the usual window.
   TYPICAL_WAIT_SECONDS=120
   UP=""
   for _ in $(seq 1 "$TYPICAL_WAIT_SECONDS"); do
@@ -426,12 +377,7 @@ if [ -n "$NEED_CONTAINER" ]; then
     sleep 1
   done
 
-  # Past the typical wait and still not up: rather than cutting off at a bigger, still-arbitrary
-  # number, keep going as long as the container is genuinely still alive and actively doing real
-  # work (real CPU activity -- the tool download/unpack this step depends on), re-checking both
-  # liveness and readiness every EXTENDED_CHECK_INTERVAL_SECONDS. Only declares failure once the
-  # container has actually died or gone idle without ever coming up -- a real signal, not a second
-  # guessed duration.
+  # Past the typical wait, keep waiting while the container is alive and using CPU (the tool download); fail once it dies or goes idle.
   EXTENDED_CHECK_INTERVAL_SECONDS=30
   EXTENDED_WAIT_DEADLINE=$(( $(date +%s) + 600 ))
   while [ -z "$UP" ] && [ "$(date +%s)" -lt "$EXTENDED_WAIT_DEADLINE" ]; do
@@ -460,19 +406,10 @@ if [ -n "$NEED_CONTAINER" ]; then
     exit 1
   fi
 
-  # Dagu UI proxy: $CONTAINER runs with --network host (needed so its own shell steps reach
-  # sibling ci-* containers at plain localhost:PORT, same reasoning as DECISIONS.md's DooD design) -- but a
-  # host-network container's bound ports are not forwarded to a real browser the way an explicit
-  # `docker run -p` publish is, confirmed directly by comparing against marketplace-app's own
-  # (bridge + `-p`) port, which is reachable. This tiny socat sidecar republishes $DAGU_PORT via a
-  # normal bridge + `-p` so the same forwarding path that already works for every other container
-  # in this project also carries Dagu's UI. `host.docker.internal` was tried first (the portable,
-  # documented option) but resolved to an address that refused the connection in this sandbox --
-  # confirmed directly, not assumed -- so the default bridge network's own gateway IP (where a
-  # --network host container's bound ports are actually reachable from a bridge-network sibling)
-  # is read directly from Docker instead of hardcoding a guessed address.
+  # socat sidecar republishes the host-network $DAGU_PORT through a bridge -p publish (browser-reachable), targeting the bridge gateway IP.
   BRIDGE_GATEWAY="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')"
   docker rm -f "$UI_PROXY_CONTAINER" >/dev/null 2>&1
+  docker_pull_missing_retry alpine/socat
   docker run -d --name "$UI_PROXY_CONTAINER" \
     --label "$PROJECT_LABEL" \
     -p "$UI_PROXY_PORT:$UI_PROXY_PORT" \
@@ -484,22 +421,7 @@ else
 fi
 emit_agentic_success_block "start-ci-runner"
 
-# ── Replace /app inside the running container with the live working tree, every run ────────────
-# The image's own `COPY . .` is never trusted (stale-layer risk -- see the lifecycle note above),
-# so the working tree is streamed in fresh before every DAG run. The file set comes from
-# `git ls-files` (tracked + untracked-not-.gitignored), not a tar tree-walk -- git already
-# excludes `.git`, every `*/target`, `node_modules`, report/log dirs, sockets/FIFOs, etc. `*.md`
-# is kept (unlike `.dockerignore`), since the docs stage needs DECISIONS.md / flows.md /
-# adr-index.md. `/app` is wiped first, then re-extracted -- a plain `tar -x` overlay leaves behind
-# files that were deleted from the working tree since the last sync (a stale copy of a
-# since-removed .java then breaks the compile). Everything under /app is regenerated by the build
-# (target/, node_modules, ...); the durable caches live in separate volumes (/root/.m2,
-# /root/.ci-tools, /root/.dagu), untouched by this.
-#
-# `tar` runs WITHOUT `--ignore-failed-read` on purpose: an unreadable listed file (e.g. one a
-# generator left mode 0600, so the sync user can't read it) must fail the whole sync loudly, not
-# be silently dropped -- a missing file only surfaces later as a confusing downstream stage
-# failure (a "stale adr-index.md" in the docs stage, say). Any non-zero tar exit is fatal here.
+# ── Sync /app with the live working tree every run: wipe then extract (no stale files); tar fails loudly on an unreadable file ──
 echo ""
 echo "=== Syncing working tree into $CONTAINER ==="
 source "$ROOT/scripts/utils/sync-source.sh"
@@ -514,8 +436,7 @@ emit_agentic_success_block "sync-source"
 DAG_DIR="$(docker exec "$CONTAINER" printenv DAGU_DAGS_DIR)"
 docker exec "$CONTAINER" cp /app/scripts/ci/dagu/ci.yaml "$DAG_DIR/ci.yaml"
 
-# Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
-# never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
+# Assign this run's id ourselves (dagu start -r) so the monitor watches exactly this run.
 DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
 # The CI session ID is the Dagu run id, so every log of this run links back to the Dagu history.
 export SESSION_ID="$DAGU_RUN_ID"
@@ -542,13 +463,7 @@ echo "=== Triggering ci DAG run (${DAGU_PARAMS[*]}) ==="
 # A bare DAG name resolves against $DAGU_HOME/dags, not the --dags directory, so the run starts from the file path.
 DAG_FILE="$DAG_DIR/ci.yaml"
 
-# Refuse to start a second run while one is genuinely alive. The e2e stage's ci-* stack
-# (ci-advertisement-db / ci-marketplace-app / ...) has fixed, non-per-run container names, so a
-# concurrent run's e2e stage redeploys/resets it out from under the first run's Playwright tests
-# -- the app vanishes mid-test and unrelated specs fail (see scripts/ci/README.md). Dagu's own
-# maxActiveRuns does not gate a manual `dagu start`, so gate it here. Use `dagu ps` (the live
-# process store), not the REST status: a run killed with its container is left as "running" in the
-# persisted history until Dagu reconciles it, and `dagu ps` never shows that zombie.
+# Refuse a second run while one is alive: concurrent e2e stages share fixed ci-* container names; `dagu ps` is used because REST status keeps killed runs as running.
 ACTIVE_RUN="$(docker exec "$CONTAINER" dagu ps -d ci 2>/dev/null | awk '$1 == "ci" { print $2; exit }')"
 if [ -n "$ACTIVE_RUN" ]; then
   echo "===== FAILED (a ci DAG run is already in progress: $ACTIVE_RUN -- wait for it to finish or stop it at http://localhost:$UI_PROXY_PORT) ====="
@@ -560,12 +475,7 @@ echo "Dagu run id: $DAGU_RUN_ID"
 
 if [ -n "$FOREGROUND" ]; then
   docker exec -d "$CONTAINER" dagu start -r "$DAGU_RUN_ID" "$DAG_FILE" -- "${DAGU_PARAMS[@]}"
-  # scripts/ci/dagu-rest-run-monitor.py polls Dagu's own REST API and prints a real
-  # AGENTIC_SUCCESS_BLOCK/AGENTIC_ERROR_BLOCK marker per step -- this is what lets
-  # scripts/activity-monitor.sh render a real per-step tree.txt for `ci.sh --foreground`, the same
-  # way it already does for every other wrapped script (see .claude/rules/scripts.md's "Local CI
-  # Runner" section). Its own exit code becomes this script's real exit code. DAGU_RUN_ID tells it
-  # exactly which run to watch -- no guessing.
+  # The REST monitor prints an AGENTIC marker per Dagu step (for activity-monitor's tree); its exit code becomes this script's exit code.
   DAGU_UI_PORT="$UI_PROXY_PORT" DAGU_RUN_ID="$DAGU_RUN_ID" python3 -u scripts/ci/dagu-rest-run-monitor.py
   DAG_EXIT=$?
   SYNC_FAILED=""
@@ -577,8 +487,7 @@ if [ -n "$FOREGROUND" ]; then
     echo "===== FAILED${DAGU_RUN_ID:+ -- Dagu run $DAGU_RUN_ID} ====="
     emit_agentic_error_block "business" "false" "ci-run" "A ci DAG stage failed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)} -- see the per-step lines above; not retryable as-is."
   elif [ -n "$SYNC_FAILED" ]; then
-    # Every DAG stage passed; only pulling architecture-model.json/architecture-map.html/
-    # adr-index.md, or (when the sonar stage actually ran) report.html, back to the host failed.
+    # Every DAG stage passed; only copying artifacts back to the host failed.
     EXIT_CODE=1
     echo "===== FAILED (artifact sync)${DAGU_RUN_ID:+ -- Dagu run $DAGU_RUN_ID} ====="
     emit_agentic_error_block "transient" "true" "ci-run" "Every ci DAG stage passed${DAGU_RUN_ID:+ (Dagu run $DAGU_RUN_ID)}, but copying architecture-model.json/architecture-map.html/adr-index.md${STAGE_SONAR:+/report.html} from $CONTAINER back to the host failed -- see the docker cp errors above; re-run 'bash scripts/ci/run.sh --sync-artifacts' to retry just that."

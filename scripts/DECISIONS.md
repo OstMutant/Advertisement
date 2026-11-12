@@ -66,6 +66,8 @@ visibly; both containers are bumped and rebuilt the same way.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** MinIO Community Edition's GitHub repo was archived upstream 2026-04-25 after a
 maintenance wind-down — license changed Apache 2.0 → AGPLv3 (2025-05), Admin GUI removed, Docker
 Hub publishing stopped. No further upstream security fixes will land on it. The project needed a
