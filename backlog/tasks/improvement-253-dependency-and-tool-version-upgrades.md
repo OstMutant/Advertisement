@@ -1,0 +1,78 @@
+# improvement-253: Dependency and tool version upgrades, in three batches
+
+**Type:** improvement — maintenance and security hygiene; checked against the registries and release notes on 2026-11-11.
+**Module:** root `pom.xml` (versions, plugins, Maven wrapper), `marketplace-app`, `html-sanitizer-lib`, `playwright` (`run.sh`, `package.json`), `scripts/` (image and tool pins), `.env`.
+**Priority:** 🟡 medium-high — Spring Boot 4.1.2 brings newer Tomcat and the PostgreSQL driver; the rest is ordinary upkeep that grows harder the longer it waits.
+**When:** independent, no blockers.
+
+## Current state
+
+Versions in the project against the latest stable one found (release candidates and betas left out). The "Verified" column says what was read, not assumed.
+
+| What | In the project | Latest stable | Verified |
+|---|---|---|---|
+| Spring Boot | 4.1.1 | 4.1.2 (22 Oct 2026) | release notes read; it manages Tomcat 11.0.27 (was 11.0.24), PostgreSQL driver 42.7.14 (was 42.7.13), Lombok 1.18.48 (was 1.18.46), Liquibase 5.0.4 (was 5.0.3) |
+| Vaadin | 25.3.2 | 25.3.5 | 25.3.5 notes: maintenance release |
+| JaCoCo | 0.8.15 | 0.8.16 | notes read: official Java 27 support, ASM 9.11.1 |
+| Liquibase pin in the root `pom.xml` | 5.0.4 (explicit) | 5.0.4 | Boot 4.1.2 manages the same version, so the pin becomes redundant |
+| springdoc-openapi | 3.1.1 | 3.2.0 | notes read: built on Spring Boot 4.1.2; `PagedModel`/`PageMetadata` properties now required in the generated schema, Scalar 0.6, default API version handling changed |
+| jsoup | 1.23.2 | 1.24.1 | notes read: HTML parsing aligned with the current HTML standard (tables, formatting elements, templates); opt-in selector "Web mode", which becomes the default in 1.25.1 |
+| ArchUnit | 1.4.2 | 1.5.1 | notes read: Java 27 class files, caught exceptions count as dependencies (can add rule findings) |
+| Tika core | 4.0.0 | 4.2.0 | change log read: most breaking items concern tika-server, pipes and parsers; `DefaultDetector` no longer lets a more specific magic result overrule it, which can change the detected content type; the only user is `AttachmentContentTypeValidator` |
+| maven-compiler-plugin | 3.14.0 | 3.16.0 | versions only |
+| maven-enforcer-plugin | 3.6.3 | 3.7.0 | versions only |
+| Maven wrapper | 3.9.9 | 3.9.16 (3.10.0 also exists) | versions only |
+| Playwright | 1.61.1 | 1.65.0, image `mcr.microsoft.com/playwright:v1.65.0-jammy` exists | notes read: Node 20 dropped, cookie matching follows RFC 6265, proxy credentials no longer sent to sites, text the browser does not render leaves aria snapshots |
+| PostgreSQL image | `postgres:18-alpine` (floating) | 18.6-alpine | tag exists; a `docker pull` is enough |
+| SonarQube server | 26.9.0.129388 (pinned) | 26.11.0.134175 | notes read: 26.10 and older trust compromised eMudhra certificate authorities, 26.11 fixes it in the Docker image; 26.11 removes the Ruby, Rust and Scala analyzers and part of the advanced Java rules (their issues close), checks free disk space at start (stops below 10% free) and, since 26.10, raises the default heaps (web 1 GB, compute engine 1.5 GB) |
+| `sonar-scanner-cli` | `latest` (floating) | 12.4 | tag exists |
+| SeaweedFS | `latest` (floating) | 4.53 | tag exists |
+| Dagu | 2.16.3 | v2.26.0 | notes of about 30 releases scanned: no breaking changes announced; 2.21.0 stops credential settings (auth secrets, `DAGU_ENCRYPTION_KEY`, ...) from reaching step environments; workspace settings deprecated for v3.0; some versions have no published notes |
+| Temurin base image | `eclipse-temurin:25-jdk` / `25-jre` (floating) | rebuilt 29 Oct 2026 | image rebuild only |
+
+Already current: Spring AI 2.0.2, Liquibase through Boot, MapStruct 1.6.3, swagger-annotations 2.2.55, `eslint-plugin-playwright` 2.12.x.
+
+Checked and deliberately left alone:
+- **Java 27** (GA 15 Sep 2026): not an LTS release; the next LTS is Java 29. The groundwork exists (Boot 4.1.2 knows `JavaVersion.TWENTY_SEVEN`, JaCoCo 0.8.16 and ArchUnit 1.5 support it), so the move to 29 should be cheap.
+- Spring Boot 4.2.0 (release candidate only), Spring AI 2.1.0 (release candidate only), MapStruct 1.7.0 (beta only), Maven 3.10.0.
+
+Checked: the Vaadin build already runs on Node 24.21.0 (found in the `vaadin-cache` volume), which meets the Node 24 that Vaadin 25.3 asks for. Not established: how much the eMudhra notice matters for a local SonarQube container, the Node version inside the Playwright 1.65 image, and whether `scripts/ci/dagu/ci.yaml` relies on any Dagu credential variable inside a step.
+
+## Why change
+
+Newer patch releases carry fixes (Tomcat, the PostgreSQL driver) the project does not get while it stays on 4.1.1. Floating tags (`latest`, `18-alpine`, `25-jdk`) make a build differ from one day to the next and hide the day something changed. The longer minors wait, the larger the step and the harder it is to find which one broke what.
+
+## Expected benefit
+
+The build, the tests and the CI run on versions that are current, pinned where they were floating, and each step is a small commit that can be reverted alone.
+
+## Approach
+
+Three batches, each a separate commit, each followed by `bash scripts/build-and-test.sh --unit --integration --sandbox`; batches B and C also by the full Playwright `e2e --full --ux` run and `/ci`.
+
+1. **A — patches (safe).** Spring Boot 4.1.2; Vaadin 25.3.5; JaCoCo 0.8.16; remove the now redundant Liquibase pin; Maven wrapper 3.9.16; `docker pull` of `postgres:18-alpine` (18.6) and a rebuild of the Temurin 25 images.
+2. **B — minors with the changelog read first.** In this order: springdoc 3.2.0 (needs batch A; compare the generated OpenAPI document before and after, and look at `docs/api-collections`, because `PagedModel` properties become required); jsoup 1.24.1 (before it, pin the current sanitizer output with tests in `html-sanitizer-lib`, then run `jsoup.queryMode=check` to see which selectors would change under the Web mode of 1.25.1; users of jsoup are `HtmlSanitizer`, `OgMetaRequestListener`, `HtmlExcerptUtil` and the advertisement and provider-profile form handlers); ArchUnit 1.5.1 (new findings possible); Tika 4.2.0 (before it, pin the content types the current detector returns for the allowed attachment formats with tests in the attachment starter, because the detector ranking changed); maven-compiler-plugin 3.16.0; maven-enforcer-plugin 3.7.0.
+3. **C — test infrastructure.** Playwright 1.65.0 together with the image `v1.65.0-jammy` and the `PLAYWRIGHT_VERSION` in `playwright/run.sh` (check specs that use aria snapshots or cookies, and that the image's Node is supported); SonarQube 26.11 first in this batch, because 26.10 and older trust compromised certificate authorities (how much that matters for a local container is not established; expect fewer Java issues, a startup disk check and larger default heaps; a server upgrade can reset its embedded data, see its own decision record), with a pin for `sonar-scanner-cli`; a pin for SeaweedFS instead of `latest`; Dagu 2.16.3 to 2.26.0 as its own step, after checking `ci.yaml` for credential variables that would stop reaching the steps. Whether to pin floating image tags at all is a decision for `/record-decision`; the choice made there decides which of these pins stay.
+
+## Related
+
+- [improvement-133](improvement-133-deferred-oversized-review-findings.md) entry 46 listed the Boot and Vaadin patches; that line is now here.
+- [improvement-086](../completed/tasks/improvement-086-postgres-major-version-bump.md) — the previous PostgreSQL image decision.
+- [improvement-085](../completed/tasks/improvement-085-playwright-version-bump.md) — the previous Playwright bump and the checks it needed.
+- `.claude/nav/adr-index.md` — no decision overlaps this task (searched on 2026-11-11).
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: n/a
+- haiku_decomposition_dispatch_count: n/a
+- haiku_decomposition_rework_needed: n/a
+- adrs_referenced: none

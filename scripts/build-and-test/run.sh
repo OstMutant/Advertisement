@@ -53,8 +53,8 @@
 #                                     jars an earlier build already put into the Maven cache volume;
 #                                     only for callers that ran a full build in the same pipeline just before
 # Uses: bash, docker, tar, grep, sed, scripts/utils/agentic-output.sh
-#   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/session-id.sh
-#   (write_session_info).
+#   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
+#   scripts/utils/session-id.sh (write_session_info).
 # Env: BUILD_CONTAINER_NAME (default advertisement-build-only) -- overridable so two invocations of
 #   this script can run concurrently without a Docker container-name collision (Docker container
 #   names must be unique; a fixed name means a second concurrent `docker run` with the same name
@@ -121,6 +121,7 @@ SECONDS=0
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
 BUILD_IMAGE="advertisement-build-env"
 BUILD_CONTAINER_NAME="${BUILD_CONTAINER_NAME:-advertisement-build-only}"
@@ -278,6 +279,7 @@ tar -czf - --exclude='*/target' --exclude='marketplace-app/src/main/frontend/gen
   -C "$ROOT" pom.xml mvnw .mvn lombok.config .env scripts/build-and-test/build.sh docs/api-collections $MODULES \
   | docker run -i \
       --name "$BUILD_CONTAINER_NAME" \
+      --label "$PROJECT_LABEL" \
       -v "${MAVEN_CACHE_VOLUME:-maven-cache}:/root/.m2" \
       -v "${VAADIN_CACHE_VOLUME:-vaadin-cache}:/root/.vaadin" \
       -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" \

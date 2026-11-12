@@ -38,7 +38,7 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
-#   scripts/utils/session-id.sh.
+#   scripts/utils/session-id.sh, scripts/utils/project-label.sh.
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
 #   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081), DB_VOLUME
@@ -76,6 +76,7 @@ source "$ROOT/scripts/utils/session-id.sh"
 LOG=/tmp/deploy.log
 
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 
 # Load the repo-root .env defaults into ENV_*-prefixed vars (not exported), so an already-exported override is never clobbered.
 if [ -f "$ROOT/.env" ]; then
@@ -233,6 +234,7 @@ start_infra() {
 
   ensure_running "$DB_CONTAINER" \
     docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
+      --label "$PROJECT_LABEL" \
       -p "$DB_PORT":5432 \
       -e POSTGRES_DB="$DB_NAME" \
       -e POSTGRES_USER="$DB_USER" \
@@ -242,6 +244,7 @@ start_infra() {
 
   ensure_running "$SEAWEEDFS_CONTAINER" \
     docker run -d --name "$SEAWEEDFS_CONTAINER" --network "$NETWORK" \
+      --label "$PROJECT_LABEL" \
       -p "$SEAWEEDFS_PORT":9000 -p "$SEAWEEDFS_CONSOLE_PORT":9333 \
       -v "$SEAWEEDFS_VOLUME":/data \
       -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" -e S3_BUCKET="$S3_BUCKET" \
@@ -330,7 +333,7 @@ emit_agentic_success_block "build"
 # ── Helper: start the app container ───────────────────────────────────────────
 start_app_container() {
   docker rm -f "$APP_CONTAINER" 2>/dev/null || true
-  RUN_FLAGS=(-d --name "$APP_CONTAINER" --network "$NETWORK"
+  RUN_FLAGS=(-d --name "$APP_CONTAINER" --network "$NETWORK" --label "$PROJECT_LABEL"
     -p "$APP_PORT":8080
     -e SPRING_PROFILES_ACTIVE=prod
     -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME"

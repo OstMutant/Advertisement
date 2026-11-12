@@ -2,7 +2,7 @@
 
 **Type:** improvement — working process and safety of changes
 **Module:** `.claude/settings.json` (hooks `UserPromptSubmit` and `PreToolUse`), `.claude/rules.md` (Approval Rule)
-**Priority:** low — Nice to have, moved down from Top 2026-10-28 (not critical for now)
+**Priority:** low — Nice to have, lowest group (moved down from Top 2026-10-28, not critical for now)
 **When:** independent; do before further feature phases
 
 ## Current state

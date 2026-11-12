@@ -86,7 +86,7 @@ adjacent `@EnableJdbcAuditing` line is a fixed constant with no per-site variati
 in all 5 locations, and was left untouched — folding it into the same composed annotation (or a
 new one) would fully collapse the pair to one annotation everywhere. Left out of Batch K's scope
 (item 31 named only the `@ImportAutoConfiguration` array); a future touch to how JDBC auditing is
-enabled would otherwise still require editing all 5 files.
+enabled would otherwise still require editing all 5 files. Checked 2026-11-11: `RestApiTestAutoConfig` composes `RepositoryTestAutoConfig`, so folding `@EnableJdbcAuditing` into it would also switch auditing on for the Level 3 REST scenarios, which supply their own request-scoped `AuditorAware`; check those scenarios first, or use a second composed annotation for the Level 1 sites only.
 
 ### 7. `integration-tests`: `auditorAware()`/`currentActorHook()`/`@MockitoBean S3Client+StorageService` bean triads duplicated across 3-4 `TestConfig` classes (found during Batch K review, 2026-07-31)
 
@@ -158,35 +158,7 @@ pointers, not broken functionality. `backlog/tasks/`/`backlog/completed/tasks/`/
 (append-only history / point-in-time records, not current-state documentation). Not fixed inline
 during improvement-168 since it wasn't part of that issue's approved plan (root `CLAUDE.md`'s
 own pointers + the generator script only). Mechanical fix once picked up: grep+replace
-`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files. Two more stale links, found 2026-10-22 and not listed above, sit in `.claude/rules/platform-commons.md` (`marketplace-orchestrator/CLAUDE.md`) and `.claude/rules/user-spring-boot-starter.md` (`marketplace-app/CLAUDE.md`).
-
-### 14. `ADR-010`/`ADR-011` near-verbatim duplicate across `audit-spring-boot-starter/DECISIONS.md` and `platform-commons/DECISIONS.md` (found during improvement-168 follow-up, 2026-08-25)
-
-Both entries — `audit-spring-boot-starter/DECISIONS.md` ADR-010 and `platform-commons/DECISIONS.md`
-ADR-011, both titled "Audit decoupled from attachment via AuditActivityEnrichHook" — describe the
-same decision with near-identical Context/Decision/Consequences text (the `Consequences` sentence
-"Audit starter must never import from `attachment.*` packages" appears verbatim in both). Each
-entry's own `Status:` line already cross-references the other, added after **this exact pair
-already drifted out of sync once** (2026-07-16 correction note, both entries: "the two entries had
-drifted to describe different, both-inaccurate mechanisms with no cross-reference between them") —
-the cross-reference was added as a partial fix at the time, but the full duplicated body text was
-never consolidated.
-
-Checked whether this is a systemic pattern before filing: scanned all 172 ADR titles across all 17
-`DECISIONS.md` files for exact duplicates — **this is the only match found.** Not a systemic
-problem worth a full audit (a full semantic near-duplicate sweep across 172 ADRs would be real,
-non-trivial effort for a demonstrated base rate of roughly 1-in-172); this single pair is worth
-fixing on its own since it already has a proven drift-risk track record, not because duplication
-across `DECISIONS.md` files turned out to be widespread.
-
-Fix once picked up: pick one canonical home (likely `platform-commons/DECISIONS.md`, since the SPI
-interface itself — `AuditActivityEnrichHook` — lives in `platform-commons`, matching this repo's
-own "SPI decisions live where the interface lives" pattern elsewhere in these files), keep the full
-Context/Decision/Consequences there, and shrink the other entry to a one-line pointer (`**Status:**
-Accepted — see platform-commons/DECISIONS.md ADR-011 for the full decision` style, no restated
-body) — mirroring how `doc-standards`' "one fact, one canonical home" already treats every other
-kind of cross-file fact in this repo. Regenerate `.claude/nav/adr-index.md` in the same change (per
-`.claude/rules.md`'s standing rule).
+`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files. Two more stale links, found 2026-10-22 and not listed above, sit in `.claude/rules/platform-commons.md` (`marketplace-orchestrator/CLAUDE.md`) and `.claude/rules/user-spring-boot-starter.md` (`marketplace-app/CLAUDE.md`). Re-measured 2026-11-11: the real scope is more than twenty current-state files, not about 8 -- also `.claude/rules.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`, neither exists), several `.claude/rules/*.md`, `INFRASTRUCTURE.md`, `scripts/*/run.sh`, `integration-tests` sources, `AuthorizationService.java`, and generated files (`adr-index.md`, `architecture-map.html`, `architecture-model.json`) that must be fixed at their source. Not a plain search-and-replace: each place needs the right replacement target decided, so it needs its own plan.
 
 ### 15. Apply improvement-170's "always header" policy to real `pom.xml`/Liquibase/Java files, repo-wide (found during improvement-170, 2026-08-25)
 
@@ -461,17 +433,9 @@ whether they go on deletion, on purge, or stay.
 
 `FeedbackRepository.deleteByEntity` runs as one statement with one snapshot and there is no foreign key to the profile, so a review inserted by another transaction after that snapshot stays, with a recomputed aggregate row, and no profile. Not checked: whether `FeedbackWriteService` re-checks that the profile exists inside its own transaction. A test with two parallel transactions decides it; a lock on the profile row is the fix if it is real. Severity Low.
 
-### 42. The content rows of a review and a reply are not constrained to one owner (found during improvement-246, 2026-11-09)
-
-`feedback.content_id` and `feedback_comment.content_id` have no `UNIQUE`. If two rows ever shared a content row, the delete by owning entity would fail on the foreign key and roll back whole; no data is lost silently, but the schema does not state the one-to-one assumption. Add `UNIQUE` on both columns in the changelog (edited in place before launch).
-
-### 43. The Docker build context copies everything and `private/` is not ignored (found during improvement-246, 2026-11-09)
-
-`Dockerfile` copies the whole tree, so any changed file anywhere invalidates the Maven layer, and `.dockerignore` does not exclude the git-ignored `private/` directory (one non-Markdown file reaches the builder stage; only the JAR reaches the final image). Not measured. Candidates: add `private/` to `.dockerignore`; measure how often the layer is rebuilt for a change outside the modules before deciding on a different copy order.
-
 ### 44. Existing databases keep what the changelogs no longer create (found during improvement-246, 2026-11-09)
 
-The changelogs are edited in place with `validCheckSum ANY`, so a database created before an edit keeps removed columns and indexes (`promotion_placement.valid_from` and `valid_until`, `taxon_assignment.assigned_by`, the removed indexes) and does not get a restored one (`idx_advertisement_title`). The code works on both shapes. Before the first release with a database that cannot be reset, write a baseline changelog.
+The changelogs are edited in place with `validCheckSum ANY`, so a database created before an edit keeps removed columns and indexes (`promotion_placement.valid_from` and `valid_until`, `taxon_assignment.assigned_by`, the removed indexes) and does not get a restored one (`idx_advertisement_title`). The code works on both shapes. Before the first release with a database that cannot be reset, write a baseline changelog. The unique constraints on `feedback.content_id` and `feedback_comment.content_id` follow the same rule: only a database created from the current changelog has them, an existing one needs a reset.
 
 ### 45. Promotion lookups read every placement of the entity type (found during improvement-246, 2026-11-09)
 
@@ -484,4 +448,26 @@ The changelogs are edited in place with `validCheckSum ANY`, so a database creat
 - The ADR index cannot drop its 14 superseded rows: the architecture map builds its decision list from the same file.
 - Still in the always-loaded `.claude/rules.md`: the Scripts section and 12 warning-sign rules that have a file trigger; moving them is not worth it while a rule file is not loaded on a `Write`.
 - Not run: whether the compiler plugin ignores `source/target` once `release` is set (`mvn -X compile`), and `mvn dependency:analyze` for undeclared dependencies.
-- Spring Boot 4.1.1 and Vaadin 25.3.2 are two patch releases behind (4.1.2, 25.3.5).
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a (no review ran; a deep review was judged not needed for a diff of two tests and two constraints)
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: yes
+- haiku_decomposition_dispatch_count: 1
+- haiku_decomposition_rework_needed: 0 / 1
+- adrs_referenced: none
+
+### Agent calls
+- two exact file edits (schema constraints, .dockerignore) | subagent_type=general-purpose (haiku) | tokens=68994 | tool_uses=7 | duration_s=35 | mode=background | batch=solo
+
+### Script/command runs
+- scripts/build-and-test.sh --no-unit --integration | duration_s=480 | mode=background | result=pass
+- scripts/build-and-test.sh --no-unit --integration-test FeedbackRepositoryTest | duration_s=168 | mode=background | result=pass

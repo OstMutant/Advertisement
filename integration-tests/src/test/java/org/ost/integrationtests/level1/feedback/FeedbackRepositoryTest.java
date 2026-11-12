@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Testcontainers repository test for {@link FeedbackRepository} -- entity ids are synthetic longs, since the polymorphic {@code entity_id} columns carry no FK. */
 @SpringBootTest(classes = {
@@ -126,6 +127,34 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
     @Test
     void findByAuthorAndEntity_noRow_returnsEmpty() {
         assertThat(feedbackRepository.findByAuthorAndEntity(1L, EntityType.PROVIDER_PROFILE, newEntityId())).isEmpty();
+    }
+
+    @Test
+    void saveLink_contentAlreadyUsedByAnotherFeedback_isRejected() {
+        Feedback first = createFeedback(1L, EntityType.PROVIDER_PROFILE, newEntityId(), 5, "First.");
+
+        assertThatThrownBy(() -> feedbackRepository.saveLink(Feedback.builder()
+                .entityType(EntityType.PROVIDER_PROFILE)
+                .entityId(newEntityId())
+                .authorId(2L)
+                .contentId(first.getContentId())
+                .build()))
+                .hasStackTraceContaining("uq_feedback_content_id");
+    }
+
+    @Test
+    void saveCommentLink_contentAlreadyUsedByAnotherReply_isRejected() {
+        Long entityId = newEntityId();
+        Feedback firstFeedback = createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "First.");
+        Feedback secondFeedback = createFeedback(2L, EntityType.PROVIDER_PROFILE, entityId, 4, "Second.");
+        FeedbackComment firstReply = createComment(firstFeedback.getId(), 9L, "Reply.");
+
+        assertThatThrownBy(() -> feedbackRepository.saveCommentLink(FeedbackComment.builder()
+                .contentId(firstReply.getContentId())
+                .authorId(9L)
+                .feedbackId(secondFeedback.getId())
+                .build()))
+                .hasStackTraceContaining("uq_feedback_comment_content_id");
     }
 
     @Test

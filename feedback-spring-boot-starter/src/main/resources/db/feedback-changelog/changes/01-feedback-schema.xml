@@ -11,7 +11,7 @@
 
         <!-- ── feedback_content ─────────────────────────────────────────────── -->
         <createTable tableName="feedback_content"
-                      remarks="Shared text+moderation+edit-tracking atom reused by both a top-level feedback entry (via feedback.content_id) and its single reply (via feedback_comment.content_id) -- factored out since the shape is identical for both.">
+                      remarks="Text+moderation+edit-tracking atom with the same shape for a top-level feedback entry (via feedback.content_id) and its single reply (via feedback_comment.content_id); each row belongs to exactly one of them, both columns are unique.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -44,8 +44,8 @@
             <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">
                 <constraints nullable="false"/>
             </column>
-            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this entry's text+moderation+edit-tracking state">
-                <constraints nullable="false" foreignKeyName="fk_feedback_content" references="feedback_content(id)"/>
+            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this entry's text+moderation+edit-tracking state; unique, one content row belongs to exactly one entry">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_feedback_content_id" foreignKeyName="fk_feedback_content" references="feedback_content(id)"/>
             </column>
         </createTable>
 
@@ -83,8 +83,8 @@
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this reply's text+moderation+edit-tracking state">
-                <constraints nullable="false" foreignKeyName="fk_feedback_comment_content" references="feedback_content(id)"/>
+            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this reply's text+moderation+edit-tracking state; unique, one content row belongs to exactly one reply">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_feedback_comment_content_id" foreignKeyName="fk_feedback_comment_content" references="feedback_content(id)"/>
             </column>
             <column name="author_id" type="BIGINT" remarks="Author of the reply. References user_information(id), no FK -- same convention as feedback.author_id">
                 <constraints nullable="false"/>

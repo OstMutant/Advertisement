@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Brings the Docker host to a clean state for a full run: removes the project's
-#   containers and, only for the scopes named, its volumes and the Docker build cache -- never the
-#   container of the working session. Prints each object it considers with a verdict before
-#   removing anything; objects outside the scope lists are never touched.
+#   containers -- every container that carries the project label of scripts/utils/project-label.sh,
+#   whatever its name -- and, only for the scopes named, its volumes and the Docker build cache,
+#   never the container of the working session. Prints each object it considers with a verdict
+#   before removing anything; objects outside the scope lists are never touched.
 # Usage: bash scripts/docker-clean.sh [--caches] [--reports] [--data] [--sonar] [--ci-history]
 #   [--orphans] [--builder-cache] [--all] [--dry-run] [--yes]
 #   (no scope flag)  containers only
@@ -17,16 +18,19 @@
 #   --all            every scope above
 #   --dry-run        print the plan, remove nothing
 #   --yes            skip the typed confirmation that every scope except containers and --caches needs
-# Uses: bash, docker, awk, grep, tail.
-# Env: set directly in the calling shell, all optional, space-separated names:
-#   CLEAN_PROTECTED_CONTAINERS (default claude-dev); CLEAN_CONTAINERS, CLEAN_CACHE_VOLUMES,
+# Uses: bash, docker, awk, grep, tail, scripts/utils/project-label.sh.
+# Env: set directly in the calling shell, all optional:
+#   CLEAN_PROJECT_LABEL (default the PROJECT_LABEL of scripts/utils/project-label.sh);
+#   space-separated names: CLEAN_PROTECTED_CONTAINERS (default claude-dev), CLEAN_CACHE_VOLUMES,
 #   CLEAN_REPORT_VOLUMES, CLEAN_DATA_VOLUMES, CLEAN_SONAR_VOLUMES, CLEAN_CI_HISTORY_VOLUMES (each
 #   defaults to the list written in the variable block at the top of this script);
 #   CLEAN_ORPHAN_PATTERN (default a 64-character hex name, the form Docker gives an unnamed
 #   volume) -- they exist so the script can be tested on throw-away objects.
 # Input: the Docker daemon (containers, volumes, sizes from `docker system df -v`).
 # Outputs: a table per group (containers, each volume scope, the build cache, unlisted volumes) and
-#   the space freed. A container that mounts the Docker socket and binds /app from the host (the
+#   the space freed. A container whose name looks like the project's but that has no project label
+#   is listed as kept with that reason, so a creator that forgot the label shows up here instead of
+#   being missed silently. A container that mounts the Docker socket and binds /app from the host (the
 #   working session) or is named in CLEAN_PROTECTED_CONTAINERS is never removed, nor is any volume
 #   still used by a container that stays; the session cannot see its own id from inside, so it is
 #   recognised by those two bind mounts. A scope that is not a pure cache asks for the typed word
@@ -36,7 +40,10 @@
 # ────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-read -ra CONTAINERS <<< "${CLEAN_CONTAINERS:-marketplace-app ci-marketplace-app advertisement-db advertisement-seaweedfs ci-advertisement-db ci-advertisement-seaweedfs ci-runner ci-runner-dagu-proxy sonarqube sonar-scanner sonar-scanner-ci pw-runner ci-pw-runner arch-map-shot dev-shell advertisement-build-only advertisement-build-only-deploy advertisement-build-only-sonar run-all-tests-reports}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/utils/project-label.sh"
+LABEL="${CLEAN_PROJECT_LABEL:-$PROJECT_LABEL}"
+LOOKS_LIKE_PROJECT='^(advertisement|ci-|marketplace|sonar|pw-|dev-shell|arch-map|run-all-tests)'
 read -ra PROTECTED_NAMES <<< "${CLEAN_PROTECTED_CONTAINERS:-claude-dev}"
 DEFAULT_ORPHAN_PATTERN='^[0-9a-f]{64}$'
 ORPHAN_PATTERN="${CLEAN_ORPHAN_PATTERN:-$DEFAULT_ORPHAN_PATTERN}"
@@ -96,9 +103,9 @@ done < <(docker system df -v 2>/dev/null | awk '
 
 # ── Containers ───────────────────────────────────────────────────────────
 
-declare -A PROTECTED=() IN_LIST=() TO_REMOVE=()
+declare -A PROTECTED=() LABELLED=() TO_REMOVE=()
 for c in "${PROTECTED_NAMES[@]}"; do PROTECTED[$c]=1; done
-for c in "${CONTAINERS[@]}"; do IN_LIST[$c]=1; done
+while read -r c; do [[ -n $c ]] && LABELLED[$c]=1; done < <(docker ps -a --filter "label=$LABEL" --format '{{.Names}}')
 mapfile -t ALL_CONTAINERS < <(docker ps -a --format '{{.Names}}')
 for c in "${ALL_CONTAINERS[@]}"; do
   is_session_container "$c" && PROTECTED[$c]=1
@@ -108,9 +115,11 @@ echo "== containers =="
 for c in "${ALL_CONTAINERS[@]}"; do
   if [[ -n ${PROTECTED[$c]:-} ]]; then
     row "$c" "" "kept: protected"
-  elif [[ -n ${IN_LIST[$c]:-} ]]; then
+  elif [[ -n ${LABELLED[$c]:-} ]]; then
     row "$c" "" "remove"
     TO_REMOVE[$c]=1
+  elif grep -qE "$LOOKS_LIKE_PROJECT" <<< "$c"; then
+    row "$c" "" "kept: no project label ($LABEL), though the name looks like the project's"
   else
     row "$c" "" "kept: not a project container"
   fi

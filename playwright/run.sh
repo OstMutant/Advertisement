@@ -27,7 +27,7 @@
 #   --repeat-each <n>     forwarded to Playwright's own --repeat-each, runs every selected test n times
 # Uses: bash, docker, curl, npx playwright (inside pw-runner), npx eslint (inside pw-runner, --lint
 #   only), playwright/shot.js (inside pw-runner, --shot only), scripts/deploy-and-run/reset.sh (DB reset, only when the DB actually has data),
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh.
 # Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
 #   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
@@ -72,6 +72,7 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
@@ -127,12 +128,12 @@ PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 # container from before this mount was added won't pick it up until it's next recreated (e.g. via
 # `docker rm -f pw-runner`).
 if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
-  docker run -d --name "$PW_CONTAINER" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
+  docker run -d --name "$PW_CONTAINER" --label "$PROJECT_LABEL" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
 else
   PW_STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
   if [ "$PW_STATUS" != "running" ]; then
     docker rm -f "$PW_CONTAINER"
-    docker run -d --name "$PW_CONTAINER" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
+    docker run -d --name "$PW_CONTAINER" --label "$PROJECT_LABEL" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
   fi
 fi
 docker exec "$PW_CONTAINER" sh -c "mkdir -p /reports/playwright-log" >/dev/null 2>&1 || true
@@ -240,7 +241,7 @@ if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
   echo "  docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d"
-  echo "  docker run -d --name marketplace-app --network host \\"
+  echo "  docker run -d --name marketplace-app --label $PROJECT_LABEL --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"
   echo "    -e DB_PASSWORD=experiments_user_password \\"

@@ -35,8 +35,8 @@ fallback). The `--progress=plain` flag in `deploy-and-run.sh` then enables line-
 BuildKit is active.
 
 **`docker compose` CLI plugin** — needed by `scripts/deploy-and-run/reset.sh` (starting dev DB when no
-container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). Not present by
-default in this sandbox.
+container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). The sandbox image
+built from `Dockerfile.claude` installs both through the script below; an older image lacks them.
 
 **Both plugins are installed automatically, not manually — `scripts/utils/ensure-docker-plugins.sh`.**
 `deploy-and-run.sh` (`ensure_buildx`, before its build step), `scripts/deploy-and-run/reset.sh` and

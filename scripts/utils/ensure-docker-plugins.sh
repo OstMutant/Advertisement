@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
-# Description: Idempotent check-and-install for Docker CLI plugins this sandbox doesn't ship by
-#   default (buildx, compose v2) -- a normal Docker Desktop / docker-ce install already has both,
-#   not a code fix for a real bug. Source this file, call the function you need.
+# Description: Idempotent check-and-install for the Docker CLI plugins buildx and compose v2 --
+#   a normal Docker Desktop / docker-ce install already has both. Dockerfile.claude runs it at
+#   build time; the scripts that need a plugin still call it. Source this file, call the function
+#   you need.
 # Usage: source scripts/utils/ensure-docker-plugins.sh; then call ensure_buildx / ensure_docker_compose.
 #   Can also run directly (bash scripts/utils/ensure-docker-plugins.sh) to install both, e.g. as a
 #   one-off sandbox bootstrap step.

@@ -14,7 +14,7 @@
 #   Docker Hub on every run cost real time -- ~170s observed -- for no benefit on the common path).
 # Uses: bash, docker (SonarQube server + scanner containers), scripts/build-and-test.sh,
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
 #   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token, scripts/utils/session-id.sh
 #   (write_session_info).
 # Env: SONAR_JACOCO_FROM (unset by default) -- space-separated BUILD_CONTAINER_NAMEs whose JaCoCo
@@ -64,6 +64,7 @@ done
 
 LOG=/tmp/sonar.log
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "sonar-analysis" "Sonar script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
 
 SONAR_URL="http://localhost:9099"
@@ -165,6 +166,7 @@ CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>
 if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
   [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
+    --label "$PROJECT_LABEL" \
     -v "${MAVEN_CACHE_VOLUME:-maven-cache}:/root/.m2" -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" \
     sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
 fi

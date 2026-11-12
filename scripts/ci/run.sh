@@ -64,8 +64,9 @@
 #                                        --foreground; needed manually after a background run, or
 #                                        after triggering a run directly from Dagu's own web UI)
 # Uses: bash, docker, curl, scripts/utils/agentic-output.sh
-#   (emit_agentic_success_block/emit_agentic_error_block), python3 (--foreground only --
-#   scripts/ci/dagu-rest-run-monitor.py polls the run and emits its own real per-step markers).
+#   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh, python3
+#   (--foreground only -- scripts/ci/dagu-rest-run-monitor.py polls the run and emits its own real
+#   per-step markers).
 # Env: None read directly -- every flag above is translated into either a container-start env var
 #   (FORCE_TOOLS_REFRESH, passed via `docker run -e`) or a Dagu param (passed via
 #   `dagu start ... -- key=value`).
@@ -108,6 +109,7 @@
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
 # The volume name is read from the DAG file, the single place that sets it.
 CI_TEST_REPORTS_VOLUME="$(sed -n 's/^  - TEST_REPORTS_VOLUME=//p' "$ROOT/scripts/ci/dagu/ci.yaml")"
@@ -227,7 +229,7 @@ sync_artifacts() {
   # since a partial run still leaves whatever earlier steps produced worth pulling.
   local VOL_READER="ci-artifact-reader"
   docker rm -f "$VOL_READER" >/dev/null 2>&1
-  docker run -d --name "$VOL_READER" -v "$CI_TEST_REPORTS_VOLUME:/reports" alpine sleep 60 >/dev/null 2>&1
+  docker run -d --name "$VOL_READER" --label "$PROJECT_LABEL" -v "$CI_TEST_REPORTS_VOLUME:/reports" alpine sleep 60 >/dev/null 2>&1
   local STAGE_DIRS
   # Oldest first, so the newest stage folder is copied last and wins for the shared it-mirror target.
   STAGE_DIRS="$(docker exec "$VOL_READER" sh -c 'ls -tr /reports' 2>/dev/null | grep '^advertisement-build-only-')"
@@ -384,6 +386,7 @@ if [ -n "$NEED_CONTAINER" ]; then
   # `docker inspect`/`docker stats` silently starts reporting on that *other* container and would
   # never notice this one died. See DECISIONS.md.
   CONTAINER_ID="$(docker run -d --name "$CONTAINER" \
+    --label "$PROJECT_LABEL" \
     --network host \
     -e FORCE_TOOLS_REFRESH="$REFRESH_TOOLS" \
     -v /var/run/docker.sock:/var/run/docker.sock \
@@ -469,6 +472,7 @@ if [ -n "$NEED_CONTAINER" ]; then
   BRIDGE_GATEWAY="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')"
   docker rm -f "$UI_PROXY_CONTAINER" >/dev/null 2>&1
   docker run -d --name "$UI_PROXY_CONTAINER" \
+    --label "$PROJECT_LABEL" \
     -p "$UI_PROXY_PORT:$UI_PROXY_PORT" \
     alpine/socat "TCP-LISTEN:$UI_PROXY_PORT,fork,reuseaddr" "TCP:$BRIDGE_GATEWAY:$DAGU_PORT" >/dev/null
 

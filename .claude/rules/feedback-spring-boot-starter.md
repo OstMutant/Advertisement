@@ -12,8 +12,8 @@ Java package root: `org.ost.feedback`
 
 ## What it owns
 
-- `Feedback` (the link row), `FeedbackContent` (shared text+moderation+edit-tracking atom reused by
-  both a feedback entry and its single reply), `FeedbackRating` (1:1 per feedback),
+- `Feedback` (the link row), `FeedbackContent` (text+moderation+edit-tracking atom with the same shape
+  for a feedback entry and its single reply, one row per owner), `FeedbackRating` (1:1 per feedback),
   `FeedbackComment` (the single reply), `FeedbackAggregate` (denormalized `avg_rating`/
   `review_count` per owning entity) entities
 - `FeedbackRepository` — bespoke `JdbcClient` queries across all 5 tables (view joins, moderation
@@ -33,8 +33,8 @@ Java package root: `org.ost.feedback`
 ## Schema
 
 Liquibase changelog: `db/feedback-changelog/feedback-changelog-master.xml`
-Tables: `feedback_content` (shared text+`moderation_status`+`moderation_reason`+edit-tracking atom,
-pointed at by both `feedback.content_id` and `feedback_comment.content_id`), `feedback` (at most one
+Tables: `feedback_content` (text+`moderation_status`+`moderation_reason`+edit-tracking atom, pointed
+at by exactly one `feedback.content_id` or `feedback_comment.content_id`, both unique), `feedback` (at most one
 row per `(author_id, entity_type, entity_id)`, enforced by the unique `idx_feedback_author_entity`
 index; immutable after creation — edits touch `feedback_content`/`feedback_rating` instead),
 `feedback_rating` (1:1 with `feedback`), `feedback_comment` (the single reply, at most one per
