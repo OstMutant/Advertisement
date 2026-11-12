@@ -194,6 +194,7 @@
     <build>
         <pluginManagement>
             <plugins>
+                <!-- Overrides the version the Spring Boot parent manages. -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -218,6 +219,7 @@
                         </annotationProcessorPaths>
                     </configuration>
                 </plugin>
+                <!-- Overrides the version the Spring Boot parent manages. -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>

@@ -13,7 +13,7 @@
 # ────────────────────────────────────────────────────────────────────────────
 version: '3.8'
 
-x-seaweedfs-image: &seaweedfs_image chrislusf/seaweedfs:latest
+x-seaweedfs-image: &seaweedfs_image chrislusf/seaweedfs:4.53
 
 services:
   seaweedfs:

@@ -12,11 +12,12 @@
 #   Set automatically by scripts/ci/run.sh (via `docker run -e`), never exported directly by a user:
 #     FORCE_TOOLS_REFRESH (true/false) -- re-downloads all three tools even if already cached.
 #   Set by the Dockerfile's own ENV instructions, not overridable at container-run time:
-#     DAGU_VERSION, DAGU_PORT.
+#     DAGU_VERSION, DAGU_PORT, DAGU_DAGS_DIR.
 # Input: the ci-tools-cache named volume (mounted at /root/.ci-tools), the Dagu binary's GitHub
-#   release archive.
+#   release archive, scripts/ci/dagu/ci.yaml.
 # Outputs: buildx/docker-compose CLI plugins symlinked into ~/.docker/cli-plugins; the dagu binary
-#   installed into ci-tools-cache; Dagu's own web server started on 0.0.0.0:$DAGU_PORT.
+#   installed into ci-tools-cache; ci.yaml copied into $DAGU_DAGS_DIR (outside /app); Dagu's own
+#   web server started on 0.0.0.0:$DAGU_PORT, watching that directory.
 # Returns: never returns under normal operation (exec'd into dagu start-all, which runs until the
 #   container is stopped); non-zero if a tool download fails (set -e).
 # ────────────────────────────────────────────────────────────────────────────
@@ -48,4 +49,8 @@ if [ ! -x "$CI_TOOLS/bin/dagu" ]; then
   echo "dagu installed."
 fi
 
-exec dagu start-all --host 0.0.0.0 --port "$DAGU_PORT" --dags scripts/ci/dagu
+# The DAG directory lives outside /app: the working-tree sync wipes /app and Dagu's scheduler stops when a watched directory disappears.
+mkdir -p "$DAGU_DAGS_DIR"
+cp scripts/ci/dagu/ci.yaml "$DAGU_DAGS_DIR/ci.yaml"
+
+exec dagu start-all --host 0.0.0.0 --port "$DAGU_PORT" --dags "$DAGU_DAGS_DIR"

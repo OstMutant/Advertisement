@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ── Header ──────────────────────────────────────────────────────────────────
 # Description: Runs SonarQube static analysis against the whole Maven reactor -- ensures the
-#   SonarQube server and scanner images/containers are current, then (unless SONAR_JACOCO_FROM is
+#   SonarQube server and scanner containers run the pinned images, then (unless SONAR_JACOCO_FROM is
 #   set) builds and tests all modules via scripts/build-and-test.sh --unit --integration (no local
 #   Java needed -- compiled classes come from the Maven cache volume, mounted directly into
 #   the scanner container; tests run for real, not skipped, since JaCoCo coverage data only exists
@@ -16,7 +16,7 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose, python3 (HTML report),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
 #   scripts/utils/ensure-sonar-token.sh's ensure_sonar_token, scripts/utils/session-id.sh
-#   (write_session_info).
+#   (write_session_info), scripts/utils/docker-pull-retry.sh (docker_pull_retry).
 # Env: SONAR_JACOCO_FROM (unset by default) -- space-separated BUILD_CONTAINER_NAMEs whose JaCoCo
 #   XML reports in /reports/<name>/jacoco/ (test-reports volume) are imported instead of running
 #   the build and tests; the compiled classes must already be in the Maven cache volume from an
@@ -28,6 +28,8 @@
 #   TEST_REPORTS_VOLUME (default test-reports) -- the Docker volume mounted at /reports of the scanner container and of the build container.
 #   SONAR_BUILD_CONTAINER_NAME (default advertisement-build-only-sonar) -- name of the build container this script starts when it runs its own tests.
 #   SONAR_BUILD_ARGS (default empty) -- extra flags for the build-and-test.sh call that runs this stage's own tests; the CI passes --no-install so the reactor built once by the build step is not installed again.
+#   SONARQUBE_VERSION (default set in docker-compose.sonar.yml) -- the SonarQube server image tag
+#   the compose file starts; the scanner image tag is fixed by SCANNER_IMAGE in this script.
 # Input: sonar-project.properties, each module's src/main/java (copied from the host into the
 #   scanner container with `docker cp`, because volume mounts do not work when the caller is
 #   itself a container), the Maven cache Docker volume's target-classes/<module> (mounted into
@@ -65,6 +67,7 @@ done
 LOG=/tmp/sonar.log
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/project-label.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; emit_agentic_error_block "transient" "true" "sonar-analysis" "Sonar script failed with exit code $_rc -- see log above (full log: $LOG)."; exit $_rc' ERR
 
 SONAR_URL="http://localhost:9099"
@@ -137,9 +140,10 @@ ensure_docker_compose
 # Pull is skipped by default once the image already exists locally -- checking Docker Hub for a
 # newer tag on every single run cost real time (~170s observed) for no benefit on the common path
 # where nothing changed. --pull-latest forces the check when a real update is actually wanted.
-if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarqube:community >/dev/null 2>&1; then
+SERVER_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images)
+if [ -n "$PULL_LATEST" ] || ! docker image inspect "$SERVER_IMAGE" >/dev/null 2>&1; then
   echo "Pulling SonarQube server image..."
-  docker compose -f "$COMPOSE_FILE" pull -q
+  docker_pull_retry docker compose -f "$COMPOSE_FILE" pull -q
 else
   echo "SonarQube server image already present locally -- skipping pull (use --pull-latest to force)."
 fi
@@ -151,24 +155,25 @@ if ! ensure_sonar_token "$COMPOSE_FILE" "$PROPS_FILE" "$SONAR_URL"; then
   exit 1
 fi
 
-# ── Ensure scanner image is current, container exists and is running (see DECISIONS.md) ──
+# ── Ensure scanner image is present, container exists and is running (see DECISIONS.md) ──
 # Same pull-skip-by-default reasoning as the SonarQube server image above -- --pull-latest forces
 # the Docker Hub check, otherwise whatever's already local is used as-is.
-if [ -n "$PULL_LATEST" ] || ! docker image inspect sonarsource/sonar-scanner-cli:latest >/dev/null 2>&1; then
+SCANNER_IMAGE="sonarsource/sonar-scanner-cli:12.4"
+if [ -n "$PULL_LATEST" ] || ! docker image inspect "$SCANNER_IMAGE" >/dev/null 2>&1; then
   echo "Pulling scanner image..."
-  docker pull -q sonarsource/sonar-scanner-cli:latest >/dev/null
+  docker_pull_retry docker pull -q "$SCANNER_IMAGE" >/dev/null
 else
   echo "Scanner image already present locally -- skipping pull (use --pull-latest to force)."
 fi
-LATEST_IMAGE_ID=$(docker image inspect -f '{{.Id}}' sonarsource/sonar-scanner-cli:latest)
+SCANNER_IMAGE_ID=$(docker image inspect -f '{{.Id}}' "$SCANNER_IMAGE")
 CONTAINER_IMAGE_ID=$(docker inspect -f '{{.Image}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
 CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$SCANNER_CONTAINER" 2>/dev/null || true)
-if [ "$CONTAINER_IMAGE_ID" != "$LATEST_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
+if [ "$CONTAINER_IMAGE_ID" != "$SCANNER_IMAGE_ID" ] || [ "$CONTAINER_STATUS" != "running" ]; then
   [ -n "$CONTAINER_STATUS" ] && docker rm -f "$SCANNER_CONTAINER" >/dev/null
   docker run -d --name "$SCANNER_CONTAINER" --network host \
     --label "$PROJECT_LABEL" \
     -v "${MAVEN_CACHE_VOLUME:-maven-cache}:/root/.m2" -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" \
-    sonarsource/sonar-scanner-cli:latest sleep 86400 >/dev/null
+    "$SCANNER_IMAGE" sleep 86400 >/dev/null
 fi
 # --user root: the sonar-scanner-cli image runs as a non-root user (scanner-cli, uid 1000) by
 # default, and the /reports volume mount is root-owned -- confirmed directly that a plain

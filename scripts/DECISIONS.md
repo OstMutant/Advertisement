@@ -73,7 +73,8 @@ replacement local S3-compatible storage backend for `scripts/deploy-and-run/`'s 
 `scripts/ci/dagu/ci.yaml`'s isolated e2e stack.
 
 **Decision:** Replaced MinIO with SeaweedFS (`chrislusf/seaweedfs` image) — Apache 2.0 licensed,
-actively maintained (36+ committers/12mo, 35.3k stars). `weed server -s3` runs
+actively maintained (36+ committers/12mo, 35.3k stars). The image is pinned to an explicit
+version tag, bumped on purpose, not left on `latest`. `weed server -s3` runs
 master+volume+filer+S3-gateway as one process; `s3.json` identities (admin write + anonymous
 bucket-scoped read) generated inline at container startup from `.env`-sourced credentials, passed
 as real container environment variables (not embedded in the generating shell string, to avoid

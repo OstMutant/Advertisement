@@ -65,7 +65,7 @@ that orchestrator.
 ### Vaadin-specific notes
 - Locators: role, label and visible text first (`getByRole`, `getByLabel`, `getByText`), `getByTestId('<kebab-i18n-key>')` for `Ui*` form fields, raw CSS only for elements with no role or name (containers, cards, feed rows). Vaadin uses Shadow DOM, which these locators pierce; fill through the inner `input`/`textarea` (`getByPlaceholder(...)` on a Vaadin field also matches the host, so add `.locator('input')`). The lint run counts what is left raw and fails when `PW_LINT_MAX_WARNINGS` in the repo-root `.env` is exceeded.
 - Overlays/dialogs have class `.advertisement-overlay` — scope selectors inside it to avoid hitting main page buttons
-- Playwright version must match image: `playwright@1.61.1` + `mcr.microsoft.com/playwright:v1.61.1-jammy`
+- Playwright version must match image: `playwright@1.65.0` + `mcr.microsoft.com/playwright:v1.65.0-jammy`
 - `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
 - Never use `page.waitForTimeout()` to wait for animations or dialog rendering — fixed timeouts are fragile and slow. Wait on the relevant Vaadin state attribute instead (e.g. `vaadin-confirm-dialog-overlay[opened]` with `state: 'attached'` for confirm dialogs; the equivalent attribute for other overlays).
 - When asserting timeline/activity rows, verify actual displayed content (actor name, entity title, diff text) — CSS class presence alone is not enough to confirm the *right* data rendered.

@@ -529,7 +529,7 @@ with `--unit`/`--no-unit` and `--integration`/`--no-integration` set accordingly
 
 ---
 
-## ADR-009: `progress.txt` polling replaced by a persistent Dagu server; three problems only found by running it for real
+## ADR-009: `progress.txt` polling replaced by a persistent Dagu server; problems only found by running it for real
 
 **Status:** Accepted -- the stage graph statement is revised by ADR-016
 
@@ -564,11 +564,11 @@ rebuilds).
 
 **Three problems only surfaced by actually running it, not by reading Dagu's docs:**
 1. **`dagu start <name>` resolves against `$DAGU_HOME/dags`, not the `--dags` directory the server
-   was started with.** `dagu start-all --dags scripts/ci/dagu` makes the web UI/scheduler watch
-   that directory, but a *separate* `dagu start ci` CLI invocation (used to trigger a run) looks
-   for a DAG named `ci` under `$DAGU_HOME/dags` instead — confirmed directly (`Error: failed to
-   load DAG from ci: ... no such file or directory`). Fixed by triggering via the DAG's file path
-   (`dagu start scripts/ci/dagu/ci.yaml -- ...`) instead of its bare name.
+   was started with.** `dagu start-all --dags <dir>` makes the web UI/scheduler watch that
+   directory, but a *separate* `dagu start ci` CLI invocation (used to trigger a run) looks for a
+   DAG named `ci` under `$DAGU_HOME/dags` instead — confirmed directly (`Error: failed to load DAG
+   from ci: ... no such file or directory`). Fixed by triggering via the DAG's file path
+   (`dagu start <dir>/ci.yaml -- ...`) instead of its bare name.
 2. **Each step runs in an isolated `DAG_RUN_WORK_DIR` by default, not the process's own cwd.**
    `bash scripts/build-and-test.sh` inside a step failed with `No such file or directory` even
    though the server itself was launched from `/app` (the image's `WORKDIR`) — Dagu's own docs
@@ -603,6 +603,14 @@ container's real `ENTRYPOINT` now) — it downloads each binary only if missing 
 never re-triggers these downloads regardless of what else invalidated the image's layer cache.
 `scripts/ci/run.sh --refresh-tools` forces a re-download of all three regardless of cache state
 (e.g. after bumping `DAGU_VERSION`).
+
+**A fifth problem, found when Dagu moved to 2.26: the watched DAG directory must live outside `/app`.** `run.sh` wipes and re-extracts `/app`
+before every run; Dagu 2.26's scheduler stops with `failed to watch directory ... no such file
+or directory` when its watched directory disappears, which ends the container mid-sync (Dagu
+2.16 did not). `DAGU_DAGS_DIR` (`/dagu-dags`, set in the Dockerfile) holds a copy of `ci.yaml`:
+the entrypoint creates it at container start, `run.sh` refreshes it after every sync, and the
+run starts from that path. The steps still run in `/app` (`working_dir`) and call
+`scripts/ci/dagu/pipeline-metrics.py` from there.
 
 **Consequences:**
 - `scripts/ci/run.sh` no longer produces a `scripts/ci/reports/<timestamp>/` tree at all — Dagu's

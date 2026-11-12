@@ -115,7 +115,7 @@ DB_NAME="${DB_NAME:-experiments}"
 
 # Playwright version must match image (see /app/.claude/rules/playwright.md) -- one place to bump both
 # instead of two independent literals in the same file.
-PLAYWRIGHT_VERSION="1.61.1"
+PLAYWRIGHT_VERSION="1.65.0"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
 # ── Reuse pw-runner if already running, otherwise start it ───────────────────

@@ -60,13 +60,8 @@ declare -A SCRIPT_TREE_ROOT_CATEGORY=(
 )
 SCRIPT_TREE_ROOTS=(scripts playwright .claude)
 
-# Directories that never become their own card/tree node even though they sit inside a
-# SCRIPT_TREE_ROOTS subtree -- generated/report output, never source. "wiki" is Dagu's own
-# runtime-created documentation folder (see `dagu config`'s "Wiki directory"), written directly
-# into whatever directory Dagu was started with `--dags` pointed at -- not part of the real source
-# tree, confirmed by its absence outside a running ci-runner container. "worktrees" holds active
-# git worktree checkouts -- full copies of the repo tree, not source of their own.
-SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules wiki worktrees)
+# Generated/report output and git worktree checkouts (full copies of the repo tree) never become their own card/tree node.
+SCRIPT_TREE_EXCLUDE_DIRS=(reports pw-report report logs node_modules worktrees)
 
 # Directories whose real subdirectories are never recursed into, even though they exist on disk --
 # .claude/skills/<name>/ is never a folder-card of its own: each skill's own SKILL.md is already

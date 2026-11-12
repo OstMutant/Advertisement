@@ -40,7 +40,7 @@ flowchart TD
     H -->|no| F
     H -->|yes| S
     G --> S[wipe ci-runner:/app, re-extract git ls-files set]
-    S --> R{a ci DAG run already active?}
+    S --> S2[copy ci.yaml into the Dagu DAG directory outside /app] --> R{a ci DAG run already active?}
     R -->|yes| Z7[exit 1, refuse to start]
     R -->|no| I[dagu start ci.yaml -- params]
     I --> J{--foreground?}

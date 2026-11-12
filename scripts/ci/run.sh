@@ -6,8 +6,9 @@
 #   (Docker-outside-of-Docker: docker.sock mounted, so it can create/tear down its own isolated ci-* sibling
 #   containers) plus its ci-runner-dagu-proxy sidecar. Every run, before firing the DAG, it
 #   streams the current working tree into the container's /app via tar -- the image's own
-#   `COPY . .` is not trusted as the source of truth (Docker layer-cache staleness). Then fires a
-#   DAG run (scripts/ci/dagu/ci.yaml) with the requested params. Dagu replaces the orchestration/
+#   `COPY . .` is not trusted as the source of truth (Docker layer-cache staleness), copies ci.yaml
+#   into the Dagu DAG directory outside /app (the sync wipes /app), and then fires a DAG run
+#   (scripts/ci/dagu/ci.yaml) with the requested params. Dagu replaces the orchestration/
 #   UI layer only -- every DAG step calls the exact same scripts this project's other tools
 #   already use (build-and-test.sh, deploy-and-run.sh, playwright/run.sh, sonar.sh).
 # Usage: bash scripts/ci/run.sh [flags]
@@ -64,7 +65,8 @@
 #                                        --foreground; needed manually after a background run, or
 #                                        after triggering a run directly from Dagu's own web UI)
 # Uses: bash, docker, curl, scripts/utils/agentic-output.sh
-#   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh, python3
+#   (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
+#   scripts/utils/session-id.sh, scripts/utils/sync-source.sh, python3
 #   (--foreground only -- scripts/ci/dagu-rest-run-monitor.py polls the run and emits its own real
 #   per-step markers).
 # Env: None read directly -- every flag above is translated into either a container-start env var
@@ -508,6 +510,10 @@ if ! sync_source_into "$CONTAINER"; then
 fi
 emit_agentic_success_block "sync-source"
 
+# The DAG file lives outside /app, so the freshly synced copy is placed there after every sync.
+DAG_DIR="$(docker exec "$CONTAINER" printenv DAGU_DAGS_DIR)"
+docker exec "$CONTAINER" cp /app/scripts/ci/dagu/ci.yaml "$DAG_DIR/ci.yaml"
+
 # Assign this run's id ourselves (`dagu start -r <id>`) so the monitor watches exactly this run,
 # never a guess from the API. Timestamp + pid + a random tail -- unique by construction.
 DAGU_RUN_ID="ci-$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
@@ -533,10 +539,8 @@ DAGU_PARAMS=(
 echo ""
 echo "=== Triggering ci DAG run (${DAGU_PARAMS[*]}) ==="
 
-# A bare DAG name (`dagu start ci`) resolves against $DAGU_HOME/dags, not the --dags directory
-# start-all was launched with -- confirmed directly, not assumed. The file path resolves correctly
-# instead, relative to the image's WORKDIR (/app).
-DAG_FILE=scripts/ci/dagu/ci.yaml
+# A bare DAG name resolves against $DAGU_HOME/dags, not the --dags directory, so the run starts from the file path.
+DAG_FILE="$DAG_DIR/ci.yaml"
 
 # Refuse to start a second run while one is genuinely alive. The e2e stage's ci-* stack
 # (ci-advertisement-db / ci-marketplace-app / ...) has fixed, non-per-run container names, so a

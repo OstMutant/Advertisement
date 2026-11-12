@@ -38,12 +38,12 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
-#   scripts/utils/session-id.sh, scripts/utils/project-label.sh.
+#   scripts/utils/session-id.sh, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh (docker_pull_retry).
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
 #   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081), DB_VOLUME
 #   (advertisement_postgres_data), SEAWEEDFS_VOLUME (advertisement_seaweedfs_data), APP_JAR_VOLUME
-#   (<APP_CONTAINER>-jar), SEAWEEDFS_IMAGE (chrislusf/seaweedfs:latest) -- all overridable,
+#   (<APP_CONTAINER>-jar), SEAWEEDFS_IMAGE (chrislusf/seaweedfs:4.53) -- all overridable,
 #   used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack. DB_NAME/DB_USER/DB_PASSWORD/
 #   S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET/S3_REGION fall back to the repo-root .env, then a
 #   hardcoded default. POSTGRES_IMAGE has no default: it comes from the environment or the repo-root
@@ -77,6 +77,7 @@ LOG=/tmp/deploy.log
 
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/project-label.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 
 # Load the repo-root .env defaults into ENV_*-prefixed vars (not exported), so an already-exported override is never clobbered.
 if [ -f "$ROOT/.env" ]; then
@@ -95,7 +96,7 @@ APP_IMAGE="${APP_IMAGE:-marketplace-app}"
 DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"
 SEAWEEDFS_PORT="${SEAWEEDFS_PORT:-${ENV_S3_PORT:-9000}}"
 SEAWEEDFS_CONSOLE_PORT="${SEAWEEDFS_CONSOLE_PORT:-9333}"
-SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:latest}"
+SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:4.53}"
 APP_PORT="${APP_PORT:-8081}"
 DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
 POSTGRES_IMAGE="${POSTGRES_IMAGE:-${ENV_POSTGRES_IMAGE:?POSTGRES_IMAGE is set neither in the environment nor in the repo-root .env}}"
@@ -151,7 +152,7 @@ pull_if_missing() {
   local image="$1"
   if ! docker image inspect "$image" >/dev/null 2>&1; then
     echo "Pulling $image..."
-    docker pull "$image"
+    docker_pull_retry docker pull "$image"
   else
     echo "Image $image already present."
   fi

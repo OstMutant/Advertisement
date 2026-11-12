@@ -29,7 +29,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HTML="$REPO_ROOT/docs/architecture/architecture-map.html"
 OUT_DIR="$REPO_ROOT/docs/architecture/scripts/architecture-map-screenshots"
 CONTAINER="arch-map-shot"
-PLAYWRIGHT_VERSION="1.61.1"
+PLAYWRIGHT_VERSION="1.65.0"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
 [ -f "$HTML" ] || { echo "ERROR: $HTML does not exist -- run generate-architecture-model.sh first."; exit 1; }
