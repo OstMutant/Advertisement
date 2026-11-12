@@ -21,23 +21,30 @@ elsewhere; never touch a file outside the given path; never write a file without
 2. **Goal.** Before anything else the goal must be written exactly: what the instructions must achieve
    and what the shortening is for. The user states it or confirms the wording you propose; with a task id
    the goal goes into that task under `## Tighten goal`. Without a confirmed goal the run does not go on.
-3. **Research.** For each kind of structure in the scope, for the stated goal, follow `/deep-research`
+3. **Research and audit.** For each kind of structure in the scope, for the stated goal, follow `/deep-research`
    (topic `tighten-ai-<kind>`; when the topic exists, show its status instead of starting over). The research
    concentrates on Claude's own practices for that kind of structure, found on the web in Anthropic's
    documentation and other primary sources, with links. The best practices from its plan, with the checklist
    below, are the standard the rewrite is judged against. Asking before removing the topic
    folder is `/deep-research`'s own rule.
+   Audit the scope with `claude -p "/doctor prompt-audit <path>" --model sonnet --permission-mode dontAsk --output-format json`
+   (Claude Code v2.1.283 or later; it reports outdated, dead and conflicting instructions and proposes a diff,
+   it applies nothing). Save the report outside the repository, in the session scratch folder. Check every
+   finding against the code or the files it names; a finding that cannot be checked is reported as
+   unverified. The verified findings are inputs of the proposals of step 4.
 4. **Proposal, per file.** Read the whole file, then write: the new text; lines and characters before and
    after; a coverage table with every requirement of the old text and the line of the new text that keeps it;
-   what changed into what; the benefit against the goal. Show it on screen and, with a task id, write it
-   into the task.
+   what changed into what; the benefit against the goal; every fact corrected because of an audit finding or
+   the code, listed as a changed fact with its evidence, never as a silent edit. Show it on screen and, with a
+   task id, write it into the task.
 5. **Check.** Dispatch a read-only agent (`model: "sonnet"`) with the old text, the new text and the
    coverage table; it reports every requirement that is lost, weakened or changed. A finding is fixed in the
    proposal before it is shown for approval.
 6. **Apply.** Per `.claude/rules.md` Approval Rule, ask whether to write this file, and only after a direct
    yes write it and `git add` it; stop after each file.
-7. **Summary.** At the end show on screen, and with a task id write into the task: the files, the totals
-   before and after, what changed into what, the benefit against the goal, and what was left unchanged.
+7. **Summary.** After the last file run the audit of step 3 again. At the end show on screen, and with a task
+   id write into the task: the files, the totals before and after, what changed into what, the benefit against
+   the goal, the audit findings before and after, and what was left unchanged.
 
 ## Checklist
 

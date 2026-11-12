@@ -449,6 +449,7 @@ When a task in `backlog/tasks/` is resolved (fix is implemented and committed):
 - Move the file to `backlog/completed/tasks/` — **immediately, in the same operation as the fix**
 - Add 1 to `**Applied:**` in every ADR listed in its `adrs_referenced` that the task did not itself
   create (see "Final reports record real operational data"), then regenerate `.claude/nav/adr-index.md`
+- Add each count of the task's `### Commands used` to the Uses and Failed cells of that command in `.claude/commands/README.md` (see `.claude/rules/backlog-tasks.md`)
 - Do not leave resolved tasks in `backlog/tasks/`
 - Remove its row from `backlog/BACKLOG.md` and add a one-line `✅ Done` entry to
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see

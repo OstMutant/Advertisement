@@ -37,6 +37,10 @@ Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply 
 - <script + args> | duration_s=<N> | mode=<foreground|background> | result=<pass|fail|n/a>
 (one line per scripts/*.sh invocation this task made; omit the whole subsection, not empty, if none)
 
+### Commands used
+- <command> | uses=<N> | failed=<N> | note=<one line: where it helped or failed, or n/a>
+(one line per slash command, project or built-in, run on this task's work, with how many times, how many runs failed (errored, were blocked or gave nothing usable) and a one-line note; omit the whole subsection, not empty, if none)
+
 ### Review angle yield
 - <finder angle name> | survived=<N> | total_candidates=<N> | tokens=<N>
 (one line per finder angle from that /code-review run — this is what review_signal_ratio's
@@ -82,6 +86,8 @@ collects that line into an `Applied` column on the generated index (blank when a
 signal that ADR is a candidate for lower-priority upkeep (not automatic deletion — some decisions
 are rarely touched specifically because they're settled), while a high count marks one worth
 keeping especially precise and current.
+
+**`Commands used`** feeds the **Uses** column of the command tables in [`.claude/commands/README.md`](.claude/commands/README.md): when a task is closed, whoever closes it adds each count of the task's `### Commands used` to the Uses cell of that command, the same way `Applied` is added for ADRs. The counts are real observations of this task's work, not estimates. `failed` is added to the **Failed** cell the same way, and a note that teaches something new about a command is merged into its Good for / Not so good for cells. The fixed key=value form keeps the lines aggregable by the audit step of `/sync-docs`.
 
 **Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
 task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use

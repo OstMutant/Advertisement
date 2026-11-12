@@ -57,6 +57,8 @@ groups with different freshness guarantees — see "Staying correct" at the bott
 | Run a prompt/command repeatedly on an interval | `loop` skill | In-session recurring execution (e.g. poll a deploy every 5 min) — for a persistent cron-style schedule instead, see `schedule` below. |
 | Recurring cloud agent on an actual cron schedule | `schedule` skill | Persists across sessions, unlike `loop`. |
 
+Descriptions of the built-in commands that help with instructions, and what each has delivered here: [`../commands/README.md`](../commands/README.md).
+
 See [context-loading.md](context-loading.md) for *what to read* once you know *what to run* —
 the two are complementary, not overlapping.
 

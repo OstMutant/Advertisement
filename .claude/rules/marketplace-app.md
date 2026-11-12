@@ -307,7 +307,7 @@ Translation keys — single consolidated enum:
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
 - `*Config` — Spring `@Configuration` class. Infrastructure-level configs live in `config/`. Feature-scoped factory configs stay next to the components they configure.
 
-→ SPI interface naming (`*Port`, `*Hook`): @platform-commons/CLAUDE.md
+→ SPI interface naming (`*Port`, `*Hook`): `.claude/rules/platform-commons.md`
 
 ### Package structure
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/`, `config/seo/` for sub-domains)

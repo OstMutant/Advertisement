@@ -98,6 +98,7 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 | Priority | Tier | Tasks (in execution order) | One pass = |
 |---|---|---|---|
+| Top | 🟡 | 254 | improvement-254 — three small review defects: the moderation queue returns every item when an author filter is set and the user starter is absent, the audit index comment credits it with an unmeasured timeline benefit, the feedback remarks promise exclusivity the two unique constraints do not give |
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
 | Nice to have | — | 133 | everything else — no internal priority order, pick up opportunistically |
 | Nice to have | — | 223 | improvement-223 — a running collection of improvement ideas (not defects, not review findings); an entry is picked up only when the user takes it |
@@ -110,10 +111,11 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 
 Details, links, and per-batch rationale below.
 
-### Top priority — improvement-248
+### Top priority — improvement-254, improvement-248
 
 | Task | Origin | What |
 |---|---|---|
+| [improvement-254](tasks/improvement-254-review-findings-moderation-author-filter-and-remarks.md) | New (a review of recent changes, the user asked for a task at the very top, 2026-11-12) | The moderation queue is not filtered by author when the optional user port is absent (list and count), the index `idx_audit_created_at` is measured with `EXPLAIN (ANALYZE, BUFFERS)` before its comment claims a timeline benefit, and the feedback remarks say what the unique constraints guarantee; a fourth review finding, new changesets instead of in-place edits, does not apply under the project's recorded policy |
 | [improvement-248](tasks/improvement-248-ai-instructions-tighten-and-doc-sync-remaining.md) | New (split from improvement-240 when it was closed, the user asked for it right after improvement-242, 2026-11-09) | The research pair and the analysts tightened, five multi-line comments in two test classes and the multi-line comments of the map generator, a full documentation sync, `/tighten-ai` on the rest |
 
 ### Nice to have — no internal priority order

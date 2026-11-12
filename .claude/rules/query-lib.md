@@ -46,8 +46,7 @@ a typo or a DTO field rename would silently drop that sort option with no compil
 bindings off a `*FilterDto` and a `SortField` list off the corresponding `*InfoDto`/entity — both
 commonly share names like `title`/`createdAt`).
 
-It is used by every current repository (`AdvertisementRepository`, `ProviderProfileRepository`,
-`TaxonRepository`, `UserRepository`, `AuditLogRepository`) so paginated results stay deterministic even
+It is used by every repository with a sortable list, so paginated results stay deterministic even
 when rows tie on the caller's own sort field. Each `SortField.of(...)` entry pairs a `Fields.*` property
 with its SQL expression, same typed-constant rule as above; a
 field prone to ties (`createdAt`/`updatedAt`) additionally names a nested `SortField` tiebreaker

@@ -22,7 +22,7 @@ filter resolution — it does not clear or write taxon assignments, does not enr
 (category/city names, author name/email, media summary), and does not cascade-clean attachments on
 delete. All of that cross-domain composition lives in `marketplace-orchestrator`'s
 `AdvertisementSaveService`/`AdvertisementDisplayEnrichmentService` — see
-`marketplace-orchestrator/CLAUDE.md`.
+`.claude/rules/marketplace-orchestrator.md`.
 
 **Autoconfiguration entry point:** `AdvertisementAutoConfiguration`
 

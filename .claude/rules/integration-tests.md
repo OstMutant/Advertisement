@@ -11,7 +11,7 @@ the actual test classes themselves.
 
 Java package root: `org.ost.integrationtests`
 
-**Level structure (2026-09-04), one top-level package per level so the package itself signals which layer a test exercises:**
+**Level structure, one top-level package per level so the package itself signals which layer a test exercises:**
 - **Level 1** — `org.ost.integrationtests.level1.<domain>` (e.g. `.advertisement`, `.user`) —
   repository tests against a single domain starter, the module's original and still primary
   purpose. See "What it owns" below for the shared scaffolding every Level 1 test uses.
@@ -43,7 +43,7 @@ rule protects.
 
 ---
 
-## Architecture decision: why this module exists (2026-07-14)
+## Architecture decision: why this module exists
 
 **Domain starters (`advertisement-spring-boot-starter`, `user-spring-boot-starter`, etc.) must
 stay 100% free of test code for this purpose — no `src/test/java` additions to them, ever, for
@@ -67,7 +67,7 @@ and holds a real actor id, with no foreign key) would otherwise force each start
 either (a) depend on `user-spring-boot-starter` itself (a real, if test-scoped, starter-to-starter
 coupling that ArchUnit/Enforcer would eventually need to special-case), or
 (b) reinvent its own fixture/stub logic independently, duplicating it across every starter that
-needs a test actor row (advertisement, and later audit/attachment/taxon in Batch 3). Centralizing
+needs a test actor row (advertisement, audit, attachment, taxon). Centralizing
 in `integration-tests` gives one canonical fixture, reused everywhere, with zero coupling leaking
 into any domain starter's own dependency graph.
 
@@ -108,12 +108,9 @@ would mask real cross-module schema-compatibility regressions that a test agains
 
 ---
 
-## Reusable test support (steps/blocks) (2026-07-14)
+## Reusable test support (steps/blocks)
 
-Extracted after `AdvertisementRepositoryTest` (Batch 1) proved the pattern — the same boilerplate
-was about to be re-typed verbatim in every future `*RepositoryTest` (Batch 3:
-`AuditLogRepositoryTest`, `TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest`). Mirrors the
-Playwright convention: extract to a shared file only once two or more consumers need the same
+Mirrors the Playwright convention: extract to a shared file only once two or more consumers need the same
 helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
@@ -176,25 +173,24 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
 
 ## Key constraints
 
-- Requires a reachable Docker daemon at test time — see `scripts/CLAUDE.md` "Unit / Testcontainers
-  Tests" for the Docker-in-Docker constraint (never runs inside `deploy-and-run.sh`'s image build,
+- Requires a reachable Docker daemon at test time — see `.claude/rules/scripts.md` "Why `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED` are needed"
+  for the Docker-in-Docker constraint (never runs inside `deploy-and-run.sh`'s image build,
   only via a direct `mvn test`).
 - The Postgres image tag is sourced from the repo-root `.env` (`POSTGRES_IMAGE`), the same value
   `scripts/deploy-and-run/docker-compose.db.yml` reads natively — no hardcoded duplication, though the two
   are never the same running container (Testcontainers always starts its own ephemeral instance,
-  never reuses the persistent dev one). `deploy-and-run.sh`'s own `docker pull`/`docker run` for
-  Postgres still hardcode the tag separately — out of scope here.
+  never reuses the persistent dev one).
 - Data isolation across `*RepositoryTest` classes sharing the one physical container: each
   applies its own starter's real Liquibase changelog against the shared container/database:
   Postgres allows multiple independent tables per database, so distinct starters' schemas
   coexist without collision as long as table names don't clash (they don't, today).
-- `PostgresContainerSmokeTest` (Batch 0) proves only the container-starts +
+- `PostgresContainerSmokeTest` proves only the container-starts +
   changelog-applies mechanics, using the plain `liquibase.Liquibase` API directly — not
   `@SpringBootTest`, since it only needs the container and Liquibase, not a Spring context.
 - `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED` env vars: sandbox-only
   workarounds for this specific claude-dev environment's Docker networking limitations (dynamic
   Testcontainers ports aren't reachable here, only statically-published ones). Unset on a normal
-  developer machine — Testcontainers' defaults just work there. See `scripts/CLAUDE.md`.
+  developer machine — Testcontainers' defaults just work there. See `.claude/rules/scripts.md`.
 - **`run.sh` auto-detects staleness for every real dependency — no manual flag needed.**
   `integration-tests` depends on every `org.ost` module listed in its own `pom.xml`
   `<dependency>` entries (`platform-commons`, every domain starter, `marketplace-orchestrator`,

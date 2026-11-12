@@ -58,7 +58,7 @@ that an unrelated directory elsewhere in the repo sharing the same path segment 
 unintended load.
 
 A full mechanical sweep (`bash .claude/nav/scripts/check-rule-path-globs.sh`) confirmed this isn't
-an isolated case — 11 of the 19 rule files here have at least one unintended match today:
+an isolated case — several rule files here have at least one unintended match today:
 `scripts.md` also matches `.claude/nav/scripts/` (a second, previously-undocumented instance,
 alongside the `docs/architecture/scripts/` one above); `attachment-spring-boot-starter.md`,
 `html-sanitizer-lib.md`, `integration-tests.md`, `marketplace-app.md`, `marketplace-mcp.md`,
