@@ -449,6 +449,10 @@ The changelogs are edited in place with `validCheckSum ANY`, so a database creat
 - Still in the always-loaded `.claude/rules.md`: the Scripts section and 12 warning-sign rules that have a file trigger; moving them is not worth it while a rule file is not loaded on a `Write`.
 - Not run: whether the compiler plugin ignores `source/target` once `release` is set (`mvn -X compile`), and `mvn dependency:analyze` for undeclared dependencies.
 
+### 47. The first attempt of the e2e setup test still fails now and then, and the retry hides it (found while closing entry 14/42/43, 2026-11-12)
+
+In full CI runs the first attempt of `adminEn signs up` (`playwright/e2e/global.setup.js`) sometimes fails at its first click: the `Sign Up` button is not there within the 10 s action timeout; the retry passes, so the run is green with "1 flaky". The run history shows it since at least 30 Oct, and in about half of the runs. Not reproducible by hand: 9 of 9 first attempts passed on a cold app with an empty database, idle, with 4 busy cores (load average 7), and under memory, disk and CPU pressure together. Excluded by measurement: bundle size, service worker, tracing, cold JVM, empty database, the Basic-auth probe, the external font. A trace of a failed attempt shows the page still in its loading state while the first UIDL request has no answer, and no error in the application log. Next step if it matters: sample CPU, memory and disk of the containers during the first two minutes of the e2e stage, so the next failure comes with data. An earlier investigation of this was confounded by a broken theme stylesheet (fixed).
+
 ## Operational notes
 - token_cost_review: n/a
 - token_cost_research: n/a

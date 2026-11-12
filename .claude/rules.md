@@ -485,7 +485,8 @@ always specify a level explicitly for a given run; when they haven't, choose a l
 default only when it is obviously justified by the change's own size/risk (e.g. a one-line typo
 fix vs. a cross-module architectural rewrite), never as a routine cost-saving move. Whichever level
 actually ran — default or deviated — state it plainly in the report every time; a silent choice is
-not acceptable even when the choice itself was reasonable.
+not acceptable even when the choice itself was reasonable. A change to what the user sees (theme
+CSS, page templates) is never judged low-risk by the size of its diff alone.
 
 ## Definition of Done
 A feature or fix is not complete until all of the following hold:
@@ -565,6 +566,11 @@ complaint about design (coupling, clutter, an abstraction that "looks" unnecessa
 proposal, measure the real data first (actual callers via grep, actual diff, actual counts) rather
 than proposing from assumption — then present multiple concrete options with trade-offs, not a
 single predetermined solution, and let the choice be made from there.
+
+**A test that fails after a change is the change's fault until the same test passes without it.**
+When a test fails after a change that can affect what the test exercises, treat the change as the
+cause and rule it out by running that test on the state before the change; an earlier flaky history
+of the same test is not evidence that this failure is the same one.
 
 **No workarounds — fix the root cause.** Never propose a workaround, hack, or band-aid that masks
 a symptom instead of addressing why it happens, even when the workaround looks reasonable on the
