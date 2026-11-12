@@ -15,12 +15,12 @@ Versions in the project against the latest stable one found (release candidates 
 | Vaadin | 25.3.5 (batch A done) | 25.3.5 | 25.3.5 notes: maintenance release |
 | JaCoCo | 0.8.16 (batch A done) | 0.8.16 | notes read: official Java 27 support, ASM 9.11.1 |
 | Liquibase pin in the root `pom.xml` | removed (batch A done), managed by Boot as 5.0.4 | 5.0.4 | Boot 4.1.2 manages the same version, so the pin becomes redundant |
-| springdoc-openapi | 3.1.1 | 3.2.0 | notes read: built on Spring Boot 4.1.2; `PagedModel`/`PageMetadata` properties now required in the generated schema, Scalar 0.6, default API version handling changed |
-| jsoup | 1.23.2 | 1.24.1 | notes read: HTML parsing aligned with the current HTML standard (tables, formatting elements, templates); opt-in selector "Web mode", which becomes the default in 1.25.1 |
-| ArchUnit | 1.4.2 | 1.5.1 | notes read: Java 27 class files, caught exceptions count as dependencies (can add rule findings) |
-| Tika core | 4.0.0 | 4.2.0 | change log read: most breaking items concern tika-server, pipes and parsers; `DefaultDetector` no longer lets a more specific magic result overrule it, which can change the detected content type; the only user is `AttachmentContentTypeValidator` |
-| maven-compiler-plugin | 3.14.0 | 3.16.0 | versions only |
-| maven-enforcer-plugin | 3.6.3 | 3.7.0 | versions only |
+| springdoc-openapi | 3.2.0 (springdoc 3.2.0 done) | 3.2.0 | notes read: built on Spring Boot 4.1.2; `PagedModel`/`PageMetadata` properties now required in the generated schema, Scalar 0.6, default API version handling changed |
+| jsoup | 1.24.1 (batch B done) | 1.24.1 | notes read: HTML parsing aligned with the current HTML standard (tables, formatting elements, templates); opt-in selector "Web mode", which becomes the default in 1.25.1 |
+| ArchUnit | 1.5.1 (batch B done) | 1.5.1 | notes read: Java 27 class files, caught exceptions count as dependencies (can add rule findings) |
+| Tika core | 4.2.0 (batch B done) | 4.2.0 | change log read: most breaking items concern tika-server, pipes and parsers; `DefaultDetector` no longer lets a more specific magic result overrule it, which can change the detected content type; the only user is `AttachmentContentTypeValidator` |
+| maven-compiler-plugin | 3.16.0 (batch B done) | 3.16.0 | versions only |
+| maven-enforcer-plugin | 3.7.0 (batch B done) | 3.7.0 | versions only |
 | Maven wrapper | 3.9.16 (batch A done) | 3.9.16 (3.10.0 also exists) | versions only |
 | Playwright | 1.61.1 | 1.65.0, image `mcr.microsoft.com/playwright:v1.65.0-jammy` exists | notes read: Node 20 dropped, cookie matching follows RFC 6265, proxy credentials no longer sent to sites, text the browser does not render leaves aria snapshots |
 | PostgreSQL image | `postgres:18-alpine` (floating) | 18.6-alpine | tag exists; a `docker pull` is enough |
@@ -53,6 +53,8 @@ Three batches, each a separate commit, each followed by `bash scripts/build-and-
 1. **A — patches (safe).** Spring Boot 4.1.2; Vaadin 25.3.5; JaCoCo 0.8.16; remove the now redundant Liquibase pin; Maven wrapper 3.9.16; `docker pull` of `postgres:18-alpine` (18.6) and a rebuild of the Temurin 25 images.
    Done 2026-11-12: `pom.xml` and `.mvn/wrapper/maven-wrapper.properties` changed as listed (the Docker image pulls of the floating tags were not part of it). `build-and-test.sh --unit --integration --sandbox` passed (695 unit tests, 995 integration tests, 0 failures) and the full local CI passed (all stages; e2e 68 passed with the known flaky first attempt of the setup test). The built jar holds Spring Boot 4.1.2, liquibase-core 5.0.4, Tomcat 11.0.27, PostgreSQL driver 42.7.14, Vaadin 25.3.5 (Flow 25.3.7), springdoc 3.1.1 and Spring AI 2.0.2 unchanged.
 2. **B — minors with the changelog read first.** In this order: springdoc 3.2.0 (needs batch A; compare the generated OpenAPI document before and after, and look at `docs/api-collections`, because `PagedModel` properties become required); jsoup 1.24.1 (before it, pin the current sanitizer output with tests in `html-sanitizer-lib`, then run `jsoup.queryMode=check` to see which selectors would change under the Web mode of 1.25.1; users of jsoup are `HtmlSanitizer`, `OgMetaRequestListener`, `HtmlExcerptUtil` and the advertisement and provider-profile form handlers); ArchUnit 1.5.1 (new findings possible); Tika 4.2.0 (before it, pin the content types the current detector returns for the allowed attachment formats with tests in the attachment starter, because the detector ranking changed); maven-compiler-plugin 3.16.0; maven-enforcer-plugin 3.7.0.
+   springdoc 3.2.0 done 2026-11-12: the OpenAPI document before and after has the same 51 paths, the same 45 schemas (none changed) and the same two security schemes; the only difference is the order of the two `oneOf` alternatives (`ValidationErrorResponse`, `ErrorResponse`) in the 400 responses of 69 operations. The full local CI passed. The `PagedModel` and Scalar changes of the release notes do not show up because the project uses neither.
+   Batch B done 2026-11-12: jsoup 1.24.1, ArchUnit 1.5.1, Tika core 4.2.0, maven-compiler-plugin 3.16.0 and maven-enforcer-plugin 3.7.0 are in `pom.xml` next to springdoc 3.2.0. Before jsoup, `VisibleTextLengthTest` in `html-sanitizer-lib` pinned the visible-text length of 17 markup shapes; it passes unchanged on 1.23.2 and 1.24.1. The only jsoup calls are `Jsoup.parse(html).text()` (no selectors), so the 1.25.1 Web mode does not touch the project. The attachment content-type tests already cover the Tika detector for the allowed formats and stayed green on 4.2.0. `build-and-test.sh --unit --integration --sandbox` passed (735 unit tests, 995 integration tests, 0 failures) and the full local CI passed (all stages; e2e 68 passed with the known flaky first attempt of the setup test).
 3. **C — test infrastructure.** Playwright 1.65.0 together with the image `v1.65.0-jammy` and the `PLAYWRIGHT_VERSION` in `playwright/run.sh` (check specs that use aria snapshots or cookies, and that the image's Node is supported); SonarQube 26.11 first in this batch, because 26.10 and older trust compromised certificate authorities (how much that matters for a local container is not established; expect fewer Java issues, a startup disk check and larger default heaps; a server upgrade can reset its embedded data, see its own decision record), with a pin for `sonar-scanner-cli`; a pin for SeaweedFS instead of `latest`; Dagu 2.16.3 to 2.26.0 as its own step, after checking `ci.yaml` for credential variables that would stop reaching the steps. Whether to pin floating image tags at all is a decision for `/record-decision`; the choice made there decides which of these pins stay.
 
 ## Related
@@ -74,13 +76,19 @@ Three batches, each a separate commit, each followed by `bash scripts/build-and-
 - flows_chosen: build-and-test.sh, then ci.sh
 - flows_matched: yes
 - haiku_decomposition_used: yes
-- haiku_decomposition_dispatch_count: 1
-- haiku_decomposition_rework_needed: 0 / 1
+- haiku_decomposition_dispatch_count: 4
+- haiku_decomposition_rework_needed: 0 / 4
 - adrs_referenced: none
 
 ### Agent calls
+- the exact version edits of batch B, first dispatch | subagent_type=general-purpose (haiku) | tokens=66413 | mode=background | batch=solo
+- the exact version edits of batch B, second dispatch | subagent_type=general-purpose (haiku) | tokens=67671 | mode=background | batch=solo
+- the one-line springdoc version edit | subagent_type=general-purpose (haiku) | tokens=65940 | tool_uses=5 | duration_s=17 | mode=background | batch=solo
 - the five exact version edits of batch A | subagent_type=general-purpose (haiku) | tokens=69799 | tool_uses=11 | duration_s=51 | mode=background | batch=solo
 
 ### Script/command runs
+- scripts/build-and-test.sh --unit --integration --sandbox (batch B) | duration_s=549 | mode=background | result=pass
+- scripts/ci.sh --foreground (batch B) | duration_s=1543 | mode=background | result=pass
+- scripts/ci.sh --foreground (springdoc 3.2.0) | duration_s=1569 | mode=background | result=pass
 - scripts/build-and-test.sh --unit --integration --sandbox | duration_s=584 | mode=background | result=pass
 - scripts/ci.sh --foreground | duration_s=1558 | mode=background | result=pass

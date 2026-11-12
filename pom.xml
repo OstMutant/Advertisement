@@ -47,13 +47,13 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <aws-s3-sdk.version>2.55.13</aws-s3-sdk.version>
         <jetbrains-annotations.version>26.1.0</jetbrains-annotations.version>
-        <jsoup.version>1.23.2</jsoup.version>
-        <archunit.version>1.4.2</archunit.version>
-        <springdoc-openapi.version>3.1.1</springdoc-openapi.version>
+        <jsoup.version>1.24.1</jsoup.version>
+        <archunit.version>1.5.1</archunit.version>
+        <springdoc-openapi.version>3.2.0</springdoc-openapi.version>
         <swagger-annotations.version>2.2.55</swagger-annotations.version>
         <spring-ai.version>2.0.2</spring-ai.version>
         <jacoco.version>0.8.16</jacoco.version>
-        <tika-core.version>4.0.0</tika-core.version>
+        <tika-core.version>4.2.0</tika-core.version>
     </properties>
 
     <dependencyManagement>
@@ -197,7 +197,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.14.0</version>
+                    <version>3.16.0</version>
                     <configuration>
                         <encoding>UTF-8</encoding>
                         <annotationProcessorPaths>
@@ -221,7 +221,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.6.3</version>
+                    <version>3.7.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
