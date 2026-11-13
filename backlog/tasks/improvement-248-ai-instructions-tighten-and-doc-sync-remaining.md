@@ -43,6 +43,13 @@ The files of `.claude/rules/` guide Claude when it reads or edits code of one mo
 
 Constraints: the `<!-- #arch-embed:KEY -->` markers of `platform-commons.md` and the structure the architecture generator reads from each file (line 5, the marked blocks) stay valid so that the generator runs; the text of those lines and blocks may change when the proposal says why, and the map is regenerated once at the end; the `paths:` frontmatter of every file stays unchanged.
 
+
+Run of `/tighten-ai CLAUDE.md task 248`, goal as proposed and accepted by the instruction to follow the command.
+
+The root `CLAUDE.md` is loaded into every session and gives Claude only what is true and mandatory for the whole project: the module overview, the architecture constraints, the coding rules, and where the detailed guidance lives. Claude follows every requirement as well as before or better, and the file takes less context: repetition, history, explanations of what Claude knows, facts that have a home in another file (a reference replaces them) and what Claude can derive from the code are removed. The shortening never changes what an instruction requires.
+
+Constraints: the section titles that other files name (`Architectural Decisions Log`, `Database Changes`, `Architecture Guidelines`, `Module Layout`) stay word for word; the `@.claude/rules.md` import and every item that has no other home are not touched; before a list of classes or the command catalogue is shortened it is checked that each fact really lives in its home.
+
 ### Tighten plan
 
 Final plan, 2026-11-12. Research: `backlog/research/tighten-ai-rules/` (`plan-human.md`, `plan-machine.md`), kept until the run is finished. For every open decision the highest-quality option is the default.
@@ -71,6 +78,36 @@ Groups, in this order:
 Native commands: the built-in Claude Code commands that help with instructions (`/doctor prompt-audit`, `/doctor`, `/context`, `/skill-doctor`, `/skills`, `/memory`, `/compact`, `/insights`) are catalogued in `.claude/commands/README.md` with a column for the benefit each has delivered here; it appears on the map in the AI Tooling card `commands`, as its own section, after the next generator run. Every use of one of them in this task updates its last column; the audit step of `/tighten-ai` uses `/doctor prompt-audit`.
 
 Afterwards: verification of the whole (plan-machine), `/sync-docs` in diff mode, one generator run, the second `/doctor prompt-audit`, the summary in this section; then `/tighten-ai CLAUDE.md task 248` with its own plan. Nothing is committed; the research folder is removed only with the user's explicit approval.
+
+### Pending: measures in /tighten-ai and the audit in /sync-docs
+
+Agreed, not started. Agent: haiku (exact text). Input: `.claude/commands/tighten-ai.md`, `.claude/commands/sync-docs.md`, `.claude/commands/README.md`, `.claude/nav/flows.md`, root `CLAUDE.md`. No third-party text is used, so no source or licence line is needed.
+
+1. `.claude/commands/tighten-ai.md`: in step 4 (Proposal, per file), after "the benefit against the goal", add "the measures before and after (see Before/after measures)". After `## Checklist` add a section `## Before/after measures`: "For each file report, before and after: the number of checklist items satisfied (of 14 for any instruction file, of 20 for a command), the number of names the text gives (path, command, class, section) that do not exist (checked with `ls` and `grep`), and the lines and characters. A rewrite does not lower the satisfied items, does not raise the missing names and lowers the characters; otherwise the proposal says why." No scores, weights or grade bands.
+2. `.claude/commands/sync-docs.md`: in Full Audit Mode, Step A2, add a first-level item: "Prompt audit (`--full-audit`, and `--module` for a module with rules): once over `.claude/rules` and the root `CLAUDE.md`, run `claude -p "/doctor prompt-audit <path>" --model sonnet --permission-mode dontAsk --output-format json`; every finding is a candidate that the other checks of this step verify against the code, and a finding that cannot be verified is reported as unverified." In the Step A6 report template add the line `Prompt audit: <found> found, <verified> verified, <applied> applied, <unverified> unverified`. Diff mode is left out because one run costs about $1.1 per folder.
+3. Mirrors, one clause each: the `/tighten-ai` and `/sync-docs` rows of `.claude/commands/README.md`, the matching rows of `.claude/nav/flows.md` and the `/tighten-ai` line of the root `CLAUDE.md`; in the `/doctor prompt-audit` row of `.claude/commands/README.md` add "used by `/tighten-ai` and `/sync-docs --full-audit`".
+4. `git add`; no commit; the map is generated once at the end.
+
+## Tighten summary (root CLAUDE.md)
+
+Run of `/tighten-ai CLAUDE.md task 248`. Measures: 240 lines and 22,806 characters before, 142 lines and 13,891 characters after (about 9,000 characters, roughly 2,250 tokens, less in every session and in every dispatched agent).
+
+What changed into what:
+- the class catalogue of `platform-commons` (it lacked 22 classes that exist) became one line that names where the packages are in the source tree; the two prohibitions that a class does not exist stay;
+- the catalogue of commands and agents became pointers to the command README and the navigation table, with the sentences that are instructions kept (which commands run only when asked, that `/reduce-code` is hidden);
+- the 17 listed decision-file paths became a pattern plus the generated index (25 files exist); the paragraph about the eight modules without their own file stays;
+- the pointers to rules files became a compact list of names with a description each;
+- the guidelines on Vaadin (2 and 7) state the shared scope once and the second points to it; capitals used for strength are lower case; three reference implementations became one.
+
+Facts corrected, each with its evidence in the proposal: the sanitizer library has three consumers, not two; the `/run-all-tests` pointer named the wrong file; "Liquibase seed data" in the dev profile has no source (no Liquibase context or seed exists); the production variable list points to `INFRASTRUCTURE.md`; a count of modules was dropped; the description of the scripts rules file now covers deployment, tests, Playwright and CI as well as SonarQube.
+
+Left unchanged: the `@.claude/rules.md` import, the module tree byte for byte, every title, label and number that other files quote, the "(in development)" tag of `/reduce-code`, the Java and repository rules (they apply to Java only but stay in the root file).
+
+Checks: coverage table (127 units), shell checks, review findings checked against the code (one word restored in the UI-indirection rule), behaviour probes (two closed-book, one open-book, two runs per arm, 12 runs, about $1.22, no loss on the probed rules; the old file also made the answers say its class list was out of date).
+
+Prompt audit before and after (`/doctor prompt-audit` over `CLAUDE.md` and its import): before, 12 findings of which 5 concern `CLAUDE.md` (stale consumer list, wrong pointer, incomplete catalogue, two "does not exist" notes, the status tag); after, 11 findings of which 4 concern `CLAUDE.md`: the pointer description (fixed afterwards), the two "does not exist" notes (kept by decision), the missing `backlog-tasks.md` in the compact list and the status tag (flags). The findings on the imported `.claude/rules.md` are unchanged and outside this run: module `CLAUDE.md` files that do not exist, a raw `mvn` command in a list that forbids it, "16 files" against 25, incident sentences, about 16 emphasis headers, and the rule to re-read the whole file before every tool call.
+
+Open outside this run: the Java rules could move to a path-scoped file; the import is 646 lines and twice the size of the root file; `.claude/settings.json` has a hook that points to a starter `CLAUDE.md` that does not exist; `.claude/nav/flows.md` has the same wrong `/run-all-tests` pointer.
 
 ## Tighten research result
 
@@ -497,6 +534,145 @@ git status --short | grep -v '^M  .claude/rules/' | grep -v 'backlog/'
 
 Expected: no "changed" line except "frontmatter changed" for `README.md` when it was rewritten (it has no `paths:` block, so its first three lines are ordinary text); the comparison is against `HEAD`, so it holds as long as nothing was committed during the run. "embeds unchanged" is printed. The number and date pattern finds nothing. The files over 200 lines match the summary. `git worktree list` shows only `/app`. The last command prints nothing except the files decision 3 (a) regenerated. Then `/check-architecture-map` reports the map up to date: line 5 of `scripts.md` and `playwright.md` and the five blocks are the only parts of these files the map shows. With decision 8 yes, the user runs `/doctor prompt-audit .claude/rules` and its findings are added to the summary.
 
+## Tools found for instruction quality
+
+Found by a web search, none of them installed or run unless a line says so. Third-party items are code or prompts that would read the whole repository: read the source, the licence and the last commit first; installing a plugin or a hook changes the user's Claude Code configuration and is a separate decision.
+
+**From Anthropic**
+- Plugin `claude-md-management` ([listing](https://claude.com/plugins/claude-md-management)): an audit of `CLAUDE.md` quality and `/revise-claude-md`, which proposes updates from a session's learnings. A [feature request](https://claudeissues.com/issue/68440-feature-claude-md-management-plugin-should-support-ongoing-knowledge-ecosystem-m) says it knows nothing of skill directories and files everything in `CLAUDE.md`; an `--auto` flag without confirmation is mentioned only by third parties.
+- Skill `claude-md-improver` (repository `anthropics/claude-plugins-official`): scans all `CLAUDE.md` files, scores them against templates, writes a quality report, then makes targeted updates. Described for `CLAUDE.md`, not for `.claude/rules/`.
+  Its `SKILL.md` was read (not installed): tools Read, Glob, Grep, Bash and Edit; one `find` for discovery (`CLAUDE.md`, `.claude.md`, `.claude.local.md`, 50 results at most); no network; a report with six weighted criteria (commands, architecture clarity, non-obvious patterns, conciseness, currency, actionability) before any edit; a diff and a confirmation before editing. Its proposals are additions (commands, gotchas, architecture), not trimming, which pulls against this project's small `CLAUDE.md`.
+- Skill `skill-creator` (repositories `anthropics/skills` and `anthropics/claude-plugins-official`): creates and improves skills and measures them; for skills, not for rules.
+- Hook event `InstructionsLoaded` (Claude Code v2.1.64 or later): logs which `CLAUDE.md` and `.claude/rules/*.md` files load, when and why (`session_start`, `path_glob_match`, `include`, `compact`); it cannot block or change loading; reported bugs: it does not fire after `/clear` or after compaction ([article](https://dev.to/gentic_news/stop-rewriting-claudemd-use-context-and-instructionsloaded-to-debug-why-5a71)).
+- Built-in `/context`, `/doctor`, `/doctor prompt-audit`, `/skill-doctor`, `/skills`, `/memory`: catalogued in [`.claude/commands/README.md`](../../../.claude/commands/README.md).
+
+**Community (status not verified)**
+- Linters and auditors: `ctxlint` (token budget, signal-to-noise, stale file and script references, `slim` mode), `ctxweight` (always-on token cost, redundancy, contradictions, linter overlap), `cclint`, `claudemd-audit` (bloat, self-evident rules, files over 500 lines), `agentlinter` (30 rules), `optimize-claude-md`, `grading-claude-agents-md` (100-point rubric).
+- Authoring: `authoring-claude-md` ([skills.sh](https://www.skills.sh/sammcj/agentic-coding/authoring-claude-md), the only one written for `.claude/rules/` files), `legacy-to-ai-ready` (generates `CLAUDE.md` and rules from a codebase; not for existing files).
+- Collections and articles: [awesome-claude-code](https://github.com/hesreallyhim/awesome-claude-code), [awesome-claude-md](https://github.com/TakatoPhy/awesome-claude-md), [Audit your Agent files](https://addyosmani.com/blog/audit-your-agent-files/) (most audited files exceed the 200-line guidance; in a study of 100 repositories 62% had linter-leak smells, 42% bloat, 35% skill leak).
+
+**What fits this project:** mechanical checks that `/doctor` lacks (references that still exist, token cost of what loads) come from `ctxlint` or `ctxweight`; `InstructionsLoaded` would show that the `paths:` of the 22 rules files fire as assumed; `claude-md-improver` applies to the root `CLAUDE.md`; most of the rest repeats `/doctor prompt-audit`, `/tighten-ai` and `/sync-docs`, and `/revise-claude-md` conflicts with the rule of one fact in one home.
+
+## Tighten research result (root CLAUDE.md)
+
+Research of the kind "root project-instructions file" for `/tighten-ai`, filed from the topic folder `tighten-ai-project-instructions`. Sources are Anthropic documentation and posts (memory, best practices, context window, features overview, large codebases, skills, subagents, prompting best practices, steering Claude Code, CLAUDE.md files) and one independent study of AGENTS.md files. The decisions of the research were taken in the run (see the summary above).
+
+#### What the evidence says about a root file
+
+Sources: [memory](https://code.claude.com/docs/en/memory), [best practices](https://code.claude.com/docs/en/best-practices), [context window](https://code.claude.com/docs/en/context-window), [features overview](https://code.claude.com/docs/en/features-overview), [large codebases](https://code.claude.com/docs/en/large-codebases), [skills](https://code.claude.com/docs/en/skills), [subagents](https://code.claude.com/docs/en/sub-agents), [prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices), the Anthropic posts [steering Claude Code](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more), [large codebases](https://claude.com/blog/how-claude-code-works-in-large-codebases-best-practices-and-where-to-start) and [using CLAUDE.md files](https://claude.com/blog/using-claude-md-files), and one independent study, [Evaluating AGENTS.md](https://arxiv.org/abs/2602.11988).
+
+**Loading and compaction**
+
+- The root file loads whole at the start of every session, as a message after the system prompt. It is context, not enforcement.
+- After compaction the root file and rules without a `paths:` block are read again from disk. Nothing of the root file is lost at compaction, and the position of a line in the file does not decide whether it survives.
+- Every dispatched agent starts with the same files, except the built-in Explore and Plan agents and an agent defined with `omitClaudeMd`. The size of the root file is paid again for each agent.
+- No 40,000-character cut applies to the root file; that cut is for files that load on demand.
+
+**Imports (`@`)**
+
+- An imported file loads together with the file that imports it. Imports organise, they do not save context. Each import counts as its own file for the length warning, and a combined limit at session start exists.
+- The import line must stand outside a code span. Imports nest to four levels.
+
+**Length**
+
+- "Target under 200 lines per CLAUDE.md file. Longer files consume more context and reduce adherence." Every line "takes a little of Claude's attention on every task, whether it's relevant or not".
+- A line that Claude keeps missing is not fixed by emphasis: the file is too long, or the line belongs in a hook.
+
+**What belongs in the root file**
+
+- Only what Claude could not work out from the code: the commands that confirm work, places where the code misleads, decisions that are not in the repository, things corrected twice.
+- Rules that hold everywhere and in every session. A rule for one part of the code belongs in a path-scoped rule; a procedure belongs in a skill; a rule with no exception belongs in a hook.
+- Pointers: "The root file should be pointers and critical gotchas only." A list of the top-level folders with one line each is "a table of contents".
+- Not in it: descriptions of what the code already shows. `/doctor` "cuts content Claude can derive from the codebase, such as directory layouts, dependency lists, and architecture overviews". The independent study found the same: overviews in such files did not help agents find files, while instructions in them were followed, and the files raised cost by about 20%.
+- Names and descriptions of every command and agent that Claude may start itself are already put into every session by Claude Code. A catalogue of them in the root file is a second copy.
+
+**Structure and wording** (same as for rules files): headers and short bullets, no dense paragraphs; concrete and checkable; no two instructions that contradict, across the root file, the import and the rules; plain wording without capitals for strength; a short reason; exact examples.
+
+**One conflict between the sources.** Older pages say a layout belongs in the file ("project layout", "directory layout, monorepo structure", "a high-level directory structure"); the newer pages list "Describe your architecture and file layout in CLAUDE.md" as advice to stop following. Followed one level down, they agree on this reading: a one-line-per-module map and pointers stay, a description of what is inside a module goes.
+
+#### The checklist of `tighten-ai.md` for a root file
+
+| Item | Verdict for a root file |
+|---|---|
+| 1 goal first | kept; no source asks for it; one sentence replaces the present line 3 |
+| 2, 3, 4, 6, 8, 10, 11, 13, 14 | confirmed |
+| 3, added reading | "no conflict" covers the import and the rules files too, since all load together |
+| 5 reference, not restate | confirmed, with a limit (P9 below) |
+| 7 | first half confirmed; **the 500 lines are contradicted**: 200 lines per file is the documented target for a `CLAUDE.md` |
+| 9 what survives compaction comes first | **does not apply**: the root file is read again from disk whole |
+| 12 hard limits in one place | confirmed; here it means no limit is stated both in the root file and in `.claude/rules.md` |
+
+Added for a root file (P1 to P10):
+
+- **P1** Only what Claude cannot work out from the code. A class list, a package catalogue or a dependency list becomes a pointer or goes. The one-line-per-module map stays.
+- **P2** Only what holds for the whole project. What matters for one module is referenced in its rules file.
+- **P3** A procedure, a flag list or a command catalogue is referenced at its home.
+- **P4** No capitals for strength; the word itself ("must", "never") stays.
+- **P5** At most one example per rule.
+- **P6** Every path, command or section the file names exists.
+- **P7** Target 200 lines; lines and characters are both reported, because the lines of this file are long.
+- **P8** Unchanged by the rewrite: the import line; the section titles, guideline numbers and labels that other files quote; the lines of the module tree that the map generator reads.
+- **P9** A pointer may replace a fact only, and only after the fact is found at its home. A requirement stays in the root file. (New: a fact behind a pointer is seen only when Claude opens the home; the documentation says so in its own words for a file that is "told in words" to be read.)
+- **P10** Nothing is said both in the root file and in the import, since both are always loaded.
+
+#### The earlier rules-file research: what is reused and what is not
+
+| Earlier conclusion | For the root file |
+|---|---|
+| The checklist verdicts for items 2 to 8 and 10 to 14 | reused |
+| A1, A3, A4, A5, A6 | reused as P1, P3, P4, P5, P6 |
+| A2 "only what is specific to this module" | turned round: only what holds for every module (P2) |
+| A7 length 200 lines, cut at 40,000 characters | 200 lines reused; the cut does not apply |
+| A8 `paths:` block, line 5, marked blocks | replaced by P8 |
+| Loads when a matching file is read; dropped at compaction | does not apply |
+| Replacement for item 9 (flag a rule that must hold when no module file is open) | not needed: the root file is always present |
+| Hard limits live under `Key constraints` | does not apply; see item 12 |
+| Repository rules R1 to R7 for new text | reused; R8 is replaced by P8 |
+| Three layers of checking (words, repository rules, behaviour) | reused; the probes change (below) |
+| "No reliable method proves unchanged behaviour" | reused unchanged |
+
+#### Where the root file differs from the standard today
+
+| What | Where (lines of the present file) | Size | Typical |
+|---|---|---|---|
+| Class catalogue of `platform-commons`, out of step with the code | 48 to 59 | 2,640 characters | lists 3 of 9 `feedback.dto` classes |
+| Catalogue of 17 commands and 3 agents; the same facts are in `.claude/commands/README.md`, `.claude/nav/flows.md` and in the list Claude Code loads itself | 177 to 197 | 4,390 | one line has 493 characters |
+| 17 absolute paths of decision files, findable by name and through the generated index | 204 to 220 | about 760 | `/app/query-lib/DECISIONS.md` |
+| 19 rules files pointed to in 24 places; the list with its patterns is in `.claude/rules/README.md`, which loads in every session because it has no `paths:` block | 61 to 87, 151, 153, 157, 174, 175 | about 1,900 | four files are pointed to twice |
+| Paragraphs about one module | 42 to 46 | 1,188 | line 46 is one paragraph of 666 characters |
+| The same thing twice | 12 to 13 and guideline 6 (Liquibase); 14 and the `DTO Field Name Constants` section of `.claude/rules.md`; guidelines 2 and 7 (Vaadin only in `marketplace-app`); guidelines 6 and 7 (each starter owns its changelog); 123 and 127 (`@NonNull`); 236 to 238 and the Definition of Done of `.claude/rules.md` (`/record-decision`) | | |
+| Dense paragraphs | guideline 2 (11 lines), lines 123, 129 (450 and 520 characters) | | |
+| Capitals for strength | 12, 14, 105, 106, 108, 109 | | "NO JPA, NO HIBERNATE" |
+| Explanation of what Claude knows | 3, 127 | | "Lombok generates a null-check at the top of the method body" |
+| A count that changes | 228, 230 | | "these eight modules" |
+| Real classes as an example | 46, 149 | | "Reference implementations: `UserRepository` ..." |
+| Facts with a home in `INFRASTRUCTURE.md` | 162 to 168 | 538 | the list of `prod` variables |
+
+Inside the class catalogue two notes are prohibitions, not list entries ("`AuditActivityFieldsHook` does not exist", "`AttachmentMediaChangeHook` does not exist"). They stay as rules whatever happens to the list.
+
+#### How it is checked that behaviour does not get worse
+
+The three layers of the earlier plan, with the root file under test.
+
+1. The words survive: the coverage table and the read-only reviewer.
+2. The repository rules R1 to R7 and the invariants P8 hold on the new text: shell checks (tried on the present file, they pass) and the same reviewer.
+3. Claude behaves the same: probes through `claude -p`, twice with the old file and twice with the new one. Two kinds, because a root file is always loaded:
+   - closed-book ("without reading any file, describe how you would ...") for requirements whose wording changed; the answer can only come from what is always loaded;
+   - open-book for a fact that became a pointer ("which classes does package X hold"); the new file passes when Claude finds the right answer at the home.
+
+It is reported as "no loss found on the probed rules", never as proof.
+
+### Risks
+
+- A sentence inside a catalogue is a requirement and leaves with the catalogue. Guard: every unit is classed, the two "does not exist" notes are named in advance, the reviewer reads the old text itself.
+- A fact moves from "always in context" to "found only if Claude looks". Guard: P9, the home check, the open-book probes. This risk is larger than in a rules file.
+- A home is itself incomplete: `platform-commons/README.md` repeats the class catalogue and stops before `contact`, `feedback` and `promotion`. The only complete home is the source tree.
+- A quoted title, number or label changes and a test message or a document points at nothing. Guard: P8 with its shell check; more names are quoted than the brief lists (see Decisions, 2).
+- The map changes: the generator takes each module's description from the tree. Guard: the tree stays byte for byte unless you decide otherwise.
+- The pointer list is shortened on the ground that `.claude/rules/README.md` loads in every session; the open group 5 of the rules run may change that file.
+- The probes cover a few rules of about a hundred; they catch a clear loss only.
+- The saving of this run is limited: the import is twice the size of the root file and is outside the scope.
+
 ## Related
 
 - [improvement-240](../completed/tasks/improvement-240-sync-docs-refactor.md): the task this was split from.
@@ -520,6 +696,17 @@ Expected: no "changed" line except "frontmatter changed" for `README.md` when it
 - adrs_referenced: none
 
 ### Commands used
-- /tighten-ai | uses=1 | failed=0 | note=pilot file shortened 11% after about 0.9M subagent tokens and about $2.9 of probe runs; cost out of proportion for a file already near the standard
-- /doctor prompt-audit | uses=2 | failed=0 | note=about $1.1 per run, found 11 verified defects in the rules, the two runs differ, no git blame in the safe mode
-- /deep-research | uses=1 | failed=0 | note=PLAN READY in 16 min on the Fable model, brief extended mid-run, followed by hand
+- /tighten-ai | uses=2 | failed=0 | note=rules pilot shortened 11% at a cost out of proportion for a file near the standard; the root CLAUDE.md run shortened it by 39% of characters with no loss on three probes
+- /doctor prompt-audit | uses=4 | failed=0 | note=about $0.7 to $1.2 per run; found real stale references; runs differ; its findings are checked against the code before use
+- /deep-research | uses=2 | failed=0 | note=two PLAN READY on the Fable model in 12 to 16 min, about 245k to 252k subagent tokens each; the second reused the first
+- claude-md-improver (not installed, procedure followed) | uses=1 | failed=0 | note=scored the root CLAUDE.md 74 of 100, found three real stale references; its additions-first rubric pulls against the one-home rule
+- /new-task | uses=1 | failed=0 | note=filed the review-findings task at the top of the backlog
+- /simplify | uses=1 | failed=1 | note=run on a tightened rules file: four agents, about 255k subagent tokens, about 50 tokens per load of possible saving and findings that weaken constraints or contradict each other; nothing applied, the angles are written for code
+
+### Agent calls
+- research of the root-file kind (deep-researcher) | subagent_type=deep-researcher (fable) | tokens=244269 | tool_uses=53 | duration_s=716 | mode=background | batch=solo
+- inventory and proposal for the root CLAUDE.md | subagent_type=general-purpose (opus) | tokens=192828 | tool_uses=36 | duration_s=482 | mode=background | batch=solo
+- independent review of the CLAUDE.md proposal | subagent_type=general-purpose (sonnet) | tokens=87817 | tool_uses=9 | duration_s=91 | mode=background | batch=solo
+- three behaviour probes, 12 runs | subagent_type=general-purpose (haiku) | tokens=69545 | tool_uses=6 | duration_s=287 | mode=background | batch=solo
+- writing the approved CLAUDE.md | subagent_type=general-purpose (haiku) | tokens=59762 | tool_uses=3 | duration_s=18 | mode=background | batch=solo
+(the agent calls of the rules-file run are not itemised here)
