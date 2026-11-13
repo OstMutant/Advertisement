@@ -12,7 +12,8 @@
 # Uses: bash, docker, docker compose (only if no DB container exists at all, via
 #   scripts/utils/ensure-docker-plugins.sh's ensure_docker_compose),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
-#   scripts/utils/docker-pull-retry.sh (docker_pull_missing_retry).
+#   scripts/utils/docker-pull-retry.sh (docker_pull_missing_retry), scripts/utils/wait-for-db.sh
+#   (wait_for_db_ready).
 # Env: DB_CONTAINER (no default -- see Usage above), DB_NAME (experiments), DB_USER
 #   (experiments_user) -- all may be exported directly by a caller, falling back to the repo-root
 #   .env, then a hardcoded default.
@@ -22,7 +23,8 @@
 #   AGENTIC_ERROR_BLOCK JSON marker (errorCategory/isRetryable/currentStep/description/
 #   durationSeconds) on failure, for an AI agent reading raw script output to parse
 #   machine-readable status instead of scraping free text.
-# Returns: 0 on success, non-zero on error (container never became ready, psql failure).
+# Returns: 0 on success, non-zero on error (DB container not running or not ready within 120 s,
+#   with its last log lines on stderr; psql failure).
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 SECONDS=0
@@ -31,6 +33,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/docker-pull-retry.sh"
+source "$ROOT/scripts/utils/wait-for-db.sh"
 
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc): database reset error ==="; emit_agentic_error_block "transient" "true" "reset" "Database reset failed with exit code $_rc -- DB container may not have become ready, or psql failed."; exit $_rc' ERR
 
@@ -64,7 +67,7 @@ if [ -n "$CONTAINER" ] && docker container inspect "$CONTAINER" >/dev/null 2>&1;
   if [ "$(docker inspect -f '{{.State.Status}}' "$CONTAINER")" != "running" ]; then
     echo "Starting $CONTAINER..."
     docker start "$CONTAINER"
-    until docker exec "$CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2>/dev/null; do sleep 1; done
+    wait_for_db_ready "$CONTAINER" "$DB_USER" "$DB_NAME"
   fi
 else
   echo "No DB container found — starting via docker compose..."
@@ -74,8 +77,8 @@ else
   [ -n "$DB_IMAGE" ] || { echo "ERROR: DB image not resolved from docker-compose.db.yml (POSTGRES_IMAGE unset?)" >&2; exit 1; }
   docker_pull_missing_retry "$DB_IMAGE"
   docker compose --project-directory "$ROOT" -f "$ROOT/scripts/deploy-and-run/docker-compose.db.yml" up -d
-  CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
-  until docker exec "$CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2>/dev/null; do sleep 1; done
+  CONTAINER=$(docker ps -a --filter "publish=5432" --format "{{.Names}}" | head -1)
+  wait_for_db_ready "$CONTAINER" "$DB_USER" "$DB_NAME"
 fi
 
 docker cp "$SCRIPT_DIR/reset-clean.sql" "$CONTAINER:/tmp/reset-clean.sql"

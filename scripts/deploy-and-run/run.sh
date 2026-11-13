@@ -38,7 +38,8 @@
 #   scripts/utils/ensure-docker-plugins.sh's ensure_buildx), scripts/build-and-test.sh (unless
 #   --from-scratch), scripts/deploy-and-run/reset.sh (with --reset-only-db),
 #   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block),
-#   scripts/utils/session-id.sh, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh (docker_pull_retry, docker_pull_missing_bases).
+#   scripts/utils/session-id.sh, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh (docker_pull_retry, docker_pull_missing_bases),
+#   scripts/utils/wait-for-db.sh (wait_for_db_ready).
 # Env: NETWORK (default advertisement), DB_CONTAINER (advertisement-db), SEAWEEDFS_CONTAINER
 #   (advertisement-seaweedfs), APP_CONTAINER (marketplace-app), APP_IMAGE (marketplace-app), DB_PORT
 #   (5432), SEAWEEDFS_PORT (9000), SEAWEEDFS_CONSOLE_PORT (9333), APP_PORT (8081), DB_VOLUME
@@ -65,8 +66,12 @@
 #   An existing advertisement-db container is reused as-is, so a changed POSTGRES_IMAGE takes
 #   effect only when the container is created again (--reset or --restart-infra); its volume
 #   is mounted at /var/lib/postgresql, so a volume written by another PostgreSQL major version
-#   needs --reset.
-# Returns: 0 on success, non-zero on build/startup failure.
+#   needs --reset: before creating the DB container the run reads the volume's PostgreSQL major
+#   version (a throw-away container of POSTGRES_IMAGE) and stops when it differs from the image's
+#   (skipped for a tag that does not start with a number); a container that still exits at start
+#   stops the run within seconds with its last log lines instead of waiting for it.
+# Returns: 0 on success, non-zero on build/startup failure, a DB volume of another PostgreSQL major
+#   version, or a DB container that is not running or not ready within 120 s.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 SECONDS=0
@@ -78,6 +83,7 @@ LOG=/tmp/deploy.log
 source "$ROOT/scripts/utils/agentic-output.sh"
 source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/docker-pull-retry.sh"
+source "$ROOT/scripts/utils/wait-for-db.sh"
 
 # Load the repo-root .env defaults into ENV_*-prefixed vars (not exported), so an already-exported override is never clobbered.
 if [ -f "$ROOT/.env" ]; then
@@ -182,9 +188,7 @@ ensure_running() {
 # ── Helper: wait for DB ───────────────────────────────────────────────────────
 wait_for_db() {
   echo "Waiting for DB..."
-  until docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2>/dev/null; do
-    sleep 1
-  done
+  wait_for_db_ready "$DB_CONTAINER" "$DB_USER" "$DB_NAME"
   echo "DB ready."
 }
 
@@ -227,12 +231,29 @@ reset_infra() {
   docker volume rm "$DB_VOLUME" "$SEAWEEDFS_VOLUME" "$APP_JAR_VOLUME" 2>/dev/null || true
 }
 
+# ── Helper: stop when the DB volume holds another PostgreSQL major version than POSTGRES_IMAGE ──
+check_db_volume_version() {
+  local tag_part="${POSTGRES_IMAGE##*/}" image_major volume_major
+  image_major=$(sed -nE 's/^[^:]*:([0-9]+).*/\1/p' <<<"$tag_part")
+  [ -n "$image_major" ] || return 0
+  volume_major=$(docker run --rm --entrypoint sh -v "$DB_VOLUME":/v "$POSTGRES_IMAGE" -c \
+    'v=$(cat /v/PG_VERSION 2>/dev/null); [ -n "$v" ] || v=$(for d in /v/[0-9]*/docker; do [ -f "$d/PG_VERSION" ] && cat "$d/PG_VERSION"; done | sort -n | tail -1); echo "$v"')
+  if [ -n "$volume_major" ] && [ "$volume_major" != "$image_major" ]; then
+    echo "Volume $DB_VOLUME holds PostgreSQL $volume_major data but $POSTGRES_IMAGE needs major $image_major: run with --reset (this deletes the dev database)." >&2
+    return 1
+  fi
+}
+
 # ── Helper: bring up DB + SeaweedFS and wait until both are ready ───────────
 start_infra() {
   docker network create "$NETWORK" 2>/dev/null || true
 
   pull_if_missing "$POSTGRES_IMAGE"
   pull_if_missing "$SEAWEEDFS_IMAGE"
+
+  if docker volume inspect "$DB_VOLUME" >/dev/null 2>&1 && ! docker container inspect "$DB_CONTAINER" >/dev/null 2>&1; then
+    check_db_volume_version
+  fi
 
   ensure_running "$DB_CONTAINER" \
     docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
