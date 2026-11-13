@@ -50,6 +50,12 @@ The root `CLAUDE.md` is loaded into every session and gives Claude only what is 
 
 Constraints: the section titles that other files name (`Architectural Decisions Log`, `Database Changes`, `Architecture Guidelines`, `Module Layout`) stay word for word; the `@.claude/rules.md` import and every item that has no other home are not touched; before a list of classes or the command catalogue is shortened it is checked that each fact really lives in its home.
 
+Run of `/tighten-ai .claude/rules.md task 248`, goal confirmed 2026-11-13.
+
+`.claude/rules.md` is imported by the root `CLAUDE.md` and is loaded in every session and by every dispatched agent. It gives Claude only what is true and mandatory for the whole project: the approval and commit rules, the git, language, script and task-lifecycle rules, the definition of done, and the investigation discipline. Claude follows every requirement as well as before or better, and the file takes far less context. The shortening removes repetition, incident retellings, emphasis for strength, explanations of what Claude already knows, and facts owned by another file (a reference by name replaces them). It never changes what an instruction requires.
+
+Constraints: every section title that another file or a hook quotes stays word for word; the commit prohibition and the Approval Rule keep their exact strength ("never", "only", "every"); the target is 200 lines or a report of why it cannot be reached; a rule that a hook or script could enforce is flagged, not moved. Research reused: the root-file topic (an imported file loads together with its importer).
+
 ### Tighten plan
 
 Final plan, 2026-11-12. Research: `backlog/research/tighten-ai-rules/` (`plan-human.md`, `plan-machine.md`), kept until the run is finished. For every open decision the highest-quality option is the default.
@@ -79,9 +85,9 @@ Native commands: the built-in Claude Code commands that help with instructions (
 
 Afterwards: verification of the whole (plan-machine), `/sync-docs` in diff mode, one generator run, the second `/doctor prompt-audit`, the summary in this section; then `/tighten-ai CLAUDE.md task 248` with its own plan. Nothing is committed; the research folder is removed only with the user's explicit approval.
 
-### Pending: measures in /tighten-ai and the audit in /sync-docs
+### Measures in /tighten-ai and the audit in /sync-docs
 
-Agreed, not started. Agent: haiku (exact text). Input: `.claude/commands/tighten-ai.md`, `.claude/commands/sync-docs.md`, `.claude/commands/README.md`, `.claude/nav/flows.md`, root `CLAUDE.md`. No third-party text is used, so no source or licence line is needed.
+Done 2026-11-13 (items 1 to 3 applied by a haiku agent and staged; the root `CLAUDE.md` has no `/tighten-ai` line, so it needed no change; the map is generated once at the end). Agent: haiku (exact text). Input: `.claude/commands/tighten-ai.md`, `.claude/commands/sync-docs.md`, `.claude/commands/README.md`, `.claude/nav/flows.md`, root `CLAUDE.md`. No third-party text is used, so no source or licence line is needed.
 
 1. `.claude/commands/tighten-ai.md`: in step 4 (Proposal, per file), after "the benefit against the goal", add "the measures before and after (see Before/after measures)". After `## Checklist` add a section `## Before/after measures`: "For each file report, before and after: the number of checklist items satisfied (of 14 for any instruction file, of 20 for a command), the number of names the text gives (path, command, class, section) that do not exist (checked with `ls` and `grep`), and the lines and characters. A rewrite does not lower the satisfied items, does not raise the missing names and lowers the characters; otherwise the proposal says why." No scores, weights or grade bands.
 2. `.claude/commands/sync-docs.md`: in Full Audit Mode, Step A2, add a first-level item: "Prompt audit (`--full-audit`, and `--module` for a module with rules): once over `.claude/rules` and the root `CLAUDE.md`, run `claude -p "/doctor prompt-audit <path>" --model sonnet --permission-mode dontAsk --output-format json`; every finding is a candidate that the other checks of this step verify against the code, and a finding that cannot be verified is reported as unverified." In the Step A6 report template add the line `Prompt audit: <found> found, <verified> verified, <applied> applied, <unverified> unverified`. Diff mode is left out because one run costs about $1.1 per folder.

@@ -34,9 +34,9 @@ elsewhere; never touch a file outside the given path; never write a file without
    unverified. The verified findings are inputs of the proposals of step 4.
 4. **Proposal, per file.** Read the whole file, then write: the new text; lines and characters before and
    after; a coverage table with every requirement of the old text and the line of the new text that keeps it;
-   what changed into what; the benefit against the goal; every fact corrected because of an audit finding or
-   the code, listed as a changed fact with its evidence, never as a silent edit. Show it on screen and, with a
-   task id, write it into the task.
+   what changed into what; the benefit against the goal; the measures before and after (see Before/after
+   measures); every fact corrected because of an audit finding or the code, listed as a changed fact with its
+   evidence, never as a silent edit. Show it on screen and, with a task id, write it into the task.
 5. **Check.** Dispatch a read-only agent (`model: "sonnet"`) with the old text, the new text and the
    coverage table; it reports every requirement that is lost, weakened or changed. A finding is fixed in the
    proposal before it is shown for approval.
@@ -71,3 +71,7 @@ items 15-20 only for command files.
 18. The final report is a fixed template.
 19. A verification step precedes "done" (re-read, check, script).
 20. Every dispatched agent's prompt carries what it needs (scope, rules, model, read-only), since a subagent sees no conversation.
+
+## Before/after measures
+
+For each file report, before and after: the number of checklist items satisfied (of 14 for any instruction file, of 20 for a command), the number of names the text gives (path, command, class, section) that do not exist (checked with `ls` and `grep`), and the lines and characters. A rewrite does not lower the satisfied items, does not raise the missing names and lowers the characters; otherwise the proposal says why.

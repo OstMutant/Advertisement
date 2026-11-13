@@ -207,6 +207,7 @@ only with `--full-audit`.
   version-pin comments, per `module-doc-standards`; classify MISSING, STALE or VALID.
 - With `--full-audit` only: check the "Built-in Claude Code skills" table of `.claude/nav/flows.md` for
   completeness against the skills listed as available in the current session.
+- Prompt audit (`--full-audit`, and `--module` for a module with rules): once over `.claude/rules` and the root `CLAUDE.md`, run `claude -p "/doctor prompt-audit <path>" --model sonnet --permission-mode dontAsk --output-format json`; every finding is a candidate that the other checks of this step verify against the code, and a finding that cannot be verified is reported as unverified.
 
 ### Step A3 — Parallelize
 
@@ -251,6 +252,7 @@ Javadoc/headers:    <module> -- MISSING <n>, STALE <n>, VALID <n> (Javadoc); MIS
 Missing files:      <module> -- no README.md | DECISIONS.md | .claude/rules/<module>.md
 Code left unfixed:  <file:line -- stale code or reversed decision>
 Regeneration:       ADR index <changed|unchanged>; generator <outcome>
+Prompt audit:       <found> found, <verified> verified, <applied> applied, <unverified> unverified
 Operational notes:  <Step A5 aggregate>
 Built-in skills:    <flows.md table complete | missing: <skills>>   (--full-audit only)
 ```
