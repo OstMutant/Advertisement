@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Core Stack
 - Java 25 (use modern features: Records, Pattern Matching, Switch expressions).
-- Spring Boot 4.1.0, Vaadin 25.2.3.
+- Spring Boot and Vaadin (versions in the root `pom.xml`).
 - Pure SQL via `JdbcClient` / `NamedParameterJdbcTemplate` (NO JPA, NO HIBERNATE).
 - Liquibase for all schema changes.
 - **Lombok first:** if a Lombok annotation can replace manual boilerplate (constructors, getters, builders, etc.), it MUST be used — hand-written boilerplate is not acceptable when a Lombok equivalent exists. This includes `@FieldNameConstants` on DTOs/records that need typed field name constants — never write a manual `Fields` inner class.
@@ -31,6 +31,7 @@ advertisement-parent (root pom)
 ├── apikey-spring-boot-starter         — API-key credential domain: entity, hasher, ApiKeyPortImpl (auto-configured starter)
 ├── contact-spring-boot-starter        — Contact domain: phone/deep-link reveal for any EntityRef-owning entity, ContactPortImpl (auto-configured starter)
 ├── feedback-spring-boot-starter       — Feedback domain: rating+text feedback and its aggregate for any EntityRef-owning entity, FeedbackPortImpl (auto-configured starter)
+├── promotion-spring-boot-starter      — Promotion domain: promotion placements (why an entity is lifted out of the catalog) for any EntityRef-owning entity, PromotionPlacementPortImpl (auto-configured starter)
 ├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 ├── marketplace-orchestrator           — application/BFF layer: cross-domain use-case orchestration between marketplace-app and the domain starters
 ├── marketplace-rest-api               — external REST API adapter: non-Vaadin HTTP delivery channel over marketplace-orchestrator, sibling to marketplace-app
@@ -52,9 +53,10 @@ advertisement-parent (root pom)
 - `apikey.*` — `apikey.spi` (`ApiKeyPort`), `apikey.dto` (`ApiKeySummaryDto`), `apikey.model` (`ApiKeyAlreadyRevokedException`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`), `advertisement.model` (`AdKind`)
 - `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
-- `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
+- `providerprofile.*` — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto` (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`, `ProviderProfileScope`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`)
 - `contact.*` — `contact.spi` (`ContactPort`), `contact.dto` (`ContactInfoDto`, `ContactViewCountDto`), `contact.model` (`ContactChannel`)
 - `feedback.*` — `feedback.spi` (`FeedbackPort`), `feedback.dto` (`FeedbackDto`, `FeedbackSaveDto`, `FeedbackAggregateDto`), `feedback.model` (`FeedbackModerationStatus`)
+- `promotion.*` — `promotion.spi` (`PromotionPlacementPort`), `promotion.dto` (`PromotionPlacementDto`), `promotion.model` (`PromotionReason`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: `.claude/rules/platform-commons.md`
 
@@ -75,6 +77,8 @@ advertisement-parent (root pom)
 → Contact domain (phone/deep-link reveal, owned classes): `.claude/rules/contact-spring-boot-starter.md`
 
 → Feedback domain (rating+text feedback, owned classes): `.claude/rules/feedback-spring-boot-starter.md`
+
+→ Promotion domain (promotion placements, owned classes): `.claude/rules/promotion-spring-boot-starter.md`
 
 → Application/BFF orchestration layer (cross-domain use cases, owned classes): `.claude/rules/marketplace-orchestrator.md`
 
@@ -177,10 +181,11 @@ docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy
 - `/sonar` — run SonarQube analysis
 - `/record-decision <module> — <title>` — record architectural decision
 - `/deep-review [scope]` — run a full code review via the `deep-review-orchestrator` agent (evidence-verified SOLID/DRY/KISS/YAGNI, never writes code itself)
-- `/optimize [<scope> | report | apply <ID> | verify [<ID>]]` — find code that need not be maintained, measure the saving and remove it only in approved batches; discovery is read-only through the `deep-review-orchestrator` agent's `code-reduction-reviewer` lens, findings live in a standing backlog inventory; see `.claude/commands/optimize.md`
+- `/reduce-code [<scope> | report | apply <ID> | verify [<ID>]]` (in development) — find code that need not be maintained, measure the saving and remove it only in approved batches; discovery is read-only through the `deep-review-orchestrator` agent's `code-reduction-reviewer` lens, findings live in a standing backlog inventory; see `.claude/commands/reduce-code.md`
+- `/tighten-ai <path> [task <id>]` — make AI instructions (commands, rules, skills, agents, project instructions) shorter, more exact and stricter without losing a requirement; the goal is written first, the best practices are researched for it, each rewrite has a coverage table and a summary against the goal and is applied file by file after approval; see `.claude/commands/tighten-ai.md`
 - `/deep-research <task file or description>` — research a task in depth with the `deep-researcher` agent on Opus (web best practices, the project's own practice, a compared choice, a plan for people and a plan for AI executors, in a topic folder under `backlog/research/`); see `backlog/research/tools/README.md`
 - `/check-architecture-map` — **run manually** before saving changes that can touch the architecture map; regenerates once and diffs against the files on disk
-- `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
+- `/sync-docs [ref | task <id>]` — sync architecture docs with code (default: uncommitted changes); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
 - `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `.claude/nav/adr-index.md`
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
 - `/activity-monitor <script and args>` — wrap a backgrounded script and watch its live step checklist instead of raw stdout, so `Monitor` costs tokens proportional to real signal, not log volume; see `scripts/activity-monitor/README.md`
@@ -215,13 +220,13 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 
 Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`,
 `provider-profile-spring-boot-starter`, `apikey-spring-boot-starter`, `marketplace-rest-api`,
-`marketplace-mcp`, and `feedback-spring-boot-starter`
+`marketplace-mcp`, `feedback-spring-boot-starter`, and `promotion-spring-boot-starter`
 have no hand-authored `DECISIONS.md` of their own — their
 key decisions are recorded in `marketplace-app/DECISIONS.md` and `platform-commons/DECISIONS.md`
 instead, except `marketplace-mcp`, whose cross-listed decisions are recorded in `marketplace-app/DECISIONS.md`
-and `docs/api-collections/DECISIONS.md`. Each of these seven modules has a generated, pointer-only `DECISIONS.md`
+and `docs/api-collections/DECISIONS.md`. Each of these eight modules has a generated, pointer-only `DECISIONS.md`
 (`bash docs/architecture/scripts/generate-architecture-model.sh`) listing whichever ADRs cross-reference it via
-the home ADR's own `**Also affects:**` tag — never hand-edit these seven files directly.
+the home ADR's own `**Also affects:**` tag — never hand-edit these eight files directly.
 
 → ADR discovery index (generated, one line per decision across every `DECISIONS.md`):
 `.claude/nav/adr-index.md` — see `.claude/nav/README.md` for the full AI-navigation layer.

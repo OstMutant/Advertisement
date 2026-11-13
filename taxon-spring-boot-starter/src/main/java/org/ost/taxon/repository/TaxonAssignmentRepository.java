@@ -28,24 +28,22 @@ public class TaxonAssignmentRepository {
                               .entityId(rs.getObject("entity_id", Long.class))
                               .taxonId(rs.getObject("taxon_id", Long.class))
                               .assignedAt(assignedAt != null ? assignedAt.toInstant() : null)
-                              .assignedBy(rs.getObject("assigned_by", Long.class))
                               .build();
     };
 
     private final JdbcClient jdbcClient;
 
     public void assign(@NonNull String entityType, @NonNull Long entityId,
-                       @NonNull Long taxonId, Long assignedBy) {
+                       @NonNull Long taxonId) {
         jdbcClient.sql("""
-                        INSERT INTO taxon_assignment (entity_type, entity_id, taxon_id, assigned_at, assigned_by)
-                        VALUES (:entityType, :entityId, :taxonId, NOW(), :assignedBy)
+                        INSERT INTO taxon_assignment (entity_type, entity_id, taxon_id, assigned_at)
+                        VALUES (:entityType, :entityId, :taxonId, NOW())
                         ON CONFLICT (entity_type, entity_id, taxon_id) DO NOTHING
                         """)
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType)
                           .addValue("entityId",   entityId)
-                          .addValue("taxonId",    taxonId)
-                          .addValue("assignedBy", assignedBy))
+                          .addValue("taxonId",    taxonId))
                   .update();
     }
 
@@ -63,7 +61,7 @@ public class TaxonAssignmentRepository {
 
     public List<TaxonAssignment> findAllByEntity(@NonNull String entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
-                        SELECT entity_type, entity_id, taxon_id, assigned_at, assigned_by
+                        SELECT entity_type, entity_id, taxon_id, assigned_at
                         FROM taxon_assignment
                         WHERE entity_type = :entityType AND entity_id = :entityId
                         """)
@@ -77,7 +75,7 @@ public class TaxonAssignmentRepository {
     public List<TaxonAssignment> findAllByEntities(@NonNull String entityType, @NonNull Set<Long> entityIds) {
         // Array bind, not a Set -- avoids IN(:set)'s unbounded placeholder expansion.
         return jdbcClient.sql("""
-                        SELECT entity_type, entity_id, taxon_id, assigned_at, assigned_by
+                        SELECT entity_type, entity_id, taxon_id, assigned_at
                         FROM taxon_assignment
                         WHERE entity_type = :entityType AND entity_id = ANY(:entityIds)
                         """)

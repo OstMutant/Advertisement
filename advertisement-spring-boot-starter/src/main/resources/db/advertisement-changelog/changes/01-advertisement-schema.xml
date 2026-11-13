@@ -48,9 +48,6 @@
         <createIndex indexName="idx_advertisement_deleted_at" tableName="advertisement">
             <column name="deleted_at"/>
         </createIndex>
-        <createIndex indexName="idx_advertisement_ad_kind" tableName="advertisement">
-            <column name="ad_kind"/>
-        </createIndex>
 
     </changeSet>
 

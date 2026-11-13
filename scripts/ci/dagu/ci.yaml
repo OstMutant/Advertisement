@@ -9,7 +9,9 @@
 #   DECISIONS.md).
 # Usage: triggered via scripts/ci/run.sh, or the "Start" button on Dagu's web UI -- never edited
 #   to change a single run's behavior, use the params below instead.
-# Uses: bash, mvn (via build-and-test.sh), docker, python3 (pipeline-metrics.py), shellcheck.
+# Uses: bash, docker, python3 (pipeline-metrics.py), shellcheck, and the project scripts each step
+#   calls: build-and-test.sh, deploy-and-run.sh, playwright/run.sh, sonar.sh, the API collection
+#   runner, .claude/nav/scripts/check-*.sh and generate-architecture-model.sh.
 # Env: MAVEN_CACHE_VOLUME=ci-maven-cache, VAADIN_CACHE_VOLUME=ci-vaadin-cache, TEST_REPORTS_VOLUME=ci-test-reports,
 #   SONAR_SCANNER_CONTAINER=sonar-scanner-ci and SONAR_BUILD_CONTAINER_NAME=advertisement-build-only-ci-sonar, set for
 #   every step so manual runs cannot change the jars or reports a CI run uses and cannot remove its containers; each
@@ -32,7 +34,9 @@
 #   scripts/ci/reports/pipeline-metrics.json is refreshed unconditionally by the pipeline_metrics
 #   step, which has no precondition of its own -- not gated by the docs param, only by its
 #   upstream stages finishing or skipping. Both files are synced onto the host by
-#   scripts/ci/run.sh, not by this DAG itself -- see DECISIONS.md for why. A failing role run of the
+#   scripts/ci/run.sh, not by this DAG itself -- see DECISIONS.md for why. The docs step
+#   regenerates architecture-model.json, architecture-map.html and .claude/nav/adr-index.md in the
+#   container (scripts/ci/run.sh syncs them to the host). A failing role run of the
 #   api_flows stage fails that step; the stage always removes its own stack (ci-api-* names, ports 25435,
 #   29001, 29334 and 28081) when it ends.
 # Returns: N/A -- Dagu tracks each step's own exit status individually, not one process return code.
@@ -265,6 +269,7 @@ steps:
     run: |
       bash .claude/nav/scripts/check-flows-completeness.sh
       bash .claude/nav/scripts/check-hardcoded-counts.sh
+      bash .claude/nav/scripts/check-module-lists.sh
       SONAR_FLAG=""
       # The Sonar rescan is skipped only when this run's Sonar stage passed.
       [ "${params.sonar}" = "true" ] && SONAR_FLAG="--with-sonar"

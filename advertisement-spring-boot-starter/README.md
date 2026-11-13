@@ -20,9 +20,9 @@ sanitization, and scheduled retention cleanup for the `advertisement` table.
   purge-candidate actor ids; `findOwnerIds` reports which of those ids still own an advertisement
   (via `created_by`), so a still-owning user is skipped from that purge run.
 - **SPI implementation:** `AdvertisementPort` — called by `marketplace-orchestrator` for every
-  regular CRUD/query use case, and directly by `user-spring-boot-starter`'s `UserService.cleanup()`
-  for account-purge actor-reference cleanup (`clearActorReferences`/`findOwnerIds`); never called
-  directly by `marketplace-app` or `marketplace-rest-api`.
+  regular CRUD/query use case, including `UserPurgeEligibilityService`'s account-purge
+  actor-reference cleanup (`clearActorReferences`/`findOwnerIds`); never called directly by
+  `marketplace-app` or `marketplace-rest-api`.
 
 ## Data flow
 
@@ -49,7 +49,7 @@ module's only business-logic class.
   `CronTrigger` (from `CleanupProperties`) that calls `AdvertisementService.cleanup(retentionDays)`
   → `AdvertisementRepository.deleteOlderThan` hard-deletes soft-deleted rows past the retention
   window.
-- **Account-deletion cleanup:** `user-spring-boot-starter`'s `UserService.cleanup()` calls
+- **Account-deletion cleanup:** `marketplace-orchestrator`'s `UserPurgeEligibilityService` calls
   `AdvertisementPort.clearActorReferences(candidateIds)` → `AdvertisementService` →
   `AdvertisementRepository` nulls `updated_by`/`deleted_by` (never `created_by`) for each purge
   candidate, and separately calls `AdvertisementPort.findOwnerIds(candidateIds)` to read which
@@ -66,10 +66,8 @@ module's only business-logic class.
   `AdvertisementService` writes or clears no taxon assignment, and enriches no display field
   (category/city names, author name/email, media summary); that composition lives in
   `marketplace-orchestrator`.
-- `query-lib` — `SqlFilterBuilder`, `OrderByBuilder`, `PaginationSqlBuilder` for dynamic filter/
-  sort/pagination.
-- `html-sanitizer-lib` — `HtmlSanitizer` for description sanitization and the visible-text-length
-  cap.
+- `query-lib` — the dynamic filter, sort and pagination clauses.
+- `html-sanitizer-lib` — description sanitization and the visible-text-length cap.
 - **No Maven dependency on any sibling starter** (`audit-`/`attachment-`/`taxon-`/`user-`/
   `provider-profile-spring-boot-starter`) — Maven Enforcer's `bannedDependencies` rule fails the
   build on a real starter-to-starter dependency; the `TaxonPort` wiring above stays genuine

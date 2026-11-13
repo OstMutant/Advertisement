@@ -1,10 +1,10 @@
 # feedback-spring-boot-starter
 
-Split out as its own bounded context rather than folded into `provider-profile-spring-boot-starter`
-or `advertisement-spring-boot-starter`, mirroring why `contact-spring-boot-starter` is its own
-module: the concern (rating+text feedback) is shared across those two domains, and either one
-owning it would mean the other reaching across the sibling-starter boundary (`.claude/rules.md`'s
-"no direct imports between sibling modules") to resolve a fallback.
+Auto-configures rating+text feedback on an owning entity (today a provider profile): one entry per
+author and entity, edits only inside a 48-hour window, a rating aggregate per entity, and
+moderation of entries and replies. It is its own starter, mirroring `contact-spring-boot-starter`,
+so no domain starter has to reach across the sibling-starter boundary (`.claude/rules.md`'s "no
+direct imports between sibling modules") to resolve it.
 
 ## What it provides
 
@@ -13,10 +13,12 @@ owning it would mean the other reaching across the sibling-starter boundary (`.c
   entry is older than the 48h edit window (`FeedbackService.checkWithinEditWindow`); text is
   sanitized via `html-sanitizer-lib`'s `HtmlSanitizer`. A stale `version` on save is translated
   from Spring Data JDBC's `OptimisticLockingFailureException` into `StaleWriteException` in
-  `FeedbackRepository.save`.
+  `FeedbackRepository.saveContent`.
 - `feedback_aggregate` — `avg_rating`/`review_count` recomputed and upserted in the same
   transaction as every feedback write (`FeedbackRepository.upsertAggregate`); no column is added
   to `provider_profile`/`advertisement` for this.
+- A query for the entities of a type whose stored average (one decimal, as users see it) and visible
+  review count reach two thresholds, read from `feedback_aggregate` alone.
 - **SPI implementation:** `FeedbackPort` (`platform-commons`), consumed by
   `marketplace-orchestrator`'s `FeedbackAccessService`/`FeedbackCommentWriteService`, in turn
   wired into `marketplace-app`'s `FeedbackPanel`/`FeedbackReplyPanel`/`ModerationView`.
@@ -26,7 +28,7 @@ owning it would mean the other reaching across the sibling-starter boundary (`.c
 A caller (via `FeedbackPort`) passes an `(EntityType, Long entityId)` pair plus the feedback
 payload. `FeedbackPortImpl` delegates straight through to `FeedbackService`, which resolves
 persistence through `FeedbackRepository`:
-- `save` looks up any existing entry for `(authorId, entityType, entityId)` first (create vs.
+- `save` looks up the existing entry by `dto.id()` first (create vs.
   edit-within-window), sanitizes the text, then writes `feedback` and recomputes
   `feedback_aggregate` in one `@Transactional` method.
 - A feedback has at most one reply (`saveComment`/`deleteComment`); `MAX_FEEDBACK_PER_DAY` (10)
@@ -35,6 +37,8 @@ persistence through `FeedbackRepository`:
   one visible again, `confirm*Violation` keeps it hidden permanently, `reject*` removes it; the
   hidden and confirmed-violation lists and the filtered, sorted and paged
   `findModerationQueue`/`countModerationQueue` feed the moderator queue.
+- `deleteByEntity` hard-deletes every entry of one owning entity with its reply, rating and
+  content rows and the entity's `feedback_aggregate` row, in one `@Transactional` call.
 - `findForEntity`/`count` read paginated entries for one owning entity, ordered by `created_at
   DESC`.
 - `getAggregate` reads the denormalized `feedback_aggregate` row, or a zero-value default when no
@@ -46,8 +50,8 @@ persistence through `FeedbackRepository`:
   `FeedbackModerationStatus` (`feedback.*`) is this module's own compile-time contract;
   `EntityType` (`core.model`) is the generic entity key; `StaleWriteException` (`core`) is the
   optimistic-lock failure type this module's repository translates into.
-- `html-sanitizer-lib` — `HtmlSanitizer.sanitize` for `feedback_text`.
-- `query-lib` — `PaginationSqlBuilder.pageLimit` for the paginated entity-feedback read.
+- `html-sanitizer-lib` — sanitizes the entry and reply text (`feedback_content.content_text`).
+- `query-lib` — the pagination clause of the entity-feedback read.
 - No Maven dependency on any sibling starter (enforced by this module's own `maven-enforcer-plugin`
   rule) — resolution stays entity-type/entity-id generic, never a direct call into
   `provider-profile-spring-boot-starter`/`advertisement-spring-boot-starter`.

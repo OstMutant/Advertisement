@@ -29,6 +29,7 @@ touched.
 - [`apikey-spring-boot-starter.md`](apikey-spring-boot-starter.md) — `apikey-spring-boot-starter/**`
 - [`attachment-spring-boot-starter.md`](attachment-spring-boot-starter.md) — `attachment-spring-boot-starter/**`
 - [`audit-spring-boot-starter.md`](audit-spring-boot-starter.md) — `audit-spring-boot-starter/**`
+- [`backlog-tasks.md`](backlog-tasks.md) — `backlog/tasks/**`, `backlog/completed/tasks/**`
 - [`contact-spring-boot-starter.md`](contact-spring-boot-starter.md) — `contact-spring-boot-starter/**`
 - [`feedback-spring-boot-starter.md`](feedback-spring-boot-starter.md) — `feedback-spring-boot-starter/**`
 - [`html-sanitizer-lib.md`](html-sanitizer-lib.md) — `html-sanitizer-lib/**`
@@ -40,6 +41,7 @@ touched.
 - [`platform-commons.md`](platform-commons.md) — `platform-commons/**`
 - [`playwright.md`](playwright.md) — `playwright/**`
 - [`provider-profile-spring-boot-starter.md`](provider-profile-spring-boot-starter.md) — `provider-profile-spring-boot-starter/**`
+- [`promotion-spring-boot-starter.md`](promotion-spring-boot-starter.md) — `promotion-spring-boot-starter/**`
 - [`query-lib.md`](query-lib.md) — `query-lib/**`
 - [`scripts.md`](scripts.md) — `scripts/**` (see "Important" below — the glob matches more broadly than just the top-level `scripts/` directory)
 - [`taxon-spring-boot-starter.md`](taxon-spring-boot-starter.md) — `taxon-spring-boot-starter/**`

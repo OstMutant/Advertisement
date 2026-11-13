@@ -145,7 +145,7 @@ Steps:
      real finding (a new bug/critical-or-blocker-severity issue introduced by this run's own
      changes), fix it in the same run before moving on — a finding already tracked by its own
      separate, pre-existing issue (unrelated to this run's changes) stays out of scope.
-   - **4b. Sync docs.** `Skill("sync-docs")` (default ref `origin/main`) against this run's own
+   - **4b. Sync docs.** `Skill("sync-docs")` (default: uncommitted changes) against this run's own
      changes — new module, schema, SPI, or structural changes made during implementation need the
      architecture docs/ADR-index current before the full run's own `docs` stage (see 4c) rebuilds
      the architecture map from them.

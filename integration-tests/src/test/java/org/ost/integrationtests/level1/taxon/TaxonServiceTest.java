@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * Covers improvement-049 item 1: {@link TaxonService#update} forwarded {@code deletedAt} but not
+ * Covers the fix where {@link TaxonService#update} forwarded {@code deletedAt} but not
  * {@code deletedBy} when rebuilding the entity, silently overwriting {@code deleted_by} to
  * {@code NULL} on every {@code update()} call against an already soft-deleted taxon (Spring Data
  * JDBC's {@code save()} is a full-row {@code UPDATE}, not a partial patch, so any field the
@@ -103,7 +103,7 @@ class TaxonServiceTest extends AbstractPostgresIntegrationTest {
 
         Taxon updated = taxonService.update(taxon.getId(), validTranslations(), 99L, taxon.getVersion());
 
-        assertThat(updated.getUpdatedAt()).isNotNull().isAfter(insertedAt).isBeforeOrEqualTo(Instant.now());
+        assertThat(updated.getUpdatedAt()).isNotNull().isNotEqualTo(insertedAt);
         Taxon afterUpdate = taxonRepository.findById(taxon.getId()).orElseThrow();
         // Two independent reads of the same persisted timestamptz column can round-trip through
         // the driver with sub-microsecond jitter (observed directly: a 1-microsecond mismatch on

@@ -1,0 +1,432 @@
+Pager usage is off.
+Output format is unaligned.
+P1-current-indexes|1|##### S1 cat5 (31k)|
+P1-current-indexes|1|A.lookup: 31575 ids, 97.9 ms|
+P1-current-indexes|1|A.page|Planning Time: 37.744 ms  Execution Time: 5.745 ms
+P1-current-indexes|1|A.count|Planning Time: 20.084 ms  Execution Time: 150.731 ms
+P1-current-indexes|1|F.page|Planning Time: 0.421 ms  Execution Time: 10.945 ms
+P1-current-indexes|1|F.count|Planning Time: 0.282 ms  Execution Time: 233.822 ms
+P1-current-indexes|1|G.page|Planning Time: 0.140 ms  Execution Time: 205.703 ms
+P1-current-indexes|1|G.count|Planning Time: 0.214 ms  Execution Time: 236.252 ms
+P1-current-indexes|1|B.page|Planning Time: 0.860 ms  Execution Time: 5.684 ms
+P1-current-indexes|1|B.count|Planning Time: 0.573 ms  Execution Time: 192.802 ms
+P1-current-indexes|1|##### S1a cat50 (6.3k)|
+P1-current-indexes|1|A.lookup: 6301 ids, 27.4 ms|
+P1-current-indexes|1|A.page|Planning Time: 3.458 ms  Execution Time: 11.512 ms
+P1-current-indexes|1|A.count|Planning Time: 3.530 ms  Execution Time: 38.396 ms
+P1-current-indexes|1|F.page|Planning Time: 0.529 ms  Execution Time: 210.559 ms
+P1-current-indexes|1|F.count|Planning Time: 0.735 ms  Execution Time: 84.656 ms
+P1-current-indexes|1|G.page|Planning Time: 0.144 ms  Execution Time: 31.842 ms
+P1-current-indexes|1|G.count|Planning Time: 0.120 ms  Execution Time: 29.457 ms
+P1-current-indexes|1|B.page|Planning Time: 0.628 ms  Execution Time: 131.986 ms
+P1-current-indexes|1|B.count|Planning Time: 0.399 ms  Execution Time: 47.100 ms
+P1-current-indexes|1|##### S1b cat2 (66k)|
+P1-current-indexes|1|A.lookup: 65799 ids, 104.9 ms|
+P1-current-indexes|1|A.page|Planning Time: 39.520 ms  Execution Time: 9.256 ms
+P1-current-indexes|1|A.count|Planning Time: 37.249 ms  Execution Time: 232.493 ms
+P1-current-indexes|1|F.page|Planning Time: 0.476 ms  Execution Time: 5.519 ms
+P1-current-indexes|1|F.count|Planning Time: 0.544 ms  Execution Time: 258.757 ms
+P1-current-indexes|1|G.page|Planning Time: 0.295 ms  Execution Time: 326.615 ms
+P1-current-indexes|1|G.count|Planning Time: 0.128 ms  Execution Time: 345.201 ms
+P1-current-indexes|1|B.page|Planning Time: 0.562 ms  Execution Time: 3.513 ms
+P1-current-indexes|1|B.count|Planning Time: 0.355 ms  Execution Time: 217.125 ms
+P1-current-indexes|1|##### S2 rare cat150 (3k)|
+P1-current-indexes|1|A.lookup: 3007 ids, 14.4 ms|
+P1-current-indexes|1|A.page|Planning Time: 1.797 ms  Execution Time: 38.825 ms
+P1-current-indexes|1|A.count|Planning Time: 1.517 ms  Execution Time: 19.250 ms
+P1-current-indexes|1|F.page|Planning Time: 0.399 ms  Execution Time: 396.130 ms
+P1-current-indexes|1|F.count|Planning Time: 0.570 ms  Execution Time: 42.142 ms
+P1-current-indexes|1|G.page|Planning Time: 0.196 ms  Execution Time: 14.725 ms
+P1-current-indexes|1|G.count|Planning Time: 0.120 ms  Execution Time: 12.699 ms
+P1-current-indexes|1|B.page|Planning Time: 0.783 ms  Execution Time: 219.406 ms
+P1-current-indexes|1|B.count|Planning Time: 0.692 ms  Execution Time: 24.748 ms
+P1-current-indexes|1|##### S3 cat1 (241k)|
+P1-current-indexes|1|A.lookup: 241170 ids, 197.7 ms|
+P1-current-indexes|1|A.page|Planning Time: 144.452 ms  Execution Time: 33.013 ms
+P1-current-indexes|1|A.count|Planning Time: 149.656 ms  Execution Time: 413.090 ms
+P1-current-indexes|1|F.page|Planning Time: 0.571 ms  Execution Time: 1.422 ms
+P1-current-indexes|1|F.count|Planning Time: 0.335 ms  Execution Time: 415.511 ms
+P1-current-indexes|1|G.page|Planning Time: 0.147 ms  Execution Time: 767.148 ms
+P1-current-indexes|1|G.count|Planning Time: 0.144 ms  Execution Time: 711.579 ms
+P1-current-indexes|1|B.page|Planning Time: 0.668 ms  Execution Time: 1.188 ms
+P1-current-indexes|1|B.count|Planning Time: 0.350 ms  Execution Time: 346.765 ms
+P1-current-indexes|1|##### S4 cat5 AND city201|
+P1-current-indexes|1|A.lookup: 3130 ids, 210.2 ms|
+P1-current-indexes|1|A.page|Planning Time: 1.739 ms  Execution Time: 31.290 ms
+P1-current-indexes|1|A.count|Planning Time: 1.639 ms  Execution Time: 25.069 ms
+P1-current-indexes|1|F.page|Planning Time: 1.017 ms  Execution Time: 131.382 ms
+P1-current-indexes|1|F.count|Planning Time: 0.582 ms  Execution Time: 293.987 ms
+P1-current-indexes|1|B.page|Planning Time: 1.914 ms  Execution Time: 89.837 ms
+P1-current-indexes|1|B.count|Planning Time: 1.285 ms  Execution Time: 94.168 ms
+P1-current-indexes|1|##### S5 cat5 OFFSET 1000|
+P1-current-indexes|1|A.lookup: 31575 ids, 86.7 ms|
+P1-current-indexes|1|A.page|Planning Time: 17.921 ms  Execution Time: 132.527 ms
+P1-current-indexes|1|A.count|Planning Time: 17.387 ms  Execution Time: 139.872 ms
+P1-current-indexes|1|F.page|Planning Time: 0.454 ms  Execution Time: 331.362 ms
+P1-current-indexes|1|F.count|Planning Time: 0.390 ms  Execution Time: 235.755 ms
+P1-current-indexes|1|G.page|Planning Time: 0.146 ms  Execution Time: 202.342 ms
+P1-current-indexes|1|G.count|Planning Time: 0.155 ms  Execution Time: 228.814 ms
+P1-current-indexes|1|B.page|Planning Time: 0.827 ms  Execution Time: 203.297 ms
+P1-current-indexes|1|B.count|Planning Time: 0.481 ms  Execution Time: 184.750 ms
+P1-current-indexes|1|##### S6 rare cat150 AND city250|
+P1-current-indexes|1|A.lookup: 16 ids, 42.2 ms|
+P1-current-indexes|1|A.page|Planning Time: 0.108 ms  Execution Time: 0.290 ms
+P1-current-indexes|1|A.count|Planning Time: 0.050 ms  Execution Time: 0.084 ms
+P1-current-indexes|1|F.page|Planning Time: 1.441 ms  Execution Time: 14.328 ms
+P1-current-indexes|1|F.count|Planning Time: 0.909 ms  Execution Time: 11.350 ms
+P1-current-indexes|1|B.page|Planning Time: 1.888 ms  Execution Time: 4.350 ms
+P1-current-indexes|1|B.count|Planning Time: 1.053 ms  Execution Time: 4.621 ms
+P1-current-indexes|1|##### S7 three cats 5,50,150|
+P1-current-indexes|1|A.lookup: 40754 ids, 81.7 ms|
+P1-current-indexes|1|A.page|Planning Time: 23.033 ms  Execution Time: 5.319 ms
+P1-current-indexes|1|A.count|Planning Time: 23.666 ms  Execution Time: 179.829 ms
+P1-current-indexes|1|F.page|Planning Time: 0.503 ms  Execution Time: 7.629 ms
+P1-current-indexes|1|F.count|Planning Time: 0.389 ms  Execution Time: 234.723 ms
+P1-current-indexes|1|G.page|Planning Time: 0.155 ms  Execution Time: 224.680 ms
+P1-current-indexes|1|G.count|Planning Time: 0.129 ms  Execution Time: 273.097 ms
+P1-current-indexes|1|B.page|Planning Time: 0.743 ms  Execution Time: 7.129 ms
+P1-current-indexes|1|B.count|Planning Time: 0.451 ms  Execution Time: 227.491 ms
+P1-current-indexes|2|##### S1 cat5 (31k)|
+P1-current-indexes|2|A.lookup: 31575 ids, 84.4 ms|
+P1-current-indexes|2|A.page|Planning Time: 19.134 ms  Execution Time: 5.114 ms
+P1-current-indexes|2|A.count|Planning Time: 19.216 ms  Execution Time: 143.847 ms
+P1-current-indexes|2|F.page|Planning Time: 0.427 ms  Execution Time: 10.046 ms
+P1-current-indexes|2|F.count|Planning Time: 0.288 ms  Execution Time: 237.721 ms
+P1-current-indexes|2|G.page|Planning Time: 0.146 ms  Execution Time: 193.933 ms
+P1-current-indexes|2|G.count|Planning Time: 0.127 ms  Execution Time: 237.545 ms
+P1-current-indexes|2|B.page|Planning Time: 0.565 ms  Execution Time: 5.460 ms
+P1-current-indexes|2|B.count|Planning Time: 0.389 ms  Execution Time: 181.794 ms
+P1-current-indexes|2|##### S1a cat50 (6.3k)|
+P1-current-indexes|2|A.lookup: 6301 ids, 25.9 ms|
+P1-current-indexes|2|A.page|Planning Time: 3.349 ms  Execution Time: 11.680 ms
+P1-current-indexes|2|A.count|Planning Time: 3.371 ms  Execution Time: 35.561 ms
+P1-current-indexes|2|F.page|Planning Time: 0.402 ms  Execution Time: 235.471 ms
+P1-current-indexes|2|F.count|Planning Time: 0.695 ms  Execution Time: 84.098 ms
+P1-current-indexes|2|G.page|Planning Time: 0.143 ms  Execution Time: 25.466 ms
+P1-current-indexes|2|G.count|Planning Time: 0.155 ms  Execution Time: 25.239 ms
+P1-current-indexes|2|B.page|Planning Time: 0.600 ms  Execution Time: 135.247 ms
+P1-current-indexes|2|B.count|Planning Time: 0.400 ms  Execution Time: 45.664 ms
+P1-current-indexes|2|##### S1b cat2 (66k)|
+P1-current-indexes|2|A.lookup: 65799 ids, 115.6 ms|
+P1-current-indexes|2|A.page|Planning Time: 69.027 ms  Execution Time: 7.287 ms
+P1-current-indexes|2|A.count|Planning Time: 38.712 ms  Execution Time: 231.278 ms
+P1-current-indexes|2|F.page|Planning Time: 0.489 ms  Execution Time: 5.460 ms
+P1-current-indexes|2|F.count|Planning Time: 0.321 ms  Execution Time: 263.870 ms
+P1-current-indexes|2|G.page|Planning Time: 0.146 ms  Execution Time: 307.919 ms
+P1-current-indexes|2|G.count|Planning Time: 0.125 ms  Execution Time: 361.975 ms
+P1-current-indexes|2|B.page|Planning Time: 0.558 ms  Execution Time: 3.617 ms
+P1-current-indexes|2|B.count|Planning Time: 0.406 ms  Execution Time: 223.219 ms
+P1-current-indexes|2|##### S2 rare cat150 (3k)|
+P1-current-indexes|2|A.lookup: 3007 ids, 14.1 ms|
+P1-current-indexes|2|A.page|Planning Time: 1.490 ms  Execution Time: 37.859 ms
+P1-current-indexes|2|A.count|Planning Time: 1.376 ms  Execution Time: 18.406 ms
+P1-current-indexes|2|F.page|Planning Time: 0.383 ms  Execution Time: 420.902 ms
+P1-current-indexes|2|F.count|Planning Time: 0.425 ms  Execution Time: 43.214 ms
+P1-current-indexes|2|G.page|Planning Time: 0.146 ms  Execution Time: 14.747 ms
+P1-current-indexes|2|G.count|Planning Time: 0.122 ms  Execution Time: 13.044 ms
+P1-current-indexes|2|B.page|Planning Time: 0.749 ms  Execution Time: 219.528 ms
+P1-current-indexes|2|B.count|Planning Time: 0.426 ms  Execution Time: 24.047 ms
+P1-current-indexes|2|##### S3 cat1 (241k)|
+P1-current-indexes|2|A.lookup: 241170 ids, 204.6 ms|
+P1-current-indexes|2|A.page|Planning Time: 151.402 ms  Execution Time: 29.043 ms
+P1-current-indexes|2|A.count|Planning Time: 147.268 ms  Execution Time: 355.331 ms
+P1-current-indexes|2|F.page|Planning Time: 0.460 ms  Execution Time: 1.403 ms
+P1-current-indexes|2|F.count|Planning Time: 0.335 ms  Execution Time: 357.859 ms
+P1-current-indexes|2|G.page|Planning Time: 0.145 ms  Execution Time: 721.650 ms
+P1-current-indexes|2|G.count|Planning Time: 0.163 ms  Execution Time: 691.855 ms
+P1-current-indexes|2|B.page|Planning Time: 0.576 ms  Execution Time: 1.006 ms
+P1-current-indexes|2|B.count|Planning Time: 0.408 ms  Execution Time: 312.389 ms
+P1-current-indexes|2|##### S4 cat5 AND city201|
+P1-current-indexes|2|A.lookup: 3130 ids, 199.7 ms|
+P1-current-indexes|2|A.page|Planning Time: 1.534 ms  Execution Time: 33.506 ms
+P1-current-indexes|2|A.count|Planning Time: 2.225 ms  Execution Time: 27.098 ms
+P1-current-indexes|2|F.page|Planning Time: 1.263 ms  Execution Time: 136.035 ms
+P1-current-indexes|2|F.count|Planning Time: 0.848 ms  Execution Time: 292.541 ms
+P1-current-indexes|2|B.page|Planning Time: 2.030 ms  Execution Time: 97.562 ms
+P1-current-indexes|2|B.count|Planning Time: 1.108 ms  Execution Time: 77.637 ms
+P1-current-indexes|2|##### S5 cat5 OFFSET 1000|
+P1-current-indexes|2|A.lookup: 31575 ids, 83.6 ms|
+P1-current-indexes|2|A.page|Planning Time: 17.359 ms  Execution Time: 134.737 ms
+P1-current-indexes|2|A.count|Planning Time: 17.808 ms  Execution Time: 138.899 ms
+P1-current-indexes|2|F.page|Planning Time: 0.467 ms  Execution Time: 331.181 ms
+P1-current-indexes|2|F.count|Planning Time: 0.967 ms  Execution Time: 227.187 ms
+P1-current-indexes|2|G.page|Planning Time: 0.153 ms  Execution Time: 202.370 ms
+P1-current-indexes|2|G.count|Planning Time: 0.167 ms  Execution Time: 233.971 ms
+P1-current-indexes|2|B.page|Planning Time: 0.622 ms  Execution Time: 201.858 ms
+P1-current-indexes|2|B.count|Planning Time: 0.398 ms  Execution Time: 193.227 ms
+P1-current-indexes|2|##### S6 rare cat150 AND city250|
+P1-current-indexes|2|A.lookup: 16 ids, 43.4 ms|
+P1-current-indexes|2|A.page|Planning Time: 0.103 ms  Execution Time: 0.309 ms
+P1-current-indexes|2|A.count|Planning Time: 0.051 ms  Execution Time: 0.088 ms
+P1-current-indexes|2|F.page|Planning Time: 0.900 ms  Execution Time: 11.423 ms
+P1-current-indexes|2|F.count|Planning Time: 0.675 ms  Execution Time: 12.535 ms
+P1-current-indexes|2|B.page|Planning Time: 2.147 ms  Execution Time: 4.562 ms
+P1-current-indexes|2|B.count|Planning Time: 1.138 ms  Execution Time: 5.180 ms
+P1-current-indexes|2|##### S7 three cats 5,50,150|
+P1-current-indexes|2|A.lookup: 40754 ids, 83.0 ms|
+P1-current-indexes|2|A.page|Planning Time: 24.888 ms  Execution Time: 5.021 ms
+P1-current-indexes|2|A.count|Planning Time: 24.898 ms  Execution Time: 174.597 ms
+P1-current-indexes|2|F.page|Planning Time: 0.426 ms  Execution Time: 6.990 ms
+P1-current-indexes|2|F.count|Planning Time: 0.288 ms  Execution Time: 242.544 ms
+P1-current-indexes|2|G.page|Planning Time: 0.147 ms  Execution Time: 229.262 ms
+P1-current-indexes|2|G.count|Planning Time: 0.147 ms  Execution Time: 304.594 ms
+P1-current-indexes|2|B.page|Planning Time: 0.699 ms  Execution Time: 6.847 ms
+P1-current-indexes|2|B.count|Planning Time: 0.384 ms  Execution Time: 291.562 ms
+P1-current-indexes|3|##### S1 cat5 (31k)|
+P1-current-indexes|3|A.lookup: 31575 ids, 82.4 ms|
+P1-current-indexes|3|A.page|Planning Time: 17.882 ms  Execution Time: 5.461 ms
+P1-current-indexes|3|A.count|Planning Time: 17.784 ms  Execution Time: 151.230 ms
+P1-current-indexes|3|F.page|Planning Time: 0.439 ms  Execution Time: 10.335 ms
+P1-current-indexes|3|F.count|Planning Time: 0.291 ms  Execution Time: 234.784 ms
+P1-current-indexes|3|G.page|Planning Time: 0.145 ms  Execution Time: 183.757 ms
+P1-current-indexes|3|G.count|Planning Time: 0.125 ms  Execution Time: 238.631 ms
+P1-current-indexes|3|B.page|Planning Time: 0.691 ms  Execution Time: 5.663 ms
+P1-current-indexes|3|B.count|Planning Time: 0.424 ms  Execution Time: 194.986 ms
+P1-current-indexes|3|##### S1a cat50 (6.3k)|
+P1-current-indexes|3|A.lookup: 6301 ids, 28.3 ms|
+P1-current-indexes|3|A.page|Planning Time: 3.666 ms  Execution Time: 11.593 ms
+P1-current-indexes|3|A.count|Planning Time: 3.436 ms  Execution Time: 36.992 ms
+P1-current-indexes|3|F.page|Planning Time: 0.484 ms  Execution Time: 217.961 ms
+P1-current-indexes|3|F.count|Planning Time: 0.315 ms  Execution Time: 80.527 ms
+P1-current-indexes|3|G.page|Planning Time: 0.143 ms  Execution Time: 27.325 ms
+P1-current-indexes|3|G.count|Planning Time: 0.121 ms  Execution Time: 25.611 ms
+P1-current-indexes|3|B.page|Planning Time: 0.530 ms  Execution Time: 128.366 ms
+P1-current-indexes|3|B.count|Planning Time: 0.387 ms  Execution Time: 47.477 ms
+P1-current-indexes|3|##### S1b cat2 (66k)|
+P1-current-indexes|3|A.lookup: 65799 ids, 106.4 ms|
+P1-current-indexes|3|A.page|Planning Time: 40.779 ms  Execution Time: 7.289 ms
+P1-current-indexes|3|A.count|Planning Time: 40.757 ms  Execution Time: 241.084 ms
+P1-current-indexes|3|F.page|Planning Time: 0.512 ms  Execution Time: 5.613 ms
+P1-current-indexes|3|F.count|Planning Time: 0.293 ms  Execution Time: 265.907 ms
+P1-current-indexes|3|G.page|Planning Time: 0.178 ms  Execution Time: 308.894 ms
+P1-current-indexes|3|G.count|Planning Time: 0.125 ms  Execution Time: 343.628 ms
+P1-current-indexes|3|B.page|Planning Time: 0.633 ms  Execution Time: 5.991 ms
+P1-current-indexes|3|B.count|Planning Time: 0.359 ms  Execution Time: 220.917 ms
+P1-current-indexes|3|##### S2 rare cat150 (3k)|
+P1-current-indexes|3|A.lookup: 3007 ids, 14.4 ms|
+P1-current-indexes|3|A.page|Planning Time: 1.543 ms  Execution Time: 40.869 ms
+P1-current-indexes|3|A.count|Planning Time: 1.474 ms  Execution Time: 18.407 ms
+P1-current-indexes|3|F.page|Planning Time: 0.384 ms  Execution Time: 367.328 ms
+P1-current-indexes|3|F.count|Planning Time: 0.383 ms  Execution Time: 43.780 ms
+P1-current-indexes|3|G.page|Planning Time: 0.161 ms  Execution Time: 13.672 ms
+P1-current-indexes|3|G.count|Planning Time: 0.154 ms  Execution Time: 12.472 ms
+P1-current-indexes|3|B.page|Planning Time: 0.533 ms  Execution Time: 219.868 ms
+P1-current-indexes|3|B.count|Planning Time: 0.501 ms  Execution Time: 28.635 ms
+P1-current-indexes|3|##### S3 cat1 (241k)|
+P1-current-indexes|3|A.lookup: 241170 ids, 208.6 ms|
+P1-current-indexes|3|A.page|Planning Time: 148.097 ms  Execution Time: 29.354 ms
+P1-current-indexes|3|A.count|Planning Time: 142.466 ms  Execution Time: 380.494 ms
+P1-current-indexes|3|F.page|Planning Time: 0.435 ms  Execution Time: 1.183 ms
+P1-current-indexes|3|F.count|Planning Time: 0.312 ms  Execution Time: 345.142 ms
+P1-current-indexes|3|G.page|Planning Time: 0.147 ms  Execution Time: 762.214 ms
+P1-current-indexes|3|G.count|Planning Time: 0.167 ms  Execution Time: 720.016 ms
+P1-current-indexes|3|B.page|Planning Time: 0.604 ms  Execution Time: 1.045 ms
+P1-current-indexes|3|B.count|Planning Time: 0.334 ms  Execution Time: 321.508 ms
+P1-current-indexes|3|##### S4 cat5 AND city201|
+P1-current-indexes|3|A.lookup: 3130 ids, 202.0 ms|
+P1-current-indexes|3|A.page|Planning Time: 2.137 ms  Execution Time: 31.859 ms
+P1-current-indexes|3|A.count|Planning Time: 1.449 ms  Execution Time: 24.608 ms
+P1-current-indexes|3|F.page|Planning Time: 1.126 ms  Execution Time: 144.149 ms
+P1-current-indexes|3|F.count|Planning Time: 0.651 ms  Execution Time: 288.592 ms
+P1-current-indexes|3|B.page|Planning Time: 2.094 ms  Execution Time: 101.575 ms
+P1-current-indexes|3|B.count|Planning Time: 1.224 ms  Execution Time: 88.913 ms
+P1-current-indexes|3|##### S5 cat5 OFFSET 1000|
+P1-current-indexes|3|A.lookup: 31575 ids, 86.1 ms|
+P1-current-indexes|3|A.page|Planning Time: 17.923 ms  Execution Time: 135.908 ms
+P1-current-indexes|3|A.count|Planning Time: 17.739 ms  Execution Time: 130.828 ms
+P1-current-indexes|3|F.page|Planning Time: 0.436 ms  Execution Time: 334.022 ms
+P1-current-indexes|3|F.count|Planning Time: 0.421 ms  Execution Time: 247.358 ms
+P1-current-indexes|3|G.page|Planning Time: 0.149 ms  Execution Time: 194.928 ms
+P1-current-indexes|3|G.count|Planning Time: 0.165 ms  Execution Time: 233.562 ms
+P1-current-indexes|3|B.page|Planning Time: 0.567 ms  Execution Time: 251.610 ms
+P1-current-indexes|3|B.count|Planning Time: 0.528 ms  Execution Time: 212.425 ms
+P1-current-indexes|3|##### S6 rare cat150 AND city250|
+P1-current-indexes|3|A.lookup: 16 ids, 40.6 ms|
+P1-current-indexes|3|A.page|Planning Time: 0.092 ms  Execution Time: 0.261 ms
+P1-current-indexes|3|A.count|Planning Time: 0.085 ms  Execution Time: 0.116 ms
+P1-current-indexes|3|F.page|Planning Time: 0.915 ms  Execution Time: 11.161 ms
+P1-current-indexes|3|F.count|Planning Time: 0.649 ms  Execution Time: 12.579 ms
+P1-current-indexes|3|B.page|Planning Time: 2.133 ms  Execution Time: 4.305 ms
+P1-current-indexes|3|B.count|Planning Time: 1.159 ms  Execution Time: 5.150 ms
+P1-current-indexes|3|##### S7 three cats 5,50,150|
+P1-current-indexes|3|A.lookup: 40754 ids, 80.8 ms|
+P1-current-indexes|3|A.page|Planning Time: 22.808 ms  Execution Time: 5.182 ms
+P1-current-indexes|3|A.count|Planning Time: 22.602 ms  Execution Time: 173.594 ms
+P1-current-indexes|3|F.page|Planning Time: 0.470 ms  Execution Time: 8.811 ms
+P1-current-indexes|3|F.count|Planning Time: 0.427 ms  Execution Time: 234.358 ms
+P1-current-indexes|3|G.page|Planning Time: 0.324 ms  Execution Time: 226.222 ms
+P1-current-indexes|3|G.count|Planning Time: 0.244 ms  Execution Time: 279.779 ms
+P1-current-indexes|3|B.page|Planning Time: 0.653 ms  Execution Time: 6.226 ms
+P1-current-indexes|3|B.count|Planning Time: 0.487 ms  Execution Time: 214.963 ms
+P1-current-indexes|4|##### S1 cat5 (31k)|
+P1-current-indexes|4|A.lookup: 31575 ids, 82.8 ms|
+P1-current-indexes|4|A.page|Planning Time: 18.253 ms  Execution Time: 5.354 ms
+P1-current-indexes|4|A.count|Planning Time: 18.469 ms  Execution Time: 144.214 ms
+P1-current-indexes|4|F.page|Planning Time: 0.483 ms  Execution Time: 13.581 ms
+P1-current-indexes|4|F.count|Planning Time: 0.370 ms  Execution Time: 224.457 ms
+P1-current-indexes|4|G.page|Planning Time: 0.256 ms  Execution Time: 193.539 ms
+P1-current-indexes|4|G.count|Planning Time: 0.129 ms  Execution Time: 229.826 ms
+P1-current-indexes|4|B.page|Planning Time: 0.932 ms  Execution Time: 5.040 ms
+P1-current-indexes|4|B.count|Planning Time: 0.394 ms  Execution Time: 204.526 ms
+P1-current-indexes|4|##### S1a cat50 (6.3k)|
+P1-current-indexes|4|A.lookup: 6301 ids, 28.7 ms|
+P1-current-indexes|4|A.page|Planning Time: 3.949 ms  Execution Time: 12.737 ms
+P1-current-indexes|4|A.count|Planning Time: 3.610 ms  Execution Time: 39.792 ms
+P1-current-indexes|4|F.page|Planning Time: 0.512 ms  Execution Time: 242.800 ms
+P1-current-indexes|4|F.count|Planning Time: 0.340 ms  Execution Time: 80.231 ms
+P1-current-indexes|4|G.page|Planning Time: 0.160 ms  Execution Time: 26.607 ms
+P1-current-indexes|4|G.count|Planning Time: 0.166 ms  Execution Time: 28.830 ms
+P1-current-indexes|4|B.page|Planning Time: 0.683 ms  Execution Time: 165.846 ms
+P1-current-indexes|4|B.count|Planning Time: 0.626 ms  Execution Time: 54.391 ms
+P1-current-indexes|4|##### S1b cat2 (66k)|
+P1-current-indexes|4|A.lookup: 65799 ids, 115.4 ms|
+P1-current-indexes|4|A.page|Planning Time: 39.337 ms  Execution Time: 7.071 ms
+P1-current-indexes|4|A.count|Planning Time: 37.576 ms  Execution Time: 226.289 ms
+P1-current-indexes|4|F.page|Planning Time: 0.452 ms  Execution Time: 5.615 ms
+P1-current-indexes|4|F.count|Planning Time: 0.298 ms  Execution Time: 258.299 ms
+P1-current-indexes|4|G.page|Planning Time: 0.184 ms  Execution Time: 307.426 ms
+P1-current-indexes|4|G.count|Planning Time: 0.130 ms  Execution Time: 341.764 ms
+P1-current-indexes|4|B.page|Planning Time: 0.622 ms  Execution Time: 3.425 ms
+P1-current-indexes|4|B.count|Planning Time: 0.386 ms  Execution Time: 229.107 ms
+P1-current-indexes|4|##### S2 rare cat150 (3k)|
+P1-current-indexes|4|A.lookup: 3007 ids, 13.5 ms|
+P1-current-indexes|4|A.page|Planning Time: 1.968 ms  Execution Time: 42.692 ms
+P1-current-indexes|4|A.count|Planning Time: 1.448 ms  Execution Time: 18.340 ms
+P1-current-indexes|4|F.page|Planning Time: 0.418 ms  Execution Time: 408.911 ms
+P1-current-indexes|4|F.count|Planning Time: 0.612 ms  Execution Time: 45.611 ms
+P1-current-indexes|4|G.page|Planning Time: 0.236 ms  Execution Time: 16.256 ms
+P1-current-indexes|4|G.count|Planning Time: 0.135 ms  Execution Time: 13.530 ms
+P1-current-indexes|4|B.page|Planning Time: 0.551 ms  Execution Time: 210.594 ms
+P1-current-indexes|4|B.count|Planning Time: 0.402 ms  Execution Time: 24.557 ms
+P1-current-indexes|4|##### S3 cat1 (241k)|
+P1-current-indexes|4|A.lookup: 241170 ids, 202.5 ms|
+P1-current-indexes|4|A.page|Planning Time: 143.586 ms  Execution Time: 26.082 ms
+P1-current-indexes|4|A.count|Planning Time: 144.704 ms  Execution Time: 383.391 ms
+P1-current-indexes|4|F.page|Planning Time: 0.468 ms  Execution Time: 1.390 ms
+P1-current-indexes|4|F.count|Planning Time: 0.296 ms  Execution Time: 408.083 ms
+P1-current-indexes|4|G.page|Planning Time: 0.253 ms  Execution Time: 762.413 ms
+P1-current-indexes|4|G.count|Planning Time: 0.173 ms  Execution Time: 675.276 ms
+P1-current-indexes|4|B.page|Planning Time: 0.591 ms  Execution Time: 1.006 ms
+P1-current-indexes|4|B.count|Planning Time: 0.378 ms  Execution Time: 300.203 ms
+P1-current-indexes|4|##### S4 cat5 AND city201|
+P1-current-indexes|4|A.lookup: 3130 ids, 182.0 ms|
+P1-current-indexes|4|A.page|Planning Time: 1.516 ms  Execution Time: 31.527 ms
+P1-current-indexes|4|A.count|Planning Time: 1.438 ms  Execution Time: 23.250 ms
+P1-current-indexes|4|F.page|Planning Time: 0.986 ms  Execution Time: 126.100 ms
+P1-current-indexes|4|F.count|Planning Time: 0.642 ms  Execution Time: 288.872 ms
+P1-current-indexes|4|B.page|Planning Time: 2.171 ms  Execution Time: 97.219 ms
+P1-current-indexes|4|B.count|Planning Time: 1.146 ms  Execution Time: 85.350 ms
+P1-current-indexes|4|##### S5 cat5 OFFSET 1000|
+P1-current-indexes|4|A.lookup: 31575 ids, 83.2 ms|
+P1-current-indexes|4|A.page|Planning Time: 17.907 ms  Execution Time: 132.142 ms
+P1-current-indexes|4|A.count|Planning Time: 17.400 ms  Execution Time: 131.241 ms
+P1-current-indexes|4|F.page|Planning Time: 0.571 ms  Execution Time: 321.194 ms
+P1-current-indexes|4|F.count|Planning Time: 0.330 ms  Execution Time: 224.887 ms
+P1-current-indexes|4|G.page|Planning Time: 0.146 ms  Execution Time: 196.014 ms
+P1-current-indexes|4|G.count|Planning Time: 0.128 ms  Execution Time: 225.000 ms
+P1-current-indexes|4|B.page|Planning Time: 0.605 ms  Execution Time: 209.190 ms
+P1-current-indexes|4|B.count|Planning Time: 0.715 ms  Execution Time: 277.767 ms
+P1-current-indexes|4|##### S6 rare cat150 AND city250|
+P1-current-indexes|4|A.lookup: 16 ids, 40.0 ms|
+P1-current-indexes|4|A.page|Planning Time: 0.177 ms  Execution Time: 0.276 ms
+P1-current-indexes|4|A.count|Planning Time: 0.099 ms  Execution Time: 0.101 ms
+P1-current-indexes|4|F.page|Planning Time: 0.910 ms  Execution Time: 11.045 ms
+P1-current-indexes|4|F.count|Planning Time: 0.637 ms  Execution Time: 11.257 ms
+P1-current-indexes|4|B.page|Planning Time: 1.939 ms  Execution Time: 4.051 ms
+P1-current-indexes|4|B.count|Planning Time: 1.661 ms  Execution Time: 5.325 ms
+P1-current-indexes|4|##### S7 three cats 5,50,150|
+P1-current-indexes|4|A.lookup: 40754 ids, 92.5 ms|
+P1-current-indexes|4|A.page|Planning Time: 22.614 ms  Execution Time: 5.206 ms
+P1-current-indexes|4|A.count|Planning Time: 22.358 ms  Execution Time: 167.576 ms
+P1-current-indexes|4|F.page|Planning Time: 0.433 ms  Execution Time: 7.816 ms
+P1-current-indexes|4|F.count|Planning Time: 0.301 ms  Execution Time: 240.057 ms
+P1-current-indexes|4|G.page|Planning Time: 0.150 ms  Execution Time: 224.566 ms
+P1-current-indexes|4|G.count|Planning Time: 0.127 ms  Execution Time: 260.638 ms
+P1-current-indexes|4|B.page|Planning Time: 0.724 ms  Execution Time: 5.893 ms
+P1-current-indexes|4|B.count|Planning Time: 0.452 ms  Execution Time: 259.688 ms
+P1-current-indexes|5|##### S1 cat5 (31k)|
+P1-current-indexes|5|A.lookup: 31575 ids, 82.0 ms|
+P1-current-indexes|5|A.page|Planning Time: 17.656 ms  Execution Time: 5.084 ms
+P1-current-indexes|5|A.count|Planning Time: 20.496 ms  Execution Time: 145.524 ms
+P1-current-indexes|5|F.page|Planning Time: 0.531 ms  Execution Time: 10.947 ms
+P1-current-indexes|5|F.count|Planning Time: 0.342 ms  Execution Time: 225.260 ms
+P1-current-indexes|5|G.page|Planning Time: 0.146 ms  Execution Time: 184.861 ms
+P1-current-indexes|5|G.count|Planning Time: 0.136 ms  Execution Time: 227.676 ms
+P1-current-indexes|5|B.page|Planning Time: 0.542 ms  Execution Time: 5.068 ms
+P1-current-indexes|5|B.count|Planning Time: 0.410 ms  Execution Time: 189.653 ms
+P1-current-indexes|5|##### S1a cat50 (6.3k)|
+P1-current-indexes|5|A.lookup: 6301 ids, 24.9 ms|
+P1-current-indexes|5|A.page|Planning Time: 3.327 ms  Execution Time: 10.937 ms
+P1-current-indexes|5|A.count|Planning Time: 3.189 ms  Execution Time: 36.899 ms
+P1-current-indexes|5|F.page|Planning Time: 0.410 ms  Execution Time: 213.261 ms
+P1-current-indexes|5|F.count|Planning Time: 0.772 ms  Execution Time: 78.855 ms
+P1-current-indexes|5|G.page|Planning Time: 0.240 ms  Execution Time: 26.273 ms
+P1-current-indexes|5|G.count|Planning Time: 0.120 ms  Execution Time: 24.717 ms
+P1-current-indexes|5|B.page|Planning Time: 0.640 ms  Execution Time: 132.964 ms
+P1-current-indexes|5|B.count|Planning Time: 0.435 ms  Execution Time: 47.305 ms
+P1-current-indexes|5|##### S1b cat2 (66k)|
+P1-current-indexes|5|A.lookup: 65799 ids, 108.4 ms|
+P1-current-indexes|5|A.page|Planning Time: 44.780 ms  Execution Time: 6.712 ms
+P1-current-indexes|5|A.count|Planning Time: 37.437 ms  Execution Time: 225.773 ms
+P1-current-indexes|5|F.page|Planning Time: 0.537 ms  Execution Time: 5.781 ms
+P1-current-indexes|5|F.count|Planning Time: 0.297 ms  Execution Time: 256.478 ms
+P1-current-indexes|5|G.page|Planning Time: 0.255 ms  Execution Time: 303.588 ms
+P1-current-indexes|5|G.count|Planning Time: 0.123 ms  Execution Time: 335.464 ms
+P1-current-indexes|5|B.page|Planning Time: 0.691 ms  Execution Time: 3.356 ms
+P1-current-indexes|5|B.count|Planning Time: 0.373 ms  Execution Time: 214.194 ms
+P1-current-indexes|5|##### S2 rare cat150 (3k)|
+P1-current-indexes|5|A.lookup: 3007 ids, 14.1 ms|
+P1-current-indexes|5|A.page|Planning Time: 1.432 ms  Execution Time: 37.648 ms
+P1-current-indexes|5|A.count|Planning Time: 1.344 ms  Execution Time: 22.558 ms
+P1-current-indexes|5|F.page|Planning Time: 0.382 ms  Execution Time: 375.934 ms
+P1-current-indexes|5|F.count|Planning Time: 0.327 ms  Execution Time: 41.313 ms
+P1-current-indexes|5|G.page|Planning Time: 0.175 ms  Execution Time: 14.343 ms
+P1-current-indexes|5|G.count|Planning Time: 0.122 ms  Execution Time: 12.849 ms
+P1-current-indexes|5|B.page|Planning Time: 0.514 ms  Execution Time: 238.130 ms
+P1-current-indexes|5|B.count|Planning Time: 0.563 ms  Execution Time: 28.355 ms
+P1-current-indexes|5|##### S3 cat1 (241k)|
+P1-current-indexes|5|A.lookup: 241170 ids, 199.9 ms|
+P1-current-indexes|5|A.page|Planning Time: 140.351 ms  Execution Time: 24.844 ms
+P1-current-indexes|5|A.count|Planning Time: 137.456 ms  Execution Time: 370.043 ms
+P1-current-indexes|5|F.page|Planning Time: 0.413 ms  Execution Time: 1.184 ms
+P1-current-indexes|5|F.count|Planning Time: 0.258 ms  Execution Time: 337.903 ms
+P1-current-indexes|5|G.page|Planning Time: 0.145 ms  Execution Time: 739.279 ms
+P1-current-indexes|5|G.count|Planning Time: 0.177 ms  Execution Time: 712.350 ms
+P1-current-indexes|5|B.page|Planning Time: 0.581 ms  Execution Time: 0.995 ms
+P1-current-indexes|5|B.count|Planning Time: 0.396 ms  Execution Time: 285.125 ms
+P1-current-indexes|5|##### S4 cat5 AND city201|
+P1-current-indexes|5|A.lookup: 3130 ids, 181.6 ms|
+P1-current-indexes|5|A.page|Planning Time: 1.463 ms  Execution Time: 38.531 ms
+P1-current-indexes|5|A.count|Planning Time: 1.512 ms  Execution Time: 22.784 ms
+P1-current-indexes|5|F.page|Planning Time: 0.907 ms  Execution Time: 131.931 ms
+P1-current-indexes|5|F.count|Planning Time: 0.634 ms  Execution Time: 284.949 ms
+P1-current-indexes|5|B.page|Planning Time: 2.008 ms  Execution Time: 91.425 ms
+P1-current-indexes|5|B.count|Planning Time: 1.277 ms  Execution Time: 87.073 ms
+P1-current-indexes|5|##### S5 cat5 OFFSET 1000|
+P1-current-indexes|5|A.lookup: 31575 ids, 84.1 ms|
+P1-current-indexes|5|A.page|Planning Time: 18.317 ms  Execution Time: 126.761 ms
+P1-current-indexes|5|A.count|Planning Time: 17.495 ms  Execution Time: 133.980 ms
+P1-current-indexes|5|F.page|Planning Time: 0.417 ms  Execution Time: 329.526 ms
+P1-current-indexes|5|F.count|Planning Time: 0.391 ms  Execution Time: 222.850 ms
+P1-current-indexes|5|G.page|Planning Time: 0.193 ms  Execution Time: 193.132 ms
+P1-current-indexes|5|G.count|Planning Time: 0.124 ms  Execution Time: 226.351 ms
+P1-current-indexes|5|B.page|Planning Time: 0.915 ms  Execution Time: 204.957 ms
+P1-current-indexes|5|B.count|Planning Time: 0.845 ms  Execution Time: 179.235 ms
+P1-current-indexes|5|##### S6 rare cat150 AND city250|
+P1-current-indexes|5|A.lookup: 16 ids, 42.1 ms|
+P1-current-indexes|5|A.page|Planning Time: 0.108 ms  Execution Time: 0.275 ms
+P1-current-indexes|5|A.count|Planning Time: 0.050 ms  Execution Time: 0.086 ms
+P1-current-indexes|5|F.page|Planning Time: 0.843 ms  Execution Time: 11.835 ms
+P1-current-indexes|5|F.count|Planning Time: 0.568 ms  Execution Time: 11.285 ms
+P1-current-indexes|5|B.page|Planning Time: 1.893 ms  Execution Time: 4.185 ms
+P1-current-indexes|5|B.count|Planning Time: 1.065 ms  Execution Time: 5.075 ms
+P1-current-indexes|5|##### S7 three cats 5,50,150|
+P1-current-indexes|5|A.lookup: 40754 ids, 79.9 ms|
+P1-current-indexes|5|A.page|Planning Time: 23.083 ms  Execution Time: 5.318 ms
+P1-current-indexes|5|A.count|Planning Time: 23.069 ms  Execution Time: 167.184 ms
+P1-current-indexes|5|F.page|Planning Time: 0.440 ms  Execution Time: 7.270 ms
+P1-current-indexes|5|F.count|Planning Time: 0.291 ms  Execution Time: 225.361 ms
+P1-current-indexes|5|G.page|Planning Time: 0.167 ms  Execution Time: 221.978 ms
+P1-current-indexes|5|G.count|Planning Time: 0.128 ms  Execution Time: 264.878 ms
+P1-current-indexes|5|B.page|Planning Time: 0.548 ms  Execution Time: 5.966 ms
+P1-current-indexes|5|B.count|Planning Time: 0.396 ms  Execution Time: 223.631 ms

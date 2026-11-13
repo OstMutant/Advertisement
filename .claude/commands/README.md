@@ -16,9 +16,12 @@ self-contained entry point, described below and linked to its real file.
   too.
 - [`/ci`](ci.md) — Run the local, isolated, parameterized CI runner (`scripts/ci.sh` ->
   `scripts/ci/run.sh`).
-- [`/optimize`](optimize.md) — Find code this repository no longer needs to maintain, measure the saving and
+- [`/reduce-code`](reduce-code.md) (in development) — Find code this repository no longer needs to maintain, measure the saving and
   remove it only in approved batches (discover, report, apply, verify); its helper script is in
-  [`optimize/`](optimize/check-batch.sh).
+  [`reduce-code/`](reduce-code/check-batch.sh).
+- [`/tighten-ai`](tighten-ai.md) — Rewrite AI instructions (commands, rules, skills, agents, project instructions) to be shorter, more
+  exact and stricter without losing a requirement: the goal is written first, the best practices are researched for it, each
+  rewrite has a coverage table and a summary against the goal and is applied file by file after approval.
 - [`/deep-research`](deep-research.md) — Research a task in depth with the `deep-researcher` agent (Opus): best
   practices from the web, the project's own practice, a compared choice and two plans, written into a
   topic folder under `backlog/research/`.

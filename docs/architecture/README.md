@@ -5,7 +5,7 @@ this repo — every diagram and data table lives there, rendered from real repo 
 hand-maintained markdown. This directory holds the tool's two entry-point scripts
 (`architecture-doc.sh`/`.bat`) and the generated `architecture-map.html` itself; the generation
 logic lives in `docs/architecture/scripts/` (its own `README.md`), the generated/hand-written data
-files it reads and writes in `docs/architecture/data/` (its own `README.md`).
+files it reads and writes in `docs/architecture/data/` (its own `README.md`). The page loads its browser libraries (cytoscape, dagre, cytoscape-dagre, minisearch) from [`vendor/`](vendor/) next to it, so it opens without a network as long as that folder stays beside the page. The page's own CSS and JavaScript are the files in [`page/`](page/), joined into the HTML by the generator.
 
 ## What's in `architecture-map.html`
 
@@ -21,9 +21,7 @@ files it reads and writes in `docs/architecture/data/` (its own `README.md`).
 - **Bounded Contexts** — domain grouping (entities/services/tables/SPI ports per domain) and
   cross-domain relationships, both derived live from real code signals (real `@Table`/`*Service`
   classes, real SPI `implements` relationships, real Hook `entityType()` declarations).
-- **Module page** (per module) — a "Code Metrics" section with real SonarQube numbers (lines of
-  code, complexity, cognitive complexity, code smells) and real ArchUnit numbers (Efferent/
-  Afferent Coupling, Instability, Abstractness), when their respective data sources are available.
+- **Module page** (per module) — tables owned, entities, key services, contracts, dependencies, and the module's own `README.md`.
 
 ## How to use it
 
@@ -35,8 +33,9 @@ files it reads and writes in `docs/architecture/data/` (its own `README.md`).
 4. **Diagrams → SPI Map** — all Ports/Hooks and their implementations.
 5. **Diagrams → Database ERD** — full schema.
 6. **Diagrams → Bounded Contexts** — domain boundaries and cross-domain relationships.
-7. Click any module to see its own page — dependencies, entities, key services, contracts, ADRs,
-   and Code Metrics.
+7. Click any module to see its own page — tables, entities, key services, contracts,
+   dependencies, and the module's own `README.md`.
+8. Use the search box in the header to find a module, ADR, backlog task, database table, or the text of a README (module, script folder, command, skill, agent or rule folder).
 
 ## Generated from
 

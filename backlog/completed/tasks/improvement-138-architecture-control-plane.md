@@ -874,6 +874,15 @@ Track B is shelved and the issue closed, on the evidence of 65 `## Operational n
   new AI-navigation layer is added.
 - Reopen only on a documented context-discovery failure, or once a tool reports main-thread token usage.
 
+### Map as a repository index (2026-11-04)
+
+Researched as the topic `map-as-repository-index`, from a scan of 63 local session transcripts and eight outside sources.
+
+- Main-thread token usage is measurable: every model request in `~/.claude/projects/<project>/<session>.jsonl` carries `message.usage`, and Claude Code's OpenTelemetry export reports `claude_code.token.usage`. The second reopen condition above is therefore met in principle, and the first scan below is what it measures.
+- Discovery runs through Bash `grep` (about 1,300 calls in the scanned sessions); the architecture map and model were never read to find code; port where-used lookups are under 1 percent of searches; one such lookup through the model saves about 500 tokens, roughly 0.1 to 0.3 percent of a session. Outside sources agree: repository overviews do not help agents and raise their cost, and on-demand indexes pay only in large repositories (this one has 17 modules).
+- Outcome unchanged: no AI index, no query script, no MCP server and no generated repo-map file; the map stays a tool for people, improved through review rounds.
+- Reopen on a documented context-discovery failure, or when a transcript scan shows that searching is a real share of a session's tokens.
+
 ## Operational notes
 - token_cost_review: n/a
 - token_cost_research: n/a

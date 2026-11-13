@@ -9,6 +9,7 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.provider.entity.ProviderProfile;
@@ -23,6 +24,7 @@ import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** CRUD for {@code provider_profile} -- does not write category/city assignments. */
 @Slf4j
@@ -36,20 +38,20 @@ public class ProviderProfileService {
 
     // ── Query & filter ───────────────────────────────────────────────────────
 
-    public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
-        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
-        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
-            return List.of();
-        }
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
+    public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull ProviderProfileScope scope) {
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), withTaxonFilter(filter, scope));
     }
 
-    public int count(@Valid @NonNull ProviderProfileFilterDto filter) {
-        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
-        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
-            return 0;
-        }
-        return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
+    public int count(@Valid @NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope) {
+        return repository.countByFilter(filter, withTaxonFilter(filter, scope)).intValue();
+    }
+
+    private ProviderProfileScope withTaxonFilter(ProviderProfileFilterDto filter, ProviderProfileScope scope) {
+        Set<Long> allowedIds = resolveTaxonFilter(filter)
+                .map(taxonIds -> scope.onlyIds() == null ? taxonIds
+                        : scope.onlyIds().stream().filter(taxonIds::contains).collect(Collectors.toSet()))
+                .orElse(scope.onlyIds());
+        return new ProviderProfileScope(allowedIds, scope.pinnedGroups(), scope.pinnedAfterRest());
     }
 
     private Optional<Set<Long>> resolveTaxonFilter(ProviderProfileFilterDto filter) {

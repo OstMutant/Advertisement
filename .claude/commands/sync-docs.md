@@ -1,376 +1,265 @@
-Analyze what changed in the codebase and update only the affected architecture documentation.
-
-Usage:
-  /sync-docs               — compare current HEAD against origin/main
-  /sync-docs <ref>         — compare current HEAD against <ref> (branch, tag, or SHA)
-  /sync-docs --full-audit  — ignore git diff entirely; verify every existing README.md/DECISIONS.md/
-                             CLAUDE.md/.claude/rules/*.md claim, plus every *.java class/method
-                             Javadoc and infra/tooling file header, against current code (see "Full
-                             Audit Mode" below)
-  /sync-docs --module <name> — Full Audit Mode's own checklist, scoped to one module's own files
-                             only (its README.md, DECISIONS.md, .claude/rules/<name>.md, pom.xml,
-                             every *.java under it) — verified against current code regardless of
-                             any diff. "Run `/sync-docs` on module X" means this mode, not the
-                             diff-based default — see "Full Audit Mode" below for the scoping detail.
-  /sync-docs --package <name> — same idea, one level narrower: Full Audit Mode's per-file Javadoc
-                             checklist only, scoped to one Java package's own *.java files (no
-                             module-level README.md/DECISIONS.md/pom.xml check — those are
-                             module-level facts, out of a single package's scope). "Run `/sync-docs`
-                             on package X" means this mode.
-
-**General scoping principle:** whatever structure is named, every file genuinely inside it is
-checked exhaustively, not sampled — a module means the whole module, a package means the whole
-package, a diff means exactly (and only) the files the diff touched. Never partially check a named
-scope and call it done.
-
-**Known limitation of the default (diff-based) mode:** it only re-checks documentation for files
-that changed in the given diff. Staleness introduced by a rename/removal in commit A, where no
-later commit's diff ever touched the doc mentioning the old name, is invisible to this mode
-forever — the diff that would surface it never happens, since the doc file itself isn't part of
-any single commit's changed-file set. This is not a bug to fix in the diff logic; it's why
-`--full-audit` exists as a separate mode below, for periodic use (e.g. before a release, or every
-few weeks), not as a replacement for the fast day-to-day diff mode.
-
+---
+description: Find every document related to a change -- by the changed files and by the names the change touches -- correct it against the code, and report what was checked and what was not. Diff mode for uncommitted changes, a `<ref>` or a `task <id>`; `--full-audit`, `--module <name>` and `--package <name>` audit every claim regardless of any diff. Changes documentation and code comments only, never code logic, never commits.
+argument-hint: "[<ref> | task <id> | --full-audit | --module <name> | --package <name>]"
 ---
 
-## Step 1 — Determine changed files
+# /sync-docs
 
-Run: `git diff --name-only <ref>...HEAD`
-Default ref: `origin/main`
+Find every document related to a change, correct it against the code, and report what was checked and
+what was not.
 
-If no Java, SQL, or pom.xml files changed → print "No architectural changes detected." and stop.
+## Hard limits
 
----
+- Documentation changes to match code, never the reverse. Never touch code logic; the edits are to
+  documents and to comments, Javadoc, headers and changelog `remarks=`.
+- Do not invent architecture: document only what exists in code. Mark anything code cannot prove as
+  UNKNOWN.
+- Edit no document or comment by hand before the user's direct yes (Approval Rule of
+  `.claude/rules.md`), asked once per run, after the checks and before the first edit: Step 3 item 3,
+  or Step A4 item 1. Running the generator or the ADR index script is not a hand edit.
+- Never commit.
 
-## Step 2 — Map changed files to documentation targets
+## Scopes
 
-Use this mapping table:
+| Argument | Mode | Files in scope |
+|---|---|---|
+| none | diff mode | `git diff --name-only HEAD` (uncommitted changes, staged and unstaged) |
+| `<ref>` (branch, tag or SHA) | diff mode | `git diff --name-only <ref>...HEAD` (committed changes only) |
+| `task <id>` | diff mode | the union of `git show --name-only --format= <sha>` over every commit whose message names `<id>` (`git log --grep`) and `git diff --name-only HEAD`; with no such commit, only the uncommitted files, and say so |
+| `--full-audit` | Full Audit Mode | every `README.md`, `DECISIONS.md`, `.claude/rules/*.md`, root `CLAUDE.md` and root `INFRASTRUCTURE.md`, every `*.java` (Javadoc) and every infra/tooling file (headers) |
+| `--module <name>` | Full Audit Mode, one module | that module's `README.md`, `DECISIONS.md`, `.claude/rules/<name>.md`, `pom.xml` and every `*.java` under `<name>/src` |
+| `--package <name>` | Full Audit Mode, one package | every `*.java` directly in the package's directory; its sub-packages only when that directory holds no `*.java` of its own, and then every sub-package is in scope (resolve the directory literally from the package name); no `README.md`, `DECISIONS.md` or `pom.xml` |
 
-| Changed file pattern | Documentation targets |
-|----------------------|-----------------------|
-| `**/*.java` (main or test), `**/pom.xml`, `**/db/changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `.claude/nav/flows.md`, `.claude/rules/*.md`, root `CLAUDE.md` | `docs/architecture/data/architecture-model.json` + `docs/architecture/architecture-map.html` + `docs/architecture/data/arch-embed-index.md` — every diagram (Module Dependencies, SPI Map, Database ERD, Bounded Contexts) and every module page's Code Metrics/Architecture Checks/Largest Files sections render live from real source; there is no separate `.md` to hand-edit for any of them. `.claude/rules/*.md`/`CLAUDE.md` are real generator inputs too, not just Java/pom.xml/DECISIONS.md — the generator reads each `.claude/rules/<module>.md`'s own 5th line for its one-line module description, and scans every `CLAUDE.md`/`.claude/rules/*.md` file for `<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->` markers, whose content is embedded live into `architecture-map.html` (today: 5 markers in `.claude/rules/platform-commons.md`'s SPI/Port/Hook glossary sections, feeding the SPI Map screen) — editing marked content there is itself editing the live doc, no separate copy to keep in sync. Regenerate via `bash docs/architecture/scripts/generate-architecture-model.sh`. A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=` attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit happens in the changelog, not in the generated doc. **Run this last, after Step 4's other file updates** — the generator reads every `DECISIONS.md`/`.claude/rules/*.md`/`CLAUDE.md` as input, so it must run after those are updated, not before, or it regenerates from stale input. |
-| Any `*.java` or `**/pom.xml` | `.claude/rules/<module>.md` (per changed module — per-module `CLAUDE.md` files no longer exist, their content lives here), `DECISIONS.md` (per changed module) |
-| Any `*.java` or `**/pom.xml` | `backlog/tasks/` — create/close/update tracked tasks |
-| Any `**/DECISIONS.md` | `.claude/nav/adr-index.md` — regenerate via `bash .claude/nav/scripts/generate-adr-index.sh` |
-| Any `scripts/**`, `docker-compose*.yml`, or other root-level infra/tooling file | root `INFRASTRUCTURE.md` (technical infra overview) — per `app-readme-standards`; a script-group's own `README.md` — per `infra-readme-standards` |
-| Any `*.java` (main or test) | that file's own class-level and method-level Javadoc — per `module-doc-standards`. Not optional: "Class-level Javadoc — always required," no exception, even a self-explanatory `record`/`enum`. Check every class actually touched by the diff, not just new ones — a class edited for unrelated reasons still gets checked if it lacks one. |
-| Any `**/pom.xml` | that file's own file-level header comment — per `module-doc-standards`. Not optional: "Every `pom.xml` carries a file-level header, no exception." A `pom.xml` touched by this diff that has none gets one now, one line (`<!-- Description: ... -->` before `<project>`). Also re-check any touched `<dependency>`/`<exclusion>`/version pin against the same skill's "comment only the non-obvious" rule. |
-| Any `*.java` or `**/pom.xml` changed inside a module | that module's own `README.md` — per `module-readme-standards`, **accuracy check only**, not a full regenerate (a full rewrite from finished Javadoc is `--full-audit`'s job, see below): does it still use the current section-shape convention (not a deprecated one — check `module-readme-standards`'s own "default shape" for what's current), does it name every class/endpoint/package this diff touched or removed, is there now a stale reference to something renamed/deleted. Fix drift found; don't rewrite the whole file. |
-| Any `scripts/**`, `docker-compose*.yml`, `.properties`/`.env`, YAML config, `.gitignore`/`.gitattributes`, or other infra/tooling file (bash/batch/JS/Python) | that file's own file-level and per-function header — per `infra-doc-standards` |
+- "Run `/sync-docs` on module X" means `--module X`; "on package X" means `--package X`.
+- `/sync-docs --module <name>` is running `module-doc-standards` and `module-readme-standards` over that
+  module, as their "Applying this standard" sections define: every pre-existing line is checked, not
+  only what a diff touched.
+- Every file inside a named scope is checked exhaustively, never sampled; a diff scope starts from exactly and only the
+  files it touched, and Steps 2 and 2b add the documents tied to them. A partly checked scope is not done.
+- Diff mode re-checks only documents tied to the diff, so a document naming something an earlier commit
+  renamed or removed stays stale until the next `--full-audit`. Run `--full-audit` periodically (before a
+  release, every few weeks); it does not replace diff mode.
 
-Print which targets are affected before proceeding.
+## Diff mode
 
-**Dispatch Step 4's Javadoc/header checks to Haiku per file/module, same standing rule as
-everywhere else — no file-count threshold.** Each changed file's Javadoc/pom.xml/infra-header
-check (Step 4's relevant rows) is a fully-specified mechanical verification once the target lines
-are known, so it goes to a `model: "haiku"` dispatch per `.claude/rules.md`'s standing rule, the
-same lever Full Audit Mode's own Step A3 already uses — this applies even to a single changed
-file, not only once there are many. When there are several, group dispatches by module/file-count
-(same-file fusion) purely as a batching optimization, not as a precondition for using Haiku at
-all.
+### Step 1 — Changed files
 
----
+Run the command of the scope (table above). The result is the changed files; deleted and renamed files
+count, their old path is matched against the Step 2 table, and Step 3 verifies that no current document
+still names it. Print the changed files.
 
-## Step 3 — Read actual source
+### Step 2 — Targets
 
-No manual read-and-rewrite step is needed for `docs/architecture-map.html`'s content — every
-diagram and every module-page section renders live from `pom.xml`/real Java source/real Liquibase
-changelogs/a running SonarQube server/the last `ArchitectureMetricsExport` test run/`<!--
-#arch-embed:KEY -->` sections inside `CLAUDE.md`/`.claude/rules/*.md` files, directly inside
-`bash docs/architecture/scripts/generate-architecture-model.sh` (see Step 4's ordering note below).
-A schema change still needs its new/changed `<column>`/`<createTable>` to carry a real `remarks=`
-attribute in the changelog itself (single source of truth, see root `CLAUDE.md`) — that edit
-happens in the changelog, not in a generated doc. An `#arch-embed`-marked section inside
-`.claude/rules/<module>.md` is the same relationship one level removed: editing it there and
-regenerating IS the update to that content in `architecture-map.html` — there is no separate copy
-of that text to hand-edit either.
+Every row whose pattern matches a changed file adds its targets. The skill named in a row governs that
+target; how each target is checked and corrected is in Step 3.
 
----
+| Changed file pattern | Targets |
+|---|---|
+| `**/*.java` (main or test), `**/pom.xml`, `**/db/*changelog/**`, `**/DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`, `.claude/nav/flows.md`, `.claude/rules/*.md`, root `CLAUDE.md` | the generated map: `docs/architecture/data/architecture-model.json`, `docs/architecture/architecture-map.html`, `docs/architecture/data/arch-embed-index.md` |
+| `**/*.java`, `**/pom.xml` | `.claude/rules/<module>.md` and `DECISIONS.md` of each changed module; `backlog/tasks/`; the module's own `README.md` (`module-readme-standards`) |
+| `**/*.java` | that file's class-level and method-level Javadoc (`module-doc-standards`) |
+| `**/pom.xml` | that file's file-level header and its touched `<dependency>`/`<exclusion>`/version-pin comments (`module-doc-standards`) |
+| `**/db/*changelog/**` | the `remarks=` of every new or changed `<column>`/`<createTable>` (root `CLAUDE.md`) |
+| `**/DECISIONS.md` | `.claude/nav/adr-index.md` |
+| `scripts/**`, `docker-compose*.yml`, any other root-level infra/tooling file | root `INFRASTRUCTURE.md` (`app-readme-standards`); the `README.md` of the script group the file belongs to (`infra-readme-standards`) |
+| any infra/tooling file: `scripts/**`, `docker-compose*.yml`, `.properties`/`.env`, YAML config, `.gitignore`/`.gitattributes`, bash/batch/JS/Python | that file's file-level and per-function header (`infra-doc-standards`) |
 
-## Step 4 — Update affected files
+### Step 2b — Related documents
 
-There is no `docs/architecture/` markdown content left to hand-edit — `docs/architecture/data/README.md`
-is a pointer to the live tool, and every diagram/module-page section renders directly from source
-(see Step 3). Start straight from the other targets below.
+A related document mentions what the change touched without being a target of Step 2.
 
-**DECISIONS.md** (per module) — ADR audit:
-- Mark realized open goals as done (add date)
-- Replace inline bug/improvement descriptions with `→ [task-NNN](../backlog/tasks/...)` links
-- Add new ADR entry if a new architectural pattern or constraint was introduced
-- Update Status of superseded entries
-- Remove entries whose patterns no longer exist in code
+1. For every name the diff adds, removes or renames (class, method, table, column, enum value, module,
+   endpoint, script flag), search all current documents (`*.md`, script headers, `*.js`, `*.yml`, and the
+   open tasks in `backlog/tasks/`; not `backlog/completed/`, not `backlog/research/`, not generated
+   files). A name counts when it identifies something the diff changes (a path, flag, class, command or
+   section it adds, removes, renames or redefines); a hit counts when the document states or depends on
+   that thing, not when it only mentions the name in passing. Every hit is a related document and is
+   checked like a target.
+2. When the diff adds, removes or renames a module, check every document that enumerates the modules
+   (each list, table and diagram) for completeness against the root `pom.xml` `<module>` entries. A name
+   somewhere in a file does not prove that each of its lists is complete.
+3. If no Step 2 row matched (the generated-map row counts as a match) and this step found no related
+   document, print "No architectural changes detected." and the `Files in scope` lines of the Step 4
+   template, then stop.
+4. Print the targets and the related documents before Step 3.
 
-**`.claude/rules/<module>.md`** (per module) — factual corrections only:
-- Update "What it owns" if new classes were added or removed
-- Fix stale package paths
-- Do NOT rewrite prose
+### Step 3 — Update
 
-Root `CLAUDE.md` gets the same factual-corrections-only treatment whenever the diff touches
-something it names directly (e.g. its "Reference Implementations" section, the module-layout
-summary) — it is the one `CLAUDE.md` that still exists as a real file; every per-module
-`CLAUDE.md` was migrated into `.claude/rules/<module>.md` (see `.claude/rules/README.md`).
+1. Check every target and related document against the code by the rules below.
+2. Each Javadoc, `pom.xml` header and infra header check goes to an Agent dispatch with `model: "haiku"`:
+   one agent per module with its changed files, and one agent for a changed file outside any module,
+   even for one file. Its prompt
+   carries the file list, the checklist to apply (the skill named in Step 2 and the rules below), the
+   output file `/tmp/sync-docs-audit-<agent-name>.md` or an equivalent file, with one line per finding
+   `file:line -- MISSING|STALE|VALID -- evidence`, and that it edits nothing.
+3. Show the planned corrections and ask (hard limits).
+4. Apply the corrections:
+   - Generated map: the three files in the Targets column of the first row of Step 2 are never edited by
+     hand, and no markdown under `docs/architecture/` is hand-written content. The files the generator
+     reads, including the `<!-- #arch-embed:KEY --> ... <!-- /#arch-embed -->` sections of `CLAUDE.md`
+     and `.claude/rules/*.md`, are listed in the header of
+     `docs/architecture/scripts/generate-architecture-model.sh` (the generator); editing a marked
+     section and regenerating is the update of that content. The generator also reads line 5 of each
+     `.claude/rules/<module>.md` as that module's one-line description.
+   - Changelog: the `remarks=` is written in the changelog itself, never in a generated document.
+   - `DECISIONS.md`: mark a realized open goal done, with the date; update the Status of a superseded
+     entry; annotate an entry whose pattern no longer exists in code as superseded, never delete it; a
+     new architectural pattern or constraint gets a new ADR only through `/record-decision`.
+   - `.claude/nav/adr-index.md`: run `bash .claude/nav/scripts/generate-adr-index.sh`.
+   - `.claude/rules/<module>.md`, and root `CLAUDE.md` whenever the diff touches something it names
+     (its module layout, its reference implementations): factual corrections only, such as "What it
+     owns" after classes were added or removed and stale package paths; never rewrite prose.
+   - `backlog/tasks/`: create a task for a violation or open goal not yet tracked; close a task (move
+     it to `backlog/completed/tasks/`) when the code confirms it resolved; update a task whose scope or
+     constraints changed.
+   - Root `README.md` and root `INFRASTRUCTURE.md`: follow `app-readme-standards` before editing either.
+     `INFRASTRUCTURE.md` is updated when the diff changes what it documents. Root `README.md` has no
+     generated architecture section; if one is ever added it links Diagrams › Module Dependencies of
+     `docs/architecture/architecture-map.html` instead of embedding a diagram.
+   - A module's own `README.md` (`module-readme-standards`) and a script group's own `README.md`
+     (`infra-readme-standards`): accuracy only. It uses the section shape its standards skill defines,
+     names every class, endpoint, package or script the diff touched or removed, and holds no stale
+     reference. Fix that drift; never rewrite the whole file (Full Audit Mode corrects every claim it
+     finds wrong, not only the drift of a diff).
+   - Javadoc (`module-doc-standards`): class-level Javadoc is always required, no exception, even for a
+     `record` or `enum`; check every class the diff touched, not only new ones. A missing one gets one
+     line stating the real, non-obvious fact, never filler that restates the class name. Method-level
+     Javadoc is one line or none (`.claude/rules.md`), verified against the method body.
+   - `pom.xml` (`module-doc-standards`): the file-level header is required, no exception; a missing one
+     gets one line `<!-- Description: ... -->` before `<project>`. Re-check every touched
+     `<dependency>`/`<exclusion>`/version pin against the skill's "comment only the non-obvious" rule.
+   - Infra/tooling file: its file-level and per-function header per `infra-doc-standards`.
+5. Read every corrected document again after its edit. Every corrected claim names the file and line in
+   code that confirms it; replacing a word without that check is not a correction.
+6. Run `bash docs/architecture/scripts/generate-architecture-model.sh` last, once, after every other
+   edit, when a changed file or a file edited in this step is one the generator reads (its header lists them;
+   the Pattern column of the first row of the Step 2 table covers them).
 
-**backlog/tasks/** — lifecycle:
-- Create new task file if a violation or open goal is detected that is not yet tracked
-- Close task (move to `backlog/completed/tasks/`) if the code confirms it is resolved
-- Update task file if scope or constraints changed
+### Step 4 — Report
 
-**Root `README.md`/`INFRASTRUCTURE.md`** — consult `app-readme-standards` before editing either.
-Root `README.md` currently has no live-generated architecture section to update (no
-`<!-- arch:start -->`/`<!-- arch:end -->` markers or equivalent exist in it today) — if one is
-ever added, it should point at the live module dependency graph in
-`docs/architecture/architecture-map.html` (Diagrams › Module Dependencies) rather than embedding a
-diagram, since there is no separate `.md` copy to pull from; until then, that part is a no-op.
-`INFRASTRUCTURE.md` is the technical-infra-overview counterpart — update it when a diff touches
-`scripts/**` or other root-level infra/tooling files in a way that changes what it documents.
+Print exactly this template; write "none" for an empty part.
 
-**A Java module's own `README.md`** — consult `module-readme-standards` before editing. Now a real
-diff-mode target for **accuracy only** (see Step 2's mapping table — a module whose `*.java`/
-`pom.xml` changed gets its own `README.md` checked for drift the diff itself introduced: a stale
-class/endpoint/package reference, or a deprecated section shape), the same "check it every run, not
-only `--full-audit`" treatment as the Javadoc row below. A full regenerate-from-Javadoc rewrite of
-every section is still `--full-audit`-only (see "Full Audit Mode" below) — diff-mode fixes only the
-drift this specific diff caused, it does not re-derive the whole file.
+```
+## /sync-docs report -- <scope>
+Files in scope:     <file> -- verified against <source>        (one line per file; for a deleted file, the search showing that no current document names it)
+Related documents:
+| Document | Why related (Step 2 row or Step 2b name) | Verified against | Result |
+Related, not checked: <document -- reason>
+Updated:            <file> -- <corrected claim> -- confirmed by <file:line>
+Tasks:              created <ids>; closed <ids>; updated <ids>
+ADRs:               added <ids>; status changed <ids>
+New violations:     <list>
+Not checked:        <list>
+```
 
-A script-group directory's own `README.md` (`scripts/<name>/README.md` and similar) — consult
-`infra-readme-standards` instead; not a diff-mode target on its own, in scope for `--full-audit`
-only (unchanged).
+## Full Audit Mode (`--full-audit`, `--module`, `--package`)
 
-**Every changed `*.java` file's own class/method Javadoc** — per `module-doc-standards`, checked
-directly against Step 2's mapping table row for it, not deferred to a full audit. This is a real
-diff-mode target, the same as `.claude/rules/<module>.md`/`DECISIONS.md` above — check it every
-run, not only when `--full-audit` is passed. "Class-level Javadoc — always required" has no
-exception: a class touched by this diff that has none gets one now, one line stating the real,
-non-obvious fact (not a generic filler restating the class name). Method-level Javadoc follows the
-same "one line or none" rule from `.claude/rules.md`, verified against the method's actual body.
+Steps 1 to 2b do not run: the scope is the file set of the scopes table, regardless of recent activity.
+With `--module <name>` or `--package <name>`, Step A1 enumerates only that file set and Steps A2-A6 run
+unchanged on it, with the same rigor; with `--package <name>` only the Javadoc checks of Step A2 apply. Step A0 always runs; Step A5 runs
+only with `--full-audit`.
 
-**Every changed `pom.xml`'s own file-level header** — per `module-doc-standards`, same diff-mode
-treatment as the Javadoc row above: a touched `pom.xml` missing its required
-`<!-- Description: ... -->` header gets one now.
+### Step A0 — Regenerate
 
-**Every changed infra/tooling file's own file-level and per-function header** — per
-`infra-doc-standards`, same diff-mode treatment as the Javadoc row above (script/config files
-changed by this diff, not deferred to `--full-audit`).
-
-**Last action of this step, always, if anything above touched a file the generator reads**
-(any `DECISIONS.md`, `backlog/**`, `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
-`.claude/nav/flows.md`, `.claude/rules/*.md`, root `CLAUDE.md`, or `**/pom.xml`): run `bash docs/architecture/scripts/generate-architecture-model.sh` — one
-trigger, run once, after every other file this step touches, so
-`docs/architecture/data/architecture-model.json`/`docs/architecture/architecture-map.html` never
-regenerate from stale input.
-
----
-
-## Step 5 — Report
-
-Print a summary:
-- Which files were updated
-- Which tasks were created / closed / updated
-- Which ADRs were added or status-changed
-- Any new violations found
-
----
-
-## Full Audit Mode (`--full-audit`)
-
-Skip Steps 1-2 entirely (no `git diff`, no changed-file mapping) — every `README.md`,
-`DECISIONS.md`, root `CLAUDE.md`, root `INFRASTRUCTURE.md`, and `.claude/rules/*.md` in the repo is
-in scope regardless of recent activity. Root `CLAUDE.md` was added to full-audit scope after a direct audit (2026-07-16)
-found it wrongly claiming `taxon-spring-boot-starter` had no `DECISIONS.md` when it actually did
-(77 lines, 4 real ADRs) — the default diff-based mode would never catch this class of drift, since
-a module-listing claim in a *different* file than the one that changed never appears in any single
-commit's diff.
-
-**`--module <name>` scopes this same mode to one module.** Step A1's enumeration narrows to just
-that module's own `README.md`, `DECISIONS.md`, `.claude/rules/<name>.md`, `pom.xml`, and every
-`*.java` file under `<name>/src` — Steps A2-A6 below run unchanged, just against that narrower file
-set, same verify-every-claim rigor as a repo-wide run. This is the mechanical entry point for
-`module-doc-standards`'s and `module-readme-standards`'s own "Applying this standard — what 'run
-the skill over a module' means" sections (referenced there, not restated here) — invoking
-`/sync-docs --module <name>` *is* running those two skills over that module, checking every
-pre-existing line, not only what a diff happened to touch.
-
-**`--package <name>` narrows one level further, to a single Java package.** Step A1's enumeration
-is just every `*.java` file directly inside that package's own directory (not its sub-packages,
-unless `<name>` itself names a parent whose children are the intended scope — resolve literally
-from the directory the given package name maps to). Only the per-file Javadoc checklist from
-`module-doc-standards` applies at this granularity — `README.md`/`DECISIONS.md`/`pom.xml` are
-module-level facts, out of scope for a single package. Same exhaustive, no-sampling rigor as
-`--module`/`--full-audit`, just over a smaller file set.
-
-### Step A0 — Regenerate the ADR index
-
-Run `bash .claude/nav/scripts/generate-adr-index.sh` and check whether it changed `.claude/nav/adr-index.md`
-(`git diff --stat .claude/nav/adr-index.md`) — if so, a `DECISIONS.md` entry was added/changed since
-the index was last regenerated. Include this in the Step A5 report regardless of outcome.
-
-### Step A0.5 — Regenerate the architecture model
-
-Run `bash docs/architecture/scripts/generate-architecture-model.sh` so Step A2's checks below read
-a freshly-regenerated `docs/architecture/data/architecture-model.json`, not a possibly-stale one
-left over from whenever it last ran. Include this in the Step A5 report regardless of outcome.
+1. Run `bash .claude/nav/scripts/generate-adr-index.sh`, then `git diff --stat .claude/nav/adr-index.md`;
+   a change means a `DECISIONS.md` entry changed since the last regeneration.
+2. Run the generator, so Step A2 reads a fresh `docs/architecture/data/architecture-model.json`.
+3. Report the outcome of both in Step A6, either way.
 
 ### Step A1 — Enumerate targets
 
-`find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md"` — `maxdepth 3`, not
-`2`: nested tool directories (`scripts/ci/`, `scripts/sonar/`, `.claude/nav/scripts/`) each carry
-their own `DECISIONS.md`/`README.md` one level deeper than top-level modules; `maxdepth 2` silently
-skips all three (confirmed directly). This `find` naturally never surfaces anything under a build
-output directory (`target/`) or `node_modules/`, since neither exists shallow enough in this repo
-to fall inside `maxdepth 3` — not an active exclusion, just a side effect of the depth limit.
-Separately, `ls .claude/rules/*.md` enumerates every per-module rules file (these live flatly in
-one directory, not one per module directory, so they need no `find`), and root `/app/CLAUDE.md` +
-root `/app/INFRASTRUCTURE.md` are the two remaining real root-level docs — per-module `CLAUDE.md`
-files no longer exist (migrated into `.claude/rules/<module>.md`, see `.claude/rules/README.md`).
+1. `find . -maxdepth 3 -iname "DECISIONS.md" -o -maxdepth 3 -iname "README.md"` (depth 3, not 2: nested
+   tool folders such as `scripts/ci/` and `.claude/nav/scripts/` carry their own files one level deeper).
+2. `ls .claude/rules/*.md`, plus root `CLAUDE.md` and root `INFRASTRUCTURE.md`.
+3. Every `README.md` is governed by the skill for its location, never a generic convention: the repo
+   root → `app-readme-standards`; a Java module → `module-readme-standards`; a script group or other tool
+   folder (`scripts/<name>/README.md` and similar) → `infra-readme-standards`.
+4. Every module without a `README.md`, a `DECISIONS.md` or a `.claude/rules/<module>.md` is flagged in
+   the report, not skipped; a missing file alone is not necessarily a problem.
+5. Every `*.java` file (`module-doc-standards`) and every infra/tooling file (`scripts/**`,
+   `docker-compose*.yml`, `.properties`, YAML config, bash/batch/JS/Python; `infra-doc-standards`) is in
+   scope, pre-existing lines included.
+6. Print the number of files per kind and the modules flagged in item 4.
 
-**Every `README.md` this `find` returns is governed by exactly one of three sibling standards
-skills, by location — apply the matching one, never a generic convention:** the repo root's own
-`README.md` (alongside `INFRASTRUCTURE.md`) → `app-readme-standards`; one of the seven Java
-starter/library modules' own `README.md` → `module-readme-standards`; a script-group directory's
-own `README.md` (`scripts/<name>/README.md`, `.claude/nav/README.md`, and similar) →
-`infra-readme-standards`. Note which modules have no README.md, no DECISIONS.md, or no
-`.claude/rules/<module>.md` — that alone is not necessarily a problem (e.g. a pure-contracts
-module may not need a README, or may have nothing path-scoped-rule-worthy), but flag it in the
-report rather than silently skipping.
+### Step A2 — Verify every claim
 
-**Every `*.java` file in the repo and every infra/tooling file (`scripts/**`, `docker-compose*.yml`,
-`.properties`, YAML config, bash/batch/JS/Python) is in scope too** — per `module-doc-standards`
-and `infra-doc-standards` respectively, same "check pre-existing lines, not just new code"
-discipline as everything else in this mode. This is the widest-volume part of a full audit by file
-count; Step A3's parallelization guidance below covers how to split it.
+- First source: for ADR id and title, README content and entity, key-service, contract and table claims,
+  read the module's node in `docs/architecture/data/architecture-model.json`; use grep or `Read` only
+  for what it does not cover. Javadoc prose, infra headers and ADR hygiene are checked on the raw files.
+- Each `DECISIONS.md` entry: check every class, method, field, config value, CSS class or file path it
+  names in current source; never assume it from the ADR text. Classify the entry VALID (matches), STALE
+  (a named thing was renamed, moved or removed), SUPERSEDED (a later ADR replaces it and its Status does
+  not say so) or DONE-GOAL-NOT-MARKED (an open or future-work item that already shipped).
+- Each `DECISIONS.md` file: no numbering gaps or duplicates, every entry has a `Status:` line, the Status
+  vocabulary is consistent (`Accepted`, `Superseded`, `Deprecated`, with dates where useful).
+- Each `README.md`: check every concrete claim (class, package path, command, table, port, config value,
+  dependency version) against code. When it and the module's `.claude/rules/<module>.md` disagree, code
+  decides; report every case where the rules file is the stale one.
+- Each `.claude/rules/<module>.md` and root `CLAUDE.md`: check every concrete claim the same way (names,
+  paths, "What it owns" lists, cross-module dependency claims, config values, naming examples), above
+  all claims about other files or modules.
+- Each `*.java` file, per the pre-write checklist of `module-doc-standards`: a class-level Javadoc exists;
+  every method Javadoc describes what its body does, verified by reading it, not its callers; no comment
+  cites a task or ticket number (remove it and route the rationale per that skill's table). Each
+  infra/tooling file: file-level and per-function headers present and accurate (`infra-doc-standards`).
+  Classify each MISSING, STALE or VALID.
+- Each `pom.xml` (`--full-audit` and `--module`): the file-level header and the dependency, exclusion and
+  version-pin comments, per `module-doc-standards`; classify MISSING, STALE or VALID.
+- With `--full-audit` only: check the "Built-in Claude Code skills" table of `.claude/nav/flows.md` for
+  completeness against the skills listed as available in the current session.
 
-### Step A2 — Verify every claim, not just changed ones
+### Step A3 — Parallelize
 
-**First-pass source, where it applies:** for ADR id/title existence, README content, and
-entity/key-service/contract/table existence-and-description claims, check
-`docs/architecture/data/architecture-model.json`'s matching module node first (it carries each
-module's current `readme` text, every `intent`, and `entities`/`keyServices`/`contracts`/`tables`
-each with a real `file` path and description) — fall back to direct grep/`Read` only for what the
-JSON doesn't cover. This does **not** help with (keep doing these exactly as today, raw-file-based):
-Javadoc prose-accuracy judgment, infra/tooling file header checks (scripts/config files aren't in
-this JSON), or ADR structural-hygiene checks (numbering gaps, `Status:` vocabulary consistency — a
-cross-entry check, not a per-fact lookup).
-
-For each `DECISIONS.md`, check every ADR entry:
-- If it names a specific class, method, field, config value, CSS class, or file path — grep/read
-  the current source directly and confirm the name still exists and still matches. Do not assume
-  from the ADR text.
-- Classify each entry: **VALID** (matches), **STALE** (named thing renamed/moved/removed since),
-  **SUPERSEDED** (a later ADR replaces this one's decision but the Status line doesn't say so),
-  **DONE-GOAL-NOT-MARKED** (an "open"/"future work" item that already shipped).
-- Check structural hygiene: ADR numbering has no gaps/duplicates, every entry has a `Status:` line,
-  Status vocabulary is consistent (`Accepted`/`Superseded`/`Deprecated`, with dates where useful).
-
-For each `README.md`, cross-check every concrete factual claim (class names, package paths,
-commands, table names, port numbers, config values, dependency versions) against current
-code/config directly — the same way ADRs are checked. A module's own `.claude/rules/<module>.md`
-is usually the more current source when the two disagree (verify which one is actually right by
-reading code, don't assume it wins by default) — note any case where `.claude/rules/<module>.md`
-itself turns out to be the stale one, since it's the one place this skill otherwise treats as
-ground truth for per-module facts.
-
-For each `.claude/rules/<module>.md` (the per-module facts that used to live in a per-module
-`CLAUDE.md`, now migrated — see `.claude/rules/README.md`) and for root `CLAUDE.md`, cross-check
-every concrete factual claim the same way — class/package names and paths, "What it owns" file
-lists, cross-module dependency claims (e.g. which starters have/don't have a `DECISIONS.md`, which
-starters another module optionally depends on), config values, naming-convention examples. Pay
-particular attention to claims *about other files or modules* (e.g. root `CLAUDE.md`'s
-module-layout summary, or one `.claude/rules/<module>.md` describing what another module
-implements) — these are the claims most likely to drift silently, since fixing the referenced
-file/module doesn't naturally prompt anyone to revisit the claim describing it from outside.
-
-For every `*.java` file, check per `module-doc-standards`'s pre-write checklist: does the class
-carry a class-level Javadoc block at all (no exception, per "Class-level Javadoc — always
-required")? Does every method-level Javadoc actually describe what that method's body does,
-verified by reading it, not a narrative about callers? Does any comment cite a task/ticket
-number (must be removed, rationale routed per that skill's own table)? For every infra/tooling
-file, the same checklist from `infra-doc-standards` — file-level and per-function headers present
-and accurate. Classify each finding the same way as ADRs: **MISSING** (no Javadoc/header at all),
-**STALE** (present but describes behavior the code no longer has), **VALID**.
-
-### Step A3 — Parallelize for cost
-
-Given the volume (every ADR/README/rules-file claim needs an independent code cross-check, not a
-batch grep), split the audit across parallel research agents — group by size, not just by module,
-so no single agent gets an oversized file. As a rule of thumb: one agent per ~500-1000 lines of
-combined DECISIONS.md content, one agent for all README.md files together, one agent for all
-`.claude/rules/*.md` files together plus root `CLAUDE.md` (these tend to be shorter than
-DECISIONS.md but numerous — one pass covering all of them is usually cheaper than folding them
-into the DECISIONS.md agents), and one agent per module (or per few modules, sized to keep each
-agent's file count comparable to the others) for that module's own `*.java` Javadoc audit plus any
-infra/tooling files it owns — this is the highest file-count category, so it needs the finest-
-grained split, not one agent for the whole repo's Java source. Each agent writes its findings
-(file, line, claim, verdict, evidence) to its own scratchpad file
-(`/tmp/sync-docs-audit-<agent-name>.md` or equivalent) rather than returning them as its own reply
-— a full-repo audit's raw findings across every parallel agent can be large enough that holding
-all of them directly in the coordinating context defeats the point of parallelizing in the first
-place. The coordinator reads/greps from each scratchpad file when compiling Step A4's fix list and
-Step A6's report, instead of accumulating every agent's full output in its own conversation
-context.
-
-Dispatch every one of these research agents with `model: "haiku"` — each one's job (open a claim's
-source location, confirm or classify it VALID/STALE/SUPERSEDED/MISSING/DONE-GOAL-NOT-MARKED) is a
-bounded, mechanical verification task with no open design decisions, the same shape
-`.claude/rules.md`'s own standing rule already reserves for Haiku dispatch. This includes Javadoc
-prose-accuracy judgment (does a method's Javadoc still describe its actual body) — still a bounded
-classification task, not open-ended judgment. No agent
-edits anything itself; the calling context reviews each scratchpad and applies
-fixes afterward, the same way a normal code-review pass would.
+1. Split the checks across parallel agents by size: one per about 500-1000 lines of `DECISIONS.md`; one
+   for all `README.md` files; one for all `.claude/rules/*.md` plus root `CLAUDE.md`; one per module (or
+   per few modules of comparable file count) for its `*.java` Javadoc and its infra/tooling files.
+2. Dispatch every agent with `model: "haiku"`, Javadoc prose accuracy included. Its prompt carries the
+   file list, the Step A2 checks for that file kind, the output file `/tmp/sync-docs-audit-<agent-name>.md` or
+   an equivalent file, with one line per finding (file, line, claim, verdict, evidence), and that it edits nothing.
+3. The coordinator reads each agent's output file, not its reply, for Step A4 and Step A6; Steps A2
+   and A3 print nothing themselves.
 
 ### Step A4 — Apply fixes
 
-Same rules as Step 4 above (ADR audit / `.claude/rules/<module>.md` factual corrections / README
-cross-reference / Javadoc and infra-header corrections), plus:
-- When a decision the ADR rejected turns out to be what the current code actually does (not just
-  a naming drift, but a reversed decision), do not silently "fix" the code to match the old ADR.
-  Annotate the ADR to document current reality and flag the discrepancy in the report — reverting
-  working code is a separate, deliberate call for whoever owns that script/service to make.
-  Scripts and test files are exactly where the temptation is highest to change code instead of
-  wording, and exactly where an unreviewed change is most likely to break something unrelated to
-  documentation. Never touch code in `--full-audit` mode. Documentation always changes to match
-  code, never the reverse.
+1. Ask once (hard limits), then apply Step 3 items 4 to 6: the corrections, the re-read after every
+   edit, and the generator run last, once, when an edited file is one the generator reads (Step 3 item 6).
+2. When code does what an ADR rejected (a reversed decision, not a naming drift), annotate the ADR to
+   current reality and flag it in the report; reverting code is a separate decision for the owner of
+   that code.
 
-### Step A5 — Aggregate operational self-tracking notes
+### Step A5 — Aggregate operational notes
 
-Per `.claude/rules.md`'s "Final reports record real operational data in a fixed, mechanically-
-parseable block" rule, completed tasks carry a `## Operational notes` block with fixed `key:
-value` lines (`token_cost_review`, `token_cost_research`, `token_cost_verification`,
-`context_loading_task_type`, `context_loading_consulted`, `context_loading_matched`,
-`flows_situation`, `flows_chosen`, `flows_matched`). Grep `backlog/completed/tasks/` (and
-`backlog/tasks/` for in-progress work) for `## Operational notes` blocks added since the last
-full-audit and aggregate mechanically (parse the `key: value` lines directly, the same way
-`generate-adr-index.sh` parses `## ADR-NNN:`/`**Status:**` — do not rely on prose parsing):
-- Token cost trend by purpose (`token_cost_review`/`research`/`verification`) across the sampled
-  tasks — sum and average, `n/a` entries excluded from the average, not treated as zero.
-- `context_loading_matched` yes/no/n/a tally, grouped by `context_loading_task_type`.
-- `flows_matched` yes/no/n/a tally.
-- `haiku_decomposition_used` yes/no tally, and `haiku_decomposition_rework_needed`'s aggregate
-  rework rate (sum corrections / sum total dispatches, excluding `n/a`) — real evidence for
-  whether autopilot step 2's and this command's own diff-mode Haiku-dispatch criteria are safe to
-  keep, per `.claude/rules.md`'s own explanation of that field.
-Feed the result into `.claude/nav/`'s own governing rule — no new navigation content until this data
-shows the existing layer earns its cost: this is real evidence for or against expanding/trimming
-the navigation layer, not a synthetic exercise. If too
-few blocks have accumulated since the last audit to say anything meaningful, report that plainly —
-absence of data is itself a finding (the recording practice may not be happening consistently).
+1. Parse every `## Operational notes` block in `backlog/completed/tasks/` and `backlog/tasks/` as
+   `key: value` lines, not prose; the keys are defined by "Final reports record real operational data"
+   in `.claude/rules/backlog-tasks.md`. No audit date is recorded, so every block counts.
+2. Aggregate: token cost by purpose (`token_cost_review`, research, verification), sum and average, `n/a`
+   excluded from the average, not counted as zero; `context_loading_matched` yes/no/n/a tally grouped by
+   `context_loading_task_type`; `flows_matched` yes/no/n/a tally; `haiku_decomposition_used` yes/no tally
+   and the rework rate of `haiku_decomposition_rework_needed` (sum of corrections over sum of dispatches,
+   `n/a` excluded).
+3. The result is the evidence the governing rule of `.claude/nav/` asks for before navigation content is
+   added or trimmed. Too few blocks to say anything is reported plainly as a finding.
 
 ### Step A6 — Report
 
-Same shape as Step 5, plus: a per-file table of ADR verdicts (VALID count vs. each flagged entry
-with a one-line reason), the same per-file verdict shape for every README.md, root `CLAUDE.md`, and
-`.claude/rules/<module>.md` checked, a per-module count of `*.java` files MISSING/STALE/VALID
-class-level Javadoc (and the same for infra/tooling file headers), an explicit list of anything
-found stale in code itself (not just in docs) that was deliberately left unfixed per the rule
-above, and Step A5's operational self-tracking aggregate.
+The Step 4 template, plus:
 
----
+```
+ADR verdicts:       <DECISIONS.md> -- VALID <n>; <entry> -- <verdict> -- <reason>   (one block per file)
+Document verdicts:  <README.md | CLAUDE.md | .claude/rules/<module>.md> -- the same shape
+Javadoc/headers:    <module> -- MISSING <n>, STALE <n>, VALID <n> (Javadoc); MISSING <n>, STALE <n>, VALID <n> (infra headers)
+Missing files:      <module> -- no README.md | DECISIONS.md | .claude/rules/<module>.md
+Code left unfixed:  <file:line -- stale code or reversed decision>
+Regeneration:       ADR index <changed|unchanged>; generator <outcome>
+Operational notes:  <Step A5 aggregate>
+Built-in skills:    <flows.md table complete | missing: <skills>>   (--full-audit only)
+```
 
-## Documentation Rules (from SPEC)
+## Documentation Rules
 
-- Do NOT invent architecture — only document what exists in code
-- If something cannot be proven from code, mark it UNKNOWN
-- All diagrams must use Mermaid syntax
-- All conclusions must reference actual class names or file paths
-- ADR format: see `.claude/commands/record-decision.md` step 4
-- Task format: see `.claude/commands/new-task.md` step 3
-- Never duplicate tasks — update existing ones rather than creating new
+- The hard limits at the top of this file apply to every documentation edit.
+- Diagrams use Mermaid.
+- Every conclusion references real class names or file paths.
+- ADR format: `.claude/commands/record-decision.md` step 4.
+- Task format: `.claude/commands/new-task.md` step 3.
+- Never duplicate a task; update the existing one.

@@ -11,6 +11,7 @@ import org.ost.platform.core.validation.ValidRange;
 import java.time.Instant;
 import java.util.Set;
 
+/** The filter of a provider profile list: kinds, created and updated ranges, categories, city, and the promoted-only flag the orchestrator resolves. */
 @FieldNameConstants
 @Data
 @AllArgsConstructor
@@ -29,6 +30,9 @@ public class ProviderProfileFilterDto {
 
     private Set<Long> categoryIds;
     private Long cityTaxonId;
+
+    /** Only promoted profiles when true; resolved by the orchestrator, never by the SQL filter. */
+    private Boolean promoted;
 
     public static ProviderProfileFilterDto empty() {
         return new ProviderProfileFilterDto();

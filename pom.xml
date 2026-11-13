@@ -33,6 +33,7 @@
         <module>apikey-spring-boot-starter</module>
         <module>contact-spring-boot-starter</module>
         <module>feedback-spring-boot-starter</module>
+        <module>promotion-spring-boot-starter</module>
         <module>marketplace-orchestrator</module>
         <module>marketplace-rest-api</module>
         <module>marketplace-mcp</module>
@@ -47,6 +48,7 @@
         <aws-s3-sdk.version>2.55.13</aws-s3-sdk.version>
         <jetbrains-annotations.version>26.1.0</jetbrains-annotations.version>
         <jsoup.version>1.23.2</jsoup.version>
+        <archunit.version>1.4.2</archunit.version>
         <springdoc-openapi.version>3.1.1</springdoc-openapi.version>
         <swagger-annotations.version>2.2.55</swagger-annotations.version>
         <spring-ai.version>2.0.2</spring-ai.version>
@@ -95,6 +97,11 @@
                 <groupId>org.jsoup</groupId>
                 <artifactId>jsoup</artifactId>
                 <version>${jsoup.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
             </dependency>
             <dependency>
                 <groupId>commons-io</groupId>
@@ -168,6 +175,11 @@
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
+                <artifactId>promotion-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
                 <artifactId>marketplace-orchestrator</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -192,8 +204,6 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.14.0</version>
                     <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
                         <encoding>UTF-8</encoding>
                         <annotationProcessorPaths>
                             <path>

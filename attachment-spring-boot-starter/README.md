@@ -22,7 +22,8 @@ both restore and the audit timeline.
 
 Every command/query enters through `DefaultAttachmentPort`/`AttachmentAuditPortImpl`, the sole
 implementations of `AttachmentPort`/`AttachmentAuditPort` — both delegate every call, unchanged,
-to `AttachmentService`/`AttachmentSnapshotService`, the module's two business-logic classes.
+to `AttachmentService`/`AttachmentSnapshotService`, the module's two request-handling
+business-logic classes (`AttachmentCleanupService` only runs the scheduled sweep, see Cleanup below).
 
 - **Upload:** `AttachmentPort.upload`/`uploadTemp` → `AttachmentService` validates the declared and
   magic-byte-detected content type via `AttachmentContentTypeValidator` (rejecting anything outside

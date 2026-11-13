@@ -4,6 +4,7 @@ import lombok.NonNull;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -17,22 +18,27 @@ import java.util.Set;
  */
 public interface ProviderProfilePort {
 
-    List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort);
+    default List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
+        return getFiltered(filter, page, size, sort, ProviderProfileScope.ALL);
+    }
 
-    int count(@NonNull ProviderProfileFilterDto filter);
+    /** Like the plain variant, limited and ordered by the scope: only the ids it names (null names none and restricts nothing, an empty set matches nothing), its pinned groups before (or after) every other profile. */
+    List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull ProviderProfileScope scope);
+
+    default int count(@NonNull ProviderProfileFilterDto filter) {
+        return count(filter, ProviderProfileScope.ALL);
+    }
+
+    int count(@NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope);
 
     Optional<ProviderProfileDto> findById(@NonNull Long id);
 
     Optional<ProviderProfileDto> findByActorId(@NonNull Long actorId);
 
-    /** {@code targetUserId} is whose profile this is (the row's {@code actor_id} on create);
-     *  {@code actingUserId} is who is performing the save, for audit purposes only -- the two
-     *  differ when an admin/moderator edits another user's profile. {@code actingUserIsPrivileged}
-     *  gates {@code kind == SUPPORT}; throws {@link IllegalStateException} otherwise. */
+    /** {@code targetUserId} owns the profile, {@code actingUserId} is the auditing actor; {@code kind == SUPPORT} needs {@code actingUserIsPrivileged}, else {@link IllegalStateException}. */
     Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actingUserId, boolean actingUserIsPrivileged);
 
-    /** {@code version} must be the value the caller last read; a stale value throws
-     *  {@link org.ost.platform.core.StaleWriteException}. */
+    /** {@code version} must be the value last read; a stale value throws {@link org.ost.platform.core.StaleWriteException}. */
     void delete(@NonNull Long id, Long version);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);

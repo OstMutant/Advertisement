@@ -21,14 +21,10 @@
     </properties>
 
     <dependencies>
-        <!-- 2.x: audit-snapshot DTOs, serialized via audit-spring-boot-starter's own "auditObjectMapper" bean. -->
+        <!-- 2.x annotations (shared by Jackson 3): audit-snapshot DTOs, serialized via audit-spring-boot-starter's own "auditObjectMapper" bean. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
         </dependency>
         <!-- 3.x: UserSettingsDto, serialized via Spring Boot's own auto-configured ObjectMapper. -->
         <dependency>

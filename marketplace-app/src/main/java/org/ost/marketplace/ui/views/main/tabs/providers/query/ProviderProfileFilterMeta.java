@@ -56,4 +56,8 @@ public class ProviderProfileFilterMeta {
     public static final FilterFieldMeta<TaxonDto, ProviderProfileFilterDto, Long> CITY_TAXON_ID =
             FilterFieldMeta.of(cityTaxonId, ProviderProfileFilterDto::getCityTaxonId,
                     (dto, v) -> dto.setCityTaxonId(v == null ? null : v.getId()));
+
+    public static final FilterFieldMeta<Boolean, ProviderProfileFilterDto, Boolean> PROMOTED =
+            FilterFieldMeta.of(promoted, ProviderProfileFilterDto::getPromoted,
+                    (dto, v) -> dto.setPromoted(Boolean.TRUE.equals(v) ? Boolean.TRUE : null));
 }

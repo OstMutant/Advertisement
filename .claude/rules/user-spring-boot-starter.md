@@ -12,8 +12,11 @@ Java package root: `org.ost.user`
 
 ## What it owns
 
-See `user-spring-boot-starter/README.md`'s "Key classes" table for the class list and one-line
-roles — not restated here. `UserPreferences` is table-only (no entity —
+The class list and one-line roles (entities, key services, contracts) are generated from the code:
+see the `user-spring-boot-starter` node on the module page of
+[`architecture-map.html`](../../docs/architecture/architecture-map.html) and in
+[`architecture-model.json`](../../docs/architecture/data/architecture-model.json), not restated here.
+`UserPreferences` is table-only (no entity —
 `UserPreferencesRepository` uses raw `JdbcClient`); `UserSettingsChangedHook` implementations
 fire on settings change.
 

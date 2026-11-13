@@ -1,13 +1,13 @@
-# improvement-226: query-lib reductions from the /optimize run
+# improvement-226: query-lib reductions from the /reduce-code run
 
-**Type:** improvement — follow-up of the first full `/optimize path query-lib` run (deep research `optimize-query-lib`, 2026-10-24).
+**Type:** improvement — follow-up of the first full `/reduce-code path query-lib` run (deep research `optimize-query-lib`, 2026-10-24).
 **Module:** `query-lib/` (`SqlCondition`, `SortField`, `SqlFilterBuilder`, three test files, `README.md`, `pom.xml`), `.claude/rules/query-lib.md`.
 **Priority:** Nice to have — moved down from Top on 2026-10-26; small and measured, pick it up when the six decisions at the end of the plan are answered.
 **When:** independent; follows [improvement-225](improvement-225-code-reduction-findings.md) (the findings inventory, entry OPT-1 holds the README and rule-file part already applied).
 
 ## Current state
 
-The first `/optimize path query-lib` run found one reduction in the review (stale README and rule-file text) and, in the deep research that followed, a further set of reductions in the code and tests: F1-F6 and D3 in the execution plan below. Done on 2026-10-24: D1 variant A (stale README lines corrected) and D2 (rule file), recorded as OPT-1 in the inventory (net -14 lines in 2 files). Not done: F1-F6, D3, and the six decisions listed at the end of the plan for people.
+The first `/reduce-code path query-lib` run found one reduction in the review (stale README and rule-file text) and, in the deep research that followed, a further set of reductions in the code and tests: F1-F6 and D3 in the execution plan below. Done on 2026-10-24: D1 variant A (stale README lines corrected) and D2 (rule file), recorded as OPT-1 in the inventory (net -14 lines in 2 files). Not done: F1-F6, D3, and the six decisions listed at the end of the plan for people.
 
 ## Why change
 
@@ -23,7 +23,7 @@ Apply the execution plan below in small batches after the user answers the decis
 
 ## Related
 
-[improvement-225](improvement-225-code-reduction-findings.md) (inventory), [improvement-224](../completed/tasks/improvement-224-planning-and-optimization-commands.md) (the `/optimize` and `/deep-research` commands), the module's own `DECISIONS.md` (API scope frozen).
+[improvement-225](improvement-225-code-reduction-findings.md) (inventory), [improvement-224](../completed/tasks/improvement-224-planning-and-optimization-commands.md) (the `/reduce-code` and `/deep-research` commands), the module's own `DECISIONS.md` (API scope frozen).
 
 ## Plan for people
 
@@ -64,7 +64,7 @@ test description, and leaves the choice to you (decision 6). The second review a
 - Edits in 7 files inside `query-lib/` (3 main classes, 3 tests, README), plus one comment in its
   `pom.xml`. No other module's code changes: every caller compiles as it is.
 - Optionally, one edit in `.claude/rules/query-lib.md` (outside `query-lib/`, so only if you say so).
-- The usual checks: the project build with unit tests, and `check-batch.sh` from `/optimize` to measure
+- The usual checks: the project build with unit tests, and `check-batch.sh` from `/reduce-code` to measure
   the saving.
 
 ### What the result will look like
@@ -135,7 +135,7 @@ These are estimates, not measurements.
 2. **README: variant A or B?** A fixes the 6 wrong statements only. B rewrites the README to the
    project's README standard (purpose, how a repository uses the classes together, dependencies) and
    drops the per-class list and the factory table that repeat the Javadoc.
-3. **Fix `.claude/rules/query-lib.md` too (D2)?** It is outside the `/optimize path query-lib` scope, but
+3. **Fix `.claude/rules/query-lib.md` too (D2)?** It is outside the `/reduce-code path query-lib` scope, but
    it repeats the same removed `Map` method and says direction defaults apply only to an empty sort.
 4. **Is `OrderByBuilder`'s current behavior intended?** A `SortField` with a declared direction is added
    even when the caller asked for another sort. For the moderation queue sorted by type this gives
@@ -143,7 +143,7 @@ These are estimates, not measurements.
    `id` comes before `created_at`, and `item_type` appears twice. Changing it is a behavior change, out of
    this plan. Proposal: add it, and the stale line in `integration-tests/README.md` that mentions the
    removed sort map, to the standing deferred-findings task.
-5. **Replace the starter dependency (difference 1)?** Only as separate work, outside `/optimize`.
+5. **Replace the starter dependency (difference 1)?** Only as separate work, outside `/reduce-code`.
 6. **Keep the test tidy-up (F5, F6)?** The second review rejected it as too small; this plan proposes it
    for the reasons above. Saving: about 19 test lines.
 
@@ -154,7 +154,7 @@ These are estimates, not measurements.
 
 ### Before any step
 
-- Every step is part of an `/optimize apply` batch and runs only after the person approved it in the
+- Every step is part of an `/reduce-code apply` batch and runs only after the person approved it in the
   Approval Rule format of `.claude/rules.md`. Never commit. Run `git add` on each changed file.
 - Steps 2, 3 and 4 run only if the person answered **yes to decision 1** (remove unused public methods).
   Step 6a or 6b runs according to **decision 2**. Step 7 runs only on **yes to decision 3**. Steps 1, 5, 8
@@ -164,7 +164,7 @@ These are estimates, not measurements.
 - A Haiku executor must write exactly what the step says. If the "old text" of a step is not found
   verbatim, stop and report; do not improvise.
 
-### Inventory entries (for the main thread, in the `/optimize` entry format)
+### Inventory entries (for the main thread, in the `/reduce-code` entry format)
 
 | OPT | Title | Kind | Where | Estimate | Recommendation |
 |---|---|---|---|---|---|
@@ -409,7 +409,7 @@ class SqlFilterBuilderTest {
 - **Files:** none changed.
 - **Executor:** main thread (a script, no model).
 - **Input:** the working tree.
-- **Exact change:** run `bash .claude/commands/optimize/check-batch.sh query-lib/src` and keep its
+- **Exact change:** run `bash .claude/commands/reduce-code/check-batch.sh query-lib/src` and keep its
   `TOTAL` line for the inventory's `**Actual:**`.
 - **Verification:** exit code 0, no `VIOLATION` line. The `TOTAL` net should be close to -56 when every
   step ran.
@@ -526,7 +526,7 @@ Property names, tiebreakers and default directions: see `.claude/rules/query-lib
 - **Depends on:** all steps that ran.
 - **Executor:** main thread (scripts, no model).
 - **Exact actions:**
-  1. `bash .claude/commands/optimize/check-batch.sh query-lib .claude/rules/query-lib.md` -- exit 0, no
+  1. `bash .claude/commands/reduce-code/check-batch.sh query-lib .claude/rules/query-lib.md` -- exit 0, no
      `VIOLATION`; record `TOTAL` in each entry's `**Actual:**`.
   2. Through the activity monitor (Scripts section of `.claude/rules.md`):
      `bash scripts/build-and-test.sh --unit-test query-lib --skip-vaadin`; it builds the whole reactor, so

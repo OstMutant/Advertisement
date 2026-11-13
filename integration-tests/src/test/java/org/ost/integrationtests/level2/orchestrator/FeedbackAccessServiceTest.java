@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.ost.feedback.config.FeedbackAutoConfiguration;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.UserTestFixtures;
+import org.ost.integrationtests.support.PromotionTestSupport;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
@@ -79,6 +80,7 @@ import static org.mockito.Mockito.verify;
         UserActorNameService.class,
         ProviderProfileReadService.class,
         FeedbackAccessService.class,
+        PromotionTestSupport.class,
         FeedbackAccessServiceTest.StubUiLabelHookConfig.class
 })
 @TestPropertySource(properties = "spring.datasource.hikari.maximum-pool-size=2")
@@ -191,6 +193,32 @@ class FeedbackAccessServiceTest extends AbstractPostgresIntegrationTest {
 
         feedbackAccessService.deleteComment(comment.id());
         assertThat(feedbackAccessService.findCommentByFeedback(feedback.id())).isEmpty();
+    }
+
+    @Test
+    void deleteByEntity_removesEveryReviewReplyAndTheAggregateOfThatEntityOnly() {
+        Long ownerId = newUser("Owner14");
+        Long firstProfileId = newProviderProfile(ownerId);
+        Long secondProfileId = newProviderProfile(newUser("Owner15"));
+        FeedbackDto firstReview = feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, firstProfileId, newUser("Author14"), 4, "Nice!", null));
+        feedbackAccessService.saveComment(new FeedbackCommentSaveDto(null, firstReview.id(), ownerId, "Thanks", null));
+        feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, firstProfileId, newUser("Author15"), 2, "Meh", null));
+        feedbackAccessService.save(new FeedbackSaveDto(null, EntityType.PROVIDER_PROFILE, secondProfileId, newUser("Author16"), 5, "Great", null));
+
+        feedbackAccessService.deleteByEntity(EntityType.PROVIDER_PROFILE, firstProfileId);
+
+        assertThat(feedbackAccessService.count(EntityType.PROVIDER_PROFILE, firstProfileId)).isZero();
+        assertThat(feedbackAccessService.findForEntity(EntityType.PROVIDER_PROFILE, firstProfileId, 0, 20)).isEmpty();
+        assertThat(feedbackAccessService.findFeedbackById(firstReview.id())).isEmpty();
+        assertThat(feedbackAccessService.findCommentByFeedback(firstReview.id())).isEmpty();
+        FeedbackAggregateDto firstAgg = feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, firstProfileId);
+        assertThat(firstAgg.reviewCount()).isZero();
+        assertThat(firstAgg.avgRating()).isZero();
+
+        assertThat(feedbackAccessService.count(EntityType.PROVIDER_PROFILE, secondProfileId)).isEqualTo(1);
+        FeedbackAggregateDto secondAgg = feedbackAccessService.getAggregate(EntityType.PROVIDER_PROFILE, secondProfileId);
+        assertThat(secondAgg.reviewCount()).isEqualTo(1);
+        assertThat(secondAgg.avgRating()).isEqualTo(5.0);
     }
 
     @Test

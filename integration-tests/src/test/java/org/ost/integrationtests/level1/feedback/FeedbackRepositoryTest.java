@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Testcontainers repository test for {@link FeedbackRepository} -- entity ids are synthetic longs, since {@code feedback}/{@code feedback_aggregate} carry no FK to any other table. */
+/** Testcontainers repository test for {@link FeedbackRepository} -- entity ids are synthetic longs, since the polymorphic {@code entity_id} columns carry no FK. */
 @SpringBootTest(classes = {
         FeedbackAutoConfiguration.class,
         RepositoryTestSupport.class,
@@ -95,6 +95,16 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
         jdbcClient.sql("UPDATE feedback_content SET created_at = :createdAt WHERE id = :id")
                 .paramSource(new MapSqlParameterSource().addValue("createdAt", Timestamp.from(createdAt)).addValue("id", contentId))
                 .update();
+    }
+
+    /** One entity of this type with one visible review per given rating, each by a different author, and its aggregate computed. */
+    private Long entityWithRatings(EntityType entityType, int... ratings) {
+        Long entityId = newEntityId();
+        for (int i = 0; i < ratings.length; i++) {
+            createFeedback(i + 1L, entityType, entityId, ratings[i], "Review " + i);
+        }
+        feedbackRepository.upsertAggregate(entityType, entityId);
+        return entityId;
     }
 
     @Test
@@ -203,6 +213,48 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
     @Test
     void getAggregate_noFeedback_returnsEmpty() {
         assertThat(feedbackRepository.getAggregate(EntityType.PROVIDER_PROFILE, newEntityId())).isEmpty();
+    }
+
+    @Test
+    void findEntityIdsWithRatingAtLeast_bothThresholdsAreInclusive() {
+        Long exactlyOnBoth = entityWithRatings(EntityType.PROVIDER_PROFILE, 5, 5, 5, 5, 4);
+        entityWithRatings(EntityType.PROVIDER_PROFILE, 5, 5, 5, 5, 3);
+        entityWithRatings(EntityType.PROVIDER_PROFILE, 5, 5, 5, 5);
+
+        assertThat(feedbackRepository.findEntityIdsWithRatingAtLeast(EntityType.PROVIDER_PROFILE, 4.8, 5))
+                .containsExactly(exactlyOnBoth);
+    }
+
+    @Test
+    void findEntityIdsWithRatingAtLeast_comparesTheStoredOneDecimalAverage() {
+        Long averageOf475 = entityWithRatings(EntityType.PROVIDER_PROFILE,
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4);
+
+        assertThat(feedbackRepository.getAggregate(EntityType.PROVIDER_PROFILE, averageOf475))
+                .hasValueSatisfying(agg -> assertThat(agg.getAvgRating()).isEqualTo(4.8));
+        assertThat(feedbackRepository.findEntityIdsWithRatingAtLeast(EntityType.PROVIDER_PROFILE, 4.8, 5))
+                .containsExactly(averageOf475);
+    }
+
+    @Test
+    void findEntityIdsWithRatingAtLeast_hiddenReviewDoesNotCount() {
+        Long entityId = newEntityId();
+        createFeedback(1L, EntityType.PROVIDER_PROFILE, entityId, 5, "One.");
+        createFeedback(2L, EntityType.PROVIDER_PROFILE, entityId, 5, "Two.");
+        createFeedback(3L, EntityType.PROVIDER_PROFILE, entityId, 5, "Three.");
+        createFeedback(4L, EntityType.PROVIDER_PROFILE, entityId, 5, "Four.");
+        Feedback hidden = createFeedback(5L, EntityType.PROVIDER_PROFILE, entityId, 5, "Five.");
+        feedbackRepository.flagContent(hidden.getContentId(), "Spam.");
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, entityId);
+
+        assertThat(feedbackRepository.findEntityIdsWithRatingAtLeast(EntityType.PROVIDER_PROFILE, 4.8, 5)).isEmpty();
+    }
+
+    @Test
+    void findEntityIdsWithRatingAtLeast_otherEntityTypeIsNotReturned() {
+        entityWithRatings(EntityType.ADVERTISEMENT, 5, 5, 5, 5, 5);
+
+        assertThat(feedbackRepository.findEntityIdsWithRatingAtLeast(EntityType.PROVIDER_PROFILE, 4.8, 5)).isEmpty();
     }
 
     @Test
@@ -321,6 +373,67 @@ class FeedbackRepositoryTest extends AbstractPostgresIntegrationTest {
                 .query(Integer.class)
                 .single();
         assertThat(feedbackCommentCount).isZero();
+    }
+
+    private long countByIds(String sql, Long... ids) {
+        return jdbcClient.sql(sql)
+                .paramSource(new MapSqlParameterSource().addValue("ids", ids))
+                .query(Long.class)
+                .single();
+    }
+
+    @Test
+    void deleteByEntity_removesEveryRowOfThatEntityAndLeavesOtherEntitiesUntouched() {
+        Long deletedEntityId = newEntityId();
+        Feedback deletedFirst = createFeedback(1L, EntityType.PROVIDER_PROFILE, deletedEntityId, 5, "Deleted first.");
+        Feedback deletedSecond = createFeedback(2L, EntityType.PROVIDER_PROFILE, deletedEntityId, 4, "Deleted second.");
+        FeedbackComment deletedReplyFirst = createComment(deletedFirst.getId(), 3L, "Reply to deleted first.");
+        FeedbackComment deletedReplySecond = createComment(deletedSecond.getId(), 3L, "Reply to deleted second.");
+        Long keptEntityId = newEntityId();
+        Feedback kept = createFeedback(4L, EntityType.PROVIDER_PROFILE, keptEntityId, 3, "Kept.");
+        FeedbackComment keptReply = createComment(kept.getId(), 5L, "Reply to kept.");
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, deletedEntityId);
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, keptEntityId);
+
+        feedbackRepository.deleteByEntity(EntityType.PROVIDER_PROFILE, deletedEntityId);
+
+        Long[] deletedFeedbackIds = {deletedFirst.getId(), deletedSecond.getId()};
+        Long[] deletedCommentIds = {deletedReplyFirst.getId(), deletedReplySecond.getId()};
+        Long[] deletedContentIds = {deletedFirst.getContentId(), deletedSecond.getContentId(),
+                deletedReplyFirst.getContentId(), deletedReplySecond.getContentId()};
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback WHERE id = ANY(:ids)", deletedFeedbackIds)).isZero();
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_rating WHERE feedback_id = ANY(:ids)", deletedFeedbackIds)).isZero();
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_comment WHERE id = ANY(:ids)", deletedCommentIds)).isZero();
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_content WHERE id = ANY(:ids)", deletedContentIds)).isZero();
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_aggregate WHERE entity_type = 'PROVIDER_PROFILE' AND entity_id = ANY(:ids)",
+                deletedEntityId)).isZero();
+
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback WHERE id = ANY(:ids)", kept.getId())).isEqualTo(1);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_rating WHERE feedback_id = ANY(:ids)", kept.getId())).isEqualTo(1);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_comment WHERE id = ANY(:ids)", keptReply.getId())).isEqualTo(1);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_content WHERE id = ANY(:ids)",
+                kept.getContentId(), keptReply.getContentId())).isEqualTo(2);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_aggregate WHERE entity_type = 'PROVIDER_PROFILE' AND entity_id = ANY(:ids)",
+                keptEntityId)).isEqualTo(1);
+    }
+
+    @Test
+    void deleteByEntity_entityWithoutFeedback_leavesOtherEntitiesUntouched() {
+        Long keptEntityId = newEntityId();
+        Feedback kept = createFeedback(1L, EntityType.PROVIDER_PROFILE, keptEntityId, 4, "Kept.");
+        FeedbackComment keptReply = createComment(kept.getId(), 2L, "Reply to kept.");
+        feedbackRepository.upsertAggregate(EntityType.PROVIDER_PROFILE, keptEntityId);
+        Long emptyEntityId = newEntityId();
+
+        feedbackRepository.deleteByEntity(EntityType.PROVIDER_PROFILE, emptyEntityId);
+
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback WHERE id = ANY(:ids)", kept.getId())).isEqualTo(1);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_rating WHERE feedback_id = ANY(:ids)", kept.getId())).isEqualTo(1);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_comment WHERE id = ANY(:ids)", keptReply.getId())).isEqualTo(1);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_content WHERE id = ANY(:ids)",
+                kept.getContentId(), keptReply.getContentId())).isEqualTo(2);
+        assertThat(countByIds("SELECT COUNT(*) FROM feedback_aggregate WHERE entity_type = 'PROVIDER_PROFILE' AND entity_id = ANY(:ids)",
+                keptEntityId)).isEqualTo(1);
     }
 
     @Test

@@ -8,7 +8,7 @@ import org.ost.platform.feedback.model.FeedbackModerationStatus;
 
 import java.time.Instant;
 
-/** One rating+text feedback entry attached to an owning entity (PROVIDER_PROFILE or ADVERTISEMENT). */
+/** One rating+text feedback entry attached to an owning entity (PROVIDER_PROFILE). */
 @FieldNameConstants
 public record FeedbackDto(
         @NonNull Long id,

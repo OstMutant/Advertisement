@@ -21,13 +21,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Covers {@link TaxonAssignmentRepository}'s dynamic SQL — the many-to-many
- * (entity_type, entity_id) &lt;-&gt; taxon_id join table backing category assignment. Not
- * exhaustive; the highest-risk paths: idempotent {@code assign()} (`ON CONFLICT DO NOTHING`),
- * both directions of bulk lookup ({@code findAllByEntities}, {@code findEntityIdsByTaxonIds}), and
- * {@code countByTaxonIds}.
- */
+/** Covers {@link TaxonAssignmentRepository} on a real PostgreSQL: idempotent {@code assign()}, both bulk-lookup directions and {@code countByTaxonIds}. */
 @SpringBootTest(classes = {
         TaxonAutoConfiguration.class,
         RepositoryTestSupport.class
@@ -56,19 +50,18 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
     void assign_thenFindAllByEntity_returnsTheAssignment() {
         Long taxonId = saveTaxon("electronics");
 
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, taxonId, 42L);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, taxonId);
 
         var assignments = assignmentRepository.findAllByEntity(EntityType.ADVERTISEMENT.name(), 1L);
         assertThat(assignments).extracting(TaxonAssignment::getTaxonId).containsExactly(taxonId);
-        assertThat(assignments.getFirst().getAssignedBy()).isEqualTo(42L);
     }
 
     @Test
     void assign_calledTwiceForSamePair_isIdempotent() {
         Long taxonId = saveTaxon("electronics");
 
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, taxonId, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, taxonId, 42L);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, taxonId);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, taxonId);
 
         assertThat(assignmentRepository.findAllByEntity(EntityType.ADVERTISEMENT.name(), 1L)).hasSize(1);
     }
@@ -77,8 +70,8 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
     void unassign_removesOnlyTheSpecifiedTaxon() {
         Long electronics = saveTaxon("electronics");
         Long vehicles = saveTaxon("vehicles");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, vehicles, 42L);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, vehicles);
 
         assignmentRepository.unassign(EntityType.ADVERTISEMENT.name(), 1L, electronics);
 
@@ -89,8 +82,8 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
     @Test
     void findAllByEntities_returnsAssignmentsAcrossMultipleEntities() {
         Long electronics = saveTaxon("electronics");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, electronics, 42L);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, electronics);
 
         var assignments = assignmentRepository.findAllByEntities(EntityType.ADVERTISEMENT.name(), Set.of(1L, 2L, 3L));
 
@@ -101,9 +94,9 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
     void findEntityIdsByTaxonIds_returnsEntitiesTaggedWithAnyOfTheGivenTaxons() {
         Long electronics = saveTaxon("electronics");
         Long vehicles = saveTaxon("vehicles");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, vehicles, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 3L, electronics, 42L);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, vehicles);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 3L, electronics);
 
         Set<Long> entityIds = assignmentRepository.findEntityIdsByTaxonIds(EntityType.ADVERTISEMENT.name(), Set.of(electronics));
 
@@ -114,9 +107,9 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
     void countByTaxonIds_returnsPerTaxonCounts() {
         Long electronics = saveTaxon("electronics");
         Long vehicles = saveTaxon("vehicles");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, electronics, 42L);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 3L, vehicles, 42L);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, electronics);
+        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 3L, vehicles);
 
         Map<Long, Long> counts = assignmentRepository.countByTaxonIds(Set.of(electronics, vehicles));
 

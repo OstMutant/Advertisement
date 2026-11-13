@@ -1,0 +1,99 @@
+A.1 taxon query (category): 2893 ids, 13.7 ms
+A.1b taxon query (city): 7114 ids, 11.8 ms
+A.1c intersection (Java retainAll in the real code; here SQL): 10 ids, 2.7 ms
+--- A.2 page query, ANY($1) bound
+Limit  (cost=48.59..48.62 rows=10 width=260) (actual time=0.224..0.226 rows=9 loops=1)
+  Buffers: shared hit=46
+  ->  Sort  (cost=48.59..48.62 rows=10 width=260) (actual time=0.223..0.224 rows=9 loops=1)
+        Sort Key: created_at DESC, id DESC
+        Sort Method: quicksort  Memory: 29kB
+        Buffers: shared hit=46
+        ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..48.43 rows=10 width=260) (actual time=0.075..0.168 rows=9 loops=1)
+              Index Cond: (id = ANY ('{...ids...}'::bigint[]))
+              Filter: (deleted_at IS NULL)
+              Rows Removed by Filter: 1
+              Buffers: shared hit=43
+Planning:
+  Buffers: shared hit=104
+Planning Time: 1.249 ms
+Execution Time: 0.276 ms
+--- A.3 count query, ANY($1) bound
+Aggregate  (cost=48.45..48.46 rows=1 width=8) (actual time=0.042..0.042 rows=1 loops=1)
+  Buffers: shared hit=40
+  ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..48.43 rows=10 width=0) (actual time=0.019..0.039 rows=9 loops=1)
+        Index Cond: (id = ANY ('{...ids...}'::bigint[]))
+        Filter: (deleted_at IS NULL)
+        Rows Removed by Filter: 1
+        Buffers: shared hit=40
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.112 ms
+Execution Time: 0.067 ms
+--- B.2 page query, local advertisement_taxon, EXISTS
+Limit  (cost=520.48..520.53 rows=17 width=260) (actual time=3.676..3.680 rows=9 loops=1)
+  Buffers: shared hit=86
+  ->  Sort  (cost=520.48..520.53 rows=17 width=260) (actual time=3.675..3.678 rows=9 loops=1)
+        Sort Key: a.created_at DESC, a.id DESC
+        Sort Method: quicksort  Memory: 29kB
+        Buffers: shared hit=86
+        ->  Nested Loop  (cost=246.61..520.14 rows=17 width=260) (actual time=2.578..3.637 rows=9 loops=1)
+              Buffers: shared hit=86
+              ->  Hash Join  (cost=246.19..403.08 rows=18 width=16) (actual time=2.539..3.543 rows=10 loops=1)
+                    Hash Cond: (c.advertisement_id = t.advertisement_id)
+                    Buffers: shared hit=46
+                    ->  Index Only Scan Backward using idx_advertisement_taxon_taxon on advertisement_taxon c  (cost=0.43..141.49 rows=4175 width=8) (actual time=0.040..0.786 rows=7114 loops=1)
+                          Index Cond: (taxon_id = '250'::bigint)
+                          Heap Fetches: 0
+                          Buffers: shared hit=31
+                    ->  Hash  (cost=193.63..193.63 rows=4170 width=8) (actual time=2.128..2.129 rows=2893 loops=1)
+                          Buckets: 8192  Batches: 1  Memory Usage: 178kB
+                          Buffers: shared hit=15
+                          ->  HashAggregate  (cost=151.93..193.63 rows=4170 width=8) (actual time=1.157..1.489 rows=2893 loops=1)
+                                Group Key: t.advertisement_id
+                                Batches: 1  Memory Usage: 465kB
+                                Buffers: shared hit=15
+                                ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..141.49 rows=4175 width=8) (actual time=0.037..0.448 rows=2893 loops=1)
+                                      Index Cond: (taxon_id = ANY ('{150}'::bigint[]))
+                                      Heap Fetches: 0
+                                      Buffers: shared hit=15
+              ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..6.50 rows=1 width=260) (actual time=0.008..0.008 rows=1 loops=10)
+                    Index Cond: (id = t.advertisement_id)
+                    Filter: (deleted_at IS NULL)
+                    Rows Removed by Filter: 0
+                    Buffers: shared hit=40
+Planning:
+  Buffers: shared hit=251
+Planning Time: 3.134 ms
+Execution Time: 4.279 ms
+--- B.3 count query, local advertisement_taxon, EXISTS
+Aggregate  (cost=515.60..515.61 rows=1 width=8) (actual time=3.803..3.805 rows=1 loops=1)
+  Buffers: shared hit=86
+  ->  Nested Loop  (cost=346.04..515.55 rows=17 width=0) (actual time=3.133..3.800 rows=9 loops=1)
+        Buffers: shared hit=86
+        ->  Hash Join  (cost=345.61..398.50 rows=18 width=16) (actual time=3.103..3.715 rows=10 loops=1)
+              Hash Cond: (t.advertisement_id = c.advertisement_id)
+              Buffers: shared hit=46
+              ->  HashAggregate  (cost=151.93..193.63 rows=4170 width=8) (actual time=1.017..1.343 rows=2893 loops=1)
+                    Group Key: t.advertisement_id
+                    Batches: 1  Memory Usage: 465kB
+                    Buffers: shared hit=15
+                    ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..141.49 rows=4175 width=8) (actual time=0.040..0.328 rows=2893 loops=1)
+                          Index Cond: (taxon_id = ANY ('{150}'::bigint[]))
+                          Heap Fetches: 0
+                          Buffers: shared hit=15
+              ->  Hash  (cost=141.49..141.49 rows=4175 width=8) (actual time=2.009..2.009 rows=7114 loops=1)
+                    Buckets: 8192  Batches: 1  Memory Usage: 342kB
+                    Buffers: shared hit=31
+                    ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon c  (cost=0.43..141.49 rows=4175 width=8) (actual time=0.044..0.855 rows=7114 loops=1)
+                          Index Cond: (taxon_id = '250'::bigint)
+                          Heap Fetches: 0
+                          Buffers: shared hit=31
+        ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..6.50 rows=1 width=8) (actual time=0.008..0.008 rows=1 loops=10)
+              Index Cond: (id = t.advertisement_id)
+              Filter: (deleted_at IS NULL)
+              Rows Removed by Filter: 0
+              Buffers: shared hit=40
+Planning:
+  Buffers: shared hit=80
+Planning Time: 1.174 ms
+Execution Time: 4.456 ms

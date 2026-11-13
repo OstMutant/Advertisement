@@ -4393,7 +4393,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpKey}}",
+                  "value": "{{mcpOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -4461,7 +4461,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpKey}}",
+                  "value": "{{mcpOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -4649,7 +4649,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpKey}}",
+                  "value": "{{mcpOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -4986,7 +4986,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpOtherKey}}",
+                  "value": "{{mcpKey}}",
                   "type": "string"
                 }
               ]
@@ -5054,7 +5054,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpOtherKey}}",
+                  "value": "{{mcpKey}}",
                   "type": "string"
                 }
               ]
@@ -7990,6 +7990,140 @@
           }
         },
         {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpModOtherId\", rpc.result.structuredContent.item.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 318, \"method\": \"tools/call\", \"params\": {\"name\": \"registerUser\", \"arguments\": {\"name\": \"MCP Moderation Other {{runId}}\", \"email\": \"mcp.modother.{{runId}}@example.com\", \"password\": \"{{mcpPassword}}\"}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: moderation.other\nlabel: Register second user\nkind: required\n\nRegisters a second user under a unique e-mail and captures its id for the cleanup at the end."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});",
+                  "pm.collectionVariables.set(\"mcpModOtherKey\", rpc.result.structuredContent.item.rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 319, \"method\": \"tools/call\", \"params\": {\"name\": \"issueApiKey\", \"arguments\": {\"label\": \"mcp-mod-other\"}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "mcp.modother.{{runId}}@example.com",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{mcpPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.otherkey\nlabel: Issue second key\nkind: required\n\nIssues an API key for the second user with Basic auth and captures it for the foreign-user steps."
+          }
+        },
+        {
           "name": "createProviderProfile",
           "event": [
             {
@@ -8118,7 +8252,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpKey}}",
+                  "value": "{{mcpModOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -8388,7 +8522,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{mcpKey}}",
+                  "value": "{{mcpModOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -9141,6 +9275,73 @@
               ]
             },
             "description": "step: moderation.profiledelete\nlabel: Delete profile\nkind: optional\n\nDeletes the flow user's profile using the stored version."
+          }
+        },
+        {
+          "name": "deleteUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); const rpc = JSON.parse(body.includes(\"data:\") ? body.slice(body.lastIndexOf(\"data:\") + 5) : body);",
+                  "pm.test(\"not a tool error\", function () {",
+                  "  if (rpc.result.isError) { throw new Error(\"tool error: \" + rpc.result.content[0].text); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Mcp-Session-Id",
+                "value": "{{mcpSession}}"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "{{mcpProtocol}}"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/mcp",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "mcp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"jsonrpc\": \"2.0\", \"id\": 320, \"method\": \"tools/call\", \"params\": {\"name\": \"deleteUser\", \"arguments\": {\"id\": {{mcpModOtherId}}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mcpModOtherKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.otherdelete\nlabel: Delete second user\nkind: optional\n\nDeletes the second user as the second user itself."
           }
         },
         {

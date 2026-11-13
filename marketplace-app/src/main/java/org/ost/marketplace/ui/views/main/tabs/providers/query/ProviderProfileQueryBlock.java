@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.providers.query;
 
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -50,6 +51,12 @@ public class ProviderProfileQueryBlock extends QueryBlock<ProviderProfileFilterD
         queryActionBlock = new QueryActionBlock(i18nService);
         addClassName("provider-profile-query-block");
         setVisible(false);
+
+        // Promotion row
+        Checkbox promotedField = new Checkbox(i18nService.get(PROVIDERS_FILTER_PROMOTED_ONLY));
+        promotedField.getElement().setAttribute(DATA_TESTID, "provider-profile-filter-promoted");
+        filterRow(i18nService, i18nService.get(PROVIDERS_SORT_PROMOTED), promotedField,
+                ProviderProfileSortMeta.PROMOTED, ProviderProfileFilterMeta.PROMOTED);
 
         // Kind row
         MultiSelectComboBox<ProviderKind> kindField = new MultiSelectComboBox<>();

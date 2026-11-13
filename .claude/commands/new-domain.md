@@ -56,7 +56,7 @@ ui/views/main/tabs/$ARGUMENTS_LOWER/
 - `activate()` delegates to `buildBinder(dto)` for binder logic
 - `layout.setContent(...)` unconditionally (no tabs); history/restore is a header-action icon
   button (`.$NAME-history-button`) opening the shared `EntityActivityOverlay` — see
-  `.claude/rules.md` "Form Handler Pattern" / "Breadcrumb Pattern"
+  `.claude/rules/marketplace-app.md` "Form Handler Pattern" / "Breadcrumb Pattern"
 - Public `discardChanges()` for form reset
 
 **$NAMEQueryBlock:**

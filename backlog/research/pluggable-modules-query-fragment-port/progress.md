@@ -1,0 +1,24 @@
+# Progress: pluggable-modules-query-fragment-port
+
+Purpose: one line per step of the planner, written with log-progress.sh and read with show-status.sh.
+
+## 2026-11-09
+
+- 15:41 [read] 0 sources (+0 new), choice unchanged: Read brief and first-pass plan, notes, measurement scripts; first pass never ran EXISTS on taxon_assignment itself, only on the local B table
+- 15:41 [read] 0 sources (+0 new), choice unchanged: Coordinator added a requirement: column flexibility in the contract (typed column reference, several columns, aliases, wrappers, where flexibility must stop); folded into criteria 2, 3 and 8
+- 15:43 [read] 0 sources (+0 new), choice unchanged: Read ADRs (taxon 001, app 034/079, commons 002/003/006/032, query-lib 003/005/006), query-lib, TaxonPort, both repositories/services, promotion/feedback flows, ArchitectureRulesTest; platform-commons has no query-lib or spring-jdbc dependency
+- 15:44 [compare] 0 sources (+0 new), choice unchanged: Flagged conflicts early (taxon ADR-001, app ADR-034, platform-commons governance, query-lib ADR-003 API freeze); measurement DB loading; starting web search on the pattern family
+- 15:45 [search] 6 sources (+6 new), choice unchanged: First web pass: OWASP allow-list for identifiers, Spring Data Specification takes the root from the caller, jOOQ QueryPart templating; Spring Modulith docs silent on cross-module SQL
+- 15:48 [search] 14 sources (+8 new), choice unchanged: Second web pass: Query Object and Specification as names, Fowler and Grzybek warn against shared-database coupling, PostgreSQL generic-plan rule added to the failure modes to measure
+- 15:49 [search] 17 sources (+3 new), choice unchanged: Theory sources enough: Specification (strongly typed, owner-fixed), Query Object, Spring Data Specification (root handed in by the caller), jOOQ QueryPart, predicate pushdown; waiting for the data load
+- 15:51 [measure] 17 sources (+0 new), choice unchanged: Throwaway database research_fragment created in the running dev Postgres 15 container (raw docker run is blocked by a project hook); 1M ads, 2,581,289 assignments loaded with the first-pass script; F, A and B now run side by side in one server state
+- 15:51 [read] 19 sources (+2 new), choice unchanged: Read Spring JDBC source: MapSqlParameterSource overwrites duplicate names silently, so a fragment needs a fail-fast merge; underscore-prefixed names are legal
+- 15:54 [measure] 19 sources (+0 new), choice unchanged: First run: fragment F matches B's profile (cheap plan, fast big-category page, slow rare-category page), not better than A on count; added G (array-subquery shape), mixed; five-round medians before/after the covering index running
+- 15:56 [measure] 19 sources (+0 new), choice unchanged: Failure-mode script run: two silent-wrong cases (unqualified column, alias shadowing) and one precedence case found; all three are closed by a typed qualified column, a reserved provider alias prefix and consumer-side parentheses
+- 16:03 [measure] 20 sources (+1 new), choice unchanged: Generic-plan worst case script written (pgJDBC switches to server-side prepared statements after 5 runs); waits for the five-round medians
+- 16:04 [measure] 20 sources (+0 new), choice unchanged: Found that the synthetic created_at has correlation 0.0035, a worst case for the backward created_at walk; adding a clustered phase P3 to the measurements
+- 16:04 [compare] 20 sources (+0 new), choice unchanged: Wrote the theory map: Specification (provider-owned, strongly typed) + Query Object + Spring Data PredicateSpecification shape + semi-join pushdown; literature warning (shared database) applies to the runtime, not to the source-level knowledge
+- 16:09 [draft] 21 sources (+0 new), choice unchanged: Drafted plan-machine.md: path F as steps F0-F8 (decisions, two platform-commons types, Taxon predicate builder, two consumers, conditional index, ArchUnit guard, docs, conditional rare-category work) and path A+ by reference to the first pass
+- 16:10 [measure] 21 sources (+0 new), choice unchanged: Cancelled the repeat run stuck in G with a city array (minutes per statement); G excluded from the repeats, measured once with a 60 s timeout; three phases (current index, covering index, clustered created_at) plus generic plans re-started
+- 16:27 [compare] 21 sources (+0 new), choice CHANGED: Medians in: F wins from ~30k ids up (241k: 334 vs 907 ms + JDBC transfer), loses on selective filters (3k: 104 vs 30 ms), equals B everywhere; no fatal flaw found; leading proposal becomes: the fragment fits with a typed contract, as the rule for unbounded cross-module filters only
+- 16:30 [done] 22 sources (+0 new), choice unchanged: Plans written: plan-human.md (sections 1-9 of the brief, measured table, 9 decisions) and plan-machine.md (path F steps F0-F8 + whole verification, path A+ by reference); research database dropped

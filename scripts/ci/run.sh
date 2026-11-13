@@ -35,10 +35,10 @@
 #   --reset-ci-cache         -- wipe the CI's own build caches (ci-maven-cache and ci-vaadin-cache) and remove the
 #                                Sonar scanner container before the build, so the run starts with no cached
 #                                dependencies, jars or Node.js (off by default; the next run downloads them again)
-#   --teardown-e2e-after     -- tear down the isolated e2e stack after the run instead of leaving
-#                                it up (on by default -- leaving it up is the debugging-friendly
-#                                default, so a failed run's containers/logs/DB state are still
-#                                there to inspect without having to remember the flag ahead of time)
+#   --teardown-e2e-after     -- tear down the isolated e2e stack after the run (off by default --
+#                                leaving it up is the debugging-friendly default, so a failed run's
+#                                containers/logs/DB state are still there to inspect without having
+#                                to remember a flag ahead of time)
 #   --foreground              -- block and stream this run's output instead of firing it and
 #                                 returning immediately; also syncs artifacts (see Outputs)
 #                                 automatically once the run finishes

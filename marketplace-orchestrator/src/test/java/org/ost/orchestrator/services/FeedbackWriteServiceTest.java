@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.platform.core.SelfActionNotAllowedException;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
@@ -58,6 +59,16 @@ class FeedbackWriteServiceTest {
 
         assertThatThrownBy(() -> service.create(AUTHOR_ID, PROFILE_ID, 5, "Great"))
                 .isInstanceOf(NoSuchElementException.class);
+        verify(feedbackAccessService, never()).save(any());
+    }
+
+    @Test
+    void create_byProfileOwner_throwsSelfActionAndNeverSaves() {
+        when(providerProfileReadService.findById(PROFILE_ID))
+                .thenReturn(Optional.of(ProviderProfileDto.builder().id(PROFILE_ID).actorId(PROFILE_OWNER_ID).build()));
+
+        assertThatThrownBy(() -> service.create(PROFILE_OWNER_ID, PROFILE_ID, 5, "Great"))
+                .isInstanceOf(SelfActionNotAllowedException.class);
         verify(feedbackAccessService, never()).save(any());
     }
 

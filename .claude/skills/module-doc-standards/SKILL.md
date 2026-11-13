@@ -188,11 +188,14 @@ References <tableA>(<column>) or <tableB>(<column>) [or <tableC>(<column>) ...] 
 Verify the real target list against actual code (e.g. every `AuditableSnapshot` implementation's
 own `EntityType`, every `*Port`/`*LookupService` call site for that domain) — never guess or
 leave a target out because it seems unlikely; an incomplete list silently drops that edge from
-the live diagram the same way a missing marker does. Only a relationship that isn't expressible
-as a column-to-column reference at all (e.g. two sibling tables that both separately reference
-the same owning entity, with no direct link between the two tables themselves) stays in the
-small hand-preserved list inside `db_erd_conceptual_relationships_json()`, with a comment there
-explaining why it can't be a marker.
+the live diagram the same way a missing marker does. A relationship that isn't expressible as a
+column-to-column reference at all (e.g. two sibling tables that both separately reference the
+same owning entity, with no direct link between the two tables themselves) is not drawn: the
+diagram shows only what a real foreign key or a column's marker declares, no hand-typed list.
+
+Before closing a task that changes a changelog, check every column named like a reference
+(`entity_id`, `author_id`, `actor_id`, `created_by`, `*_actor_id`, `*_taxon_id`) that has no foreign
+key: it carries the marker. The generator fails on such a column without one.
 
 ## Where comment rationale that got trimmed actually goes
 

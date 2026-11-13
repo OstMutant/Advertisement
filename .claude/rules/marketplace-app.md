@@ -69,12 +69,194 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 
 ---
 
-## Overlay, View, and Query Layer Rules
+## Overlay Pattern
 
-Detailed cross-cutting rules for the Overlay pattern (OverlaySession, switchTo vs launchSession,
-currentFormHandler reset, afterSave update), View pattern (init() structure, refresh() guard),
-Query Layer (FilterMeta/SortMeta Fields.* constants), Form Handler pattern (buildBinder, history
-button), and Breadcrumb pattern (BreadcrumbStep) are documented in: @../.claude/rules.md
+### OverlaySession — immutable state machine
+Every overlay uses a `record OverlaySession(Mode mode, EntityDto entity, Runnable onSaved, boolean enteredFromView)`.
+Mode transitions return new instances — never mutate fields directly:
+```java
+session = session.toEdit();          // correct
+session = session.toView();          // correct
+session = session.withEntity(fresh); // correct — after save
+session.mode = Mode.EDIT;            // wrong — record, mutation is impossible
+```
+
+### switchTo() — the only way to transition between modes
+Always call `switchTo()` to transition between overlay modes. Never call `launchSession()`
+for transitions — `launchSession()` resets the entire layout and triggers an unnecessary
+JS scroll-reset. `launchSession()` is only for the initial overlay open.
+
+```java
+// correct — transitioning between modes
+session = session.toEdit();
+switchTo();
+
+// wrong — resets layout
+session = session.toEdit();
+launchSession(this::switchTo);
+```
+
+### currentFormHandler — reset before switchTo()
+At the start of `switchTo()` always reset `currentFormHandler = null` before the switch expression.
+Without this, after VIEW→EDIT→VIEW the handler remains non-null and `hasUnsavedChanges()`
+returns `true` even though the form is already closed.
+
+```java
+@Override
+protected void switchTo() {
+    currentFormHandler = null;  // always the first line
+    OverlayModeHandler handler = switch (session.mode()) { ... };
+    ...
+}
+```
+
+### afterSave() — update entity in session
+After saving in EDIT mode always update the entity in the session via `withEntity()`:
+```java
+if (session.mode() == Mode.EDIT) {
+    currentFormHandler.afterSave(true);
+    EntityDto fresh = currentFormHandler.getSavedDto();
+    if (fresh != null) session = session.withEntity(fresh);
+} else {
+    closeToList();
+}
+```
+
+### discardChanges() — the only name for resetting a form
+The method for resetting form state in FormOverlayModeHandler is always named `discardChanges()`.
+In `doCancel()` of the overlay always call it before transitioning:
+```java
+if (currentFormHandler != null) currentFormHandler.discardChanges();
+```
+
+---
+
+## View Pattern
+
+### init() — structure and visibility
+The `@PostConstruct init()` method in all View classes is always `protected`, never `public`.
+The order inside init() is fixed:
+
+```java
+@PostConstruct
+protected void init() {
+    // 1. CSS class and sizing
+    // 2. Build main component (grid / container)
+    // 3. Build contentWrapper
+    // 4. add(contentWrapper, overlay)
+    // 5. Subscriptions (queryBar, pagination, shortcuts)
+    // 6. settingsPaginationBinding.register(...)
+    // 7. refresh()
+}
+```
+
+Do not split init() into small `initXxx()` methods if each does 1–2 lines.
+Extract into a separate method only when logic is complex (e.g. Grid column configuration
+via a dedicated `*GridConfigurator` class).
+
+### refresh() — always with try/catch
+The `refresh()` method in all View classes is always `private` and always guarded:
+
+```java
+private void refresh() {
+    try {
+        // fetch + render logic
+    } catch (ConstraintViolationException ex) {
+        log.warn("Validation error: {}", ex.getMessage(), ex);
+        showValidationErrors(ex);
+        clearContent();
+        paginationBar.setTotalCount(0);
+    } catch (Exception ex) {
+        log.error("Failed to refresh view", ex);
+        notificationService.error(...);
+        clearContent();
+        paginationBar.setTotalCount(0);
+    } finally {
+        queryStatusBar.update(); // if queryStatusBar is present in this view
+    }
+}
+```
+
+Never leave `refresh()` without try/catch — an unhandled exception means a blank screen for the user.
+
+### Refresh method name
+The data refresh method in a View is always named `refresh()`, never `refreshGrid()`,
+`refreshData()`, or any other variant.
+
+---
+
+## Query Layer Pattern
+
+### FilterMeta and SortMeta — Fields.* constants only
+In `*SortMeta` and `*FilterMeta` classes, fields always reference typed `Fields.*` constants
+from the DTO, never raw strings:
+
+```java
+// correct — compiler catches renames
+SortFieldMeta.of(AdvertisementInfoDto.Fields.updatedAt, ADVERTISEMENT_SORT_UPDATED_AT)
+
+// wrong — silent failure on refactoring
+SortFieldMeta.of("updatedAt", ADVERTISEMENT_SORT_UPDATED)
+```
+
+---
+
+## Form Handler Pattern
+
+### buildBinder() — separate method
+Binder creation and field binding logic is always extracted into a separate `buildBinder(EntityDto dto)`
+method, never inlined into `activate()`.
+
+### History access — an icon button opening EntityActivityOverlay, not a tab
+`AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
+`buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
+see `.claude/nav/adr-index.md`). `layout.setContent(...)` is called unconditionally;
+history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
+`EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
+
+```java
+private UiIconButton buildHistoryButton() {
+    UiIconButton historyBtn = new UiIconButton(getValue(USER_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
+    historyBtn.addClassName("user-history-button");
+    historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
+            .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
+            .parentSteps(params.getBreadcrumbSteps())
+            .parentFormLabel(params.getUser().name())
+            .currentLabelKey(USER_ACTIVITY_BUTTON)
+            .onRestoreRequested(this::handleRestoreFromActivity)
+            .build()));
+    return historyBtn;
+}
+```
+
+---
+
+## Breadcrumb Pattern
+
+### BreadcrumbStep — a growing stack, not a fixed back-link
+`record BreadcrumbStep(String label, Runnable onClick)` (`ui/views/components/overlay/`) — `label`
+is an already-resolved `String` (not an `I18nKey`), so it also fits dynamic labels (e.g.
+`UserOverlay`'s current user name). `AbstractEntityOverlay.buildBreadcrumbSteps()` returns the
+list-tab step by default, plus a "View" step (`OVERLAY_BREADCRUMB_VIEW`) whenever
+`isEditMode() && enteredFromView()` — never rewrite existing segments when navigating deeper, only
+append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain with `›` separators
+only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
+`buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
+the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
+2-segment pair. See `.claude/nav/adr-index.md` for the full history of this design.
+
+---
+
+## Reference Implementations
+
+When adding a new domain, use these as reference:
+- View: `AdvertisementsView` (init structure) + `UserView` (refresh guard)
+- Overlay: `AdvertisementOverlay` (OverlaySession, afterSave, mode switching)
+- ViewModeHandler: `AdvertisementViewOverlayModeHandler` (AbstractViewOverlayModeHandler)
+- FormModeHandler: `AccountNameFormModeHandler` (buildBinder separate)
+- QueryBlock: `AdvertisementQueryBlock` and `UserQueryBlock` (identical structure)
+- FilterMeta: `AdvertisementFilterMeta` (Fields.* constants)
+- SortMeta: `AdvertisementSortMeta` (Fields.* constants)
 
 ---
 

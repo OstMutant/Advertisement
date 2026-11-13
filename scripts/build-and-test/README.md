@@ -17,13 +17,20 @@ flowchart TD
     R --> B{"reset-cache?"}
     B -->|yes| B1["rm scanner container,<br/>maven-cache and<br/>vaadin-cache volumes"] --> C
     B -->|no| C{"image missing or<br/>--rebuild-image or<br/>Dockerfile newer?"}
-    C -->|yes| C1[docker build] --> E
-    C -->|no| E[tar-pipe source in]
+    C -->|yes| C1[docker build] --> D0
+    C -->|no| D0{"RUN_INTEGRATION and<br/>Docker daemon unreachable?"}
+    D0 -->|yes| D1[exit with an error]
+    D0 -->|no| E[tar-pipe source in]
     E --> F["build.sh<br/>(inside container)"]
-    F --> G["mvn install<br/>whole reactor (via flock)"]
-    G --> H["refresh marketplace-app.jar<br/>in shared volume"]
-    H --> I{"RUN_UNIT?"}
-    H --> J{"RUN_INTEGRATION?"}
+    F --> G0{"--no-install?"}
+    G0 -->|yes| T
+    G0 -->|no| G["mvn install<br/>whole reactor (via flock)"]
+    G --> G1{"--skip-vaadin?"}
+    G1 -->|yes| T
+    G1 -->|no| H["refresh marketplace-app.jar<br/>in shared volume"]
+    H --> T
+    T[run the requested tests] --> I{"RUN_UNIT?"}
+    T --> J{"RUN_INTEGRATION?"}
     I -->|yes| I1["mvn test unit"] --> I2{"ARCHUNIT_METRICS?"}
     I -->|no| I2
     I2 -->|yes| I3["mvn test<br/>ArchitectureMetricsExport"] --> M

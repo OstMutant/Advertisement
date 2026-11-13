@@ -1,42 +1,31 @@
 #!/bin/bash
-# Usage:
-#   bash integration-tests/run.sh                          — run every test in the module
-#   bash integration-tests/run.sh smoke                     — run PostgresContainerSmokeTest only
-#   bash integration-tests/run.sh AdvertisementRepositoryTest — run one test class by name
-#   bash integration-tests/run.sh --sandbox                 — apply this sandbox's Docker
-#                                                               workarounds (Ryuk disabled, fixed
-#                                                               Postgres port); NOT needed on a
-#                                                               normal developer machine, see
-#                                                               scripts/CLAUDE.md "Unit /
-#                                                               Testcontainers Tests"
-#   bash integration-tests/run.sh --no-check                — skip the automatic staleness check
-#                                                               below entirely and go straight to
-#                                                               `mvn -pl integration-tests test`
-#                                                               against whatever is already in
-#                                                               ~/.m2, even if it's stale. Use only
-#                                                               when you deliberately want to test
-#                                                               against a specific already-built
-#                                                               JAR (e.g. reproducing behavior
-#                                                               against an older starter build) or
-#                                                               to shave the few seconds the `find`
-#                                                               check itself costs — NOT a
-#                                                               substitute for the check on a normal
-#                                                               edit/test loop.
-#
-# Flags can be combined in any order, e.g.:
-#   bash integration-tests/run.sh --sandbox smoke
-#
-# Streams full Maven/Testcontainers output live. Requires a reachable Docker daemon — see
-# integration-tests/CLAUDE.md.
-#
-# Automatic staleness check (default, no flag needed — see .claude/nav/adr-index.md):
-# integration-tests depends on every org.ost module listed in its own pom.xml <dependency> entries
-# (platform-commons, every domain starter, marketplace-orchestrator, marketplace-rest-api) as real
-# compiled JARs from ~/.m2, not source. Before testing, this script compares each of those modules'
-# newest .java file against its installed JAR's mtime; if any source is newer (or the JAR is
-# missing entirely), it runs a targeted `mvn install -DskipTests` for just those modules first.
-# Otherwise it skips straight to `mvn -pl integration-tests test` — no full reactor walk, no risk
-# of silently testing against a stale JAR either way. `--no-check` above bypasses this.
+# ── Header ──────────────────────────────────────────────────────────
+# Description: Runs the Testcontainers-backed integration-tests module (real Postgres) with live
+#   Maven output. Before testing it reinstalls only the org.ost modules whose newest .java file is
+#   newer than their installed JAR in ~/.m2 (or whose JAR is missing), so it never tests against a
+#   stale starter JAR and never walks the whole reactor when nothing changed; --no-check bypasses
+#   that check. Standalone entry point with capabilities build-and-test.sh does not replicate.
+# Usage: bash integration-tests/run.sh [--sandbox] [--no-check] [smoke | <TestClass> [<TestClass> ...]]
+#   (no arguments)  every test in the module
+#   smoke           PostgresContainerSmokeTest only
+#   <TestClass> ... one or more test classes by name (several are joined into one -Dtest list)
+#   --sandbox       apply this sandbox's Docker workarounds (Ryuk disabled, fixed Postgres port 25432)
+#                   and first remove every container labelled org.testcontainers=true, host-wide;
+#                   not needed on a normal developer machine
+#   --no-check      skip the staleness check and test against whatever is already in ~/.m2
+#   Flags can be combined in any order, e.g. --sandbox smoke.
+# Uses: bash, docker (a reachable daemon), ./mvnw, java, awk, sed, find.
+# Env: TESTCONTAINERS_RYUK_DISABLED and INTEGRATION_TESTS_POSTGRES_FIXED_PORT (set by --sandbox);
+#   GITHUB_ACTIONS (when set, --sandbox and those two variables are refused).
+# Input: integration-tests/pom.xml's org.ost <dependency> list (the modules checked for staleness
+#   and aggregated into the coverage report), each module's source and installed JAR.
+# Outputs: scripts/logs/integration-tests/run.log (full streamed output, replaced every run),
+#   integration-tests/reports/surefire/ (one report per test class, replaced every run),
+#   integration-tests/reports/jacoco/integration-tests-aggregate.xml; fresh JARs for the modules
+#   that were stale; the JaCoCo CLI jar is downloaded into ~/.m2 when missing.
+# Returns: 0 when every selected test passed; the failing step's exit code otherwise (starter
+#   install, Maven test run); 1 when --sandbox or its variables are used under GITHUB_ACTIONS.
+# ─────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="$ROOT/integration-tests/reports"
@@ -53,7 +42,7 @@ for arg in "$@"; do
   elif [ "$arg" = "--no-check" ]; then
     NO_CHECK=1
   else
-    SCENARIO="$arg"
+    SCENARIO="${SCENARIO:+$SCENARIO,}$arg"
   fi
 done
 

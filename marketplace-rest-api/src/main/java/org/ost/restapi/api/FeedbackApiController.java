@@ -91,6 +91,7 @@ public class FeedbackApiController {
 
     @Operation(operationId = "createProviderProfileFeedback", summary = "Review a provider profile",
             description = "One review per user and profile (a second one is 409), at most 10 per day (429). The caller becomes the author.")
+    @ApiResponse(responseCode = "403", description = "The caller owns the reviewed profile")
     @ApiResponse(responseCode = "404", description = "The provider profile does not exist")
     @ApiResponse(responseCode = "409", description = "The caller has already reviewed this profile")
     @ApiResponse(responseCode = "429", description = "Daily review limit reached")

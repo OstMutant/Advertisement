@@ -29,18 +29,22 @@
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>audit-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>attachment-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>user-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>advertisement-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
@@ -65,6 +69,11 @@
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>feedback-spring-boot-starter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>promotion-spring-boot-starter</artifactId>
             <scope>runtime</scope>
         </dependency>
 

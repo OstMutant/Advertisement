@@ -165,6 +165,16 @@ class FeedbackMatrixScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(status().isCreated());
     }
 
+    @Test
+    void owner_reviewsOwnProfile_isForbidden() throws Exception {
+        registerUserAndIssueApiKey("Admin");
+        RegisteredUser owner = registerUserAndIssueApiKey("Owner");
+        long profileId = createProviderProfile(owner);
+
+        mockMvc.perform(reviewRequest(owner, profileId, REVIEW_BODY))
+                .andExpect(status().isForbidden());
+    }
+
     // ── update review ────────────────────────────────────────────────────
 
     @Test

@@ -82,7 +82,7 @@ public class SitemapService {
     private Stream<ProviderProfileDto> allProviderProfiles() {
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.empty();
         return Stream.iterate(0, page -> page + 1)
-                .map(page -> providerProfileReadService.getFiltered(filter, page, PAGE_SIZE, SORT_BY_PROVIDER_ID))
+                .map(page -> providerProfileReadService.getFilteredWithoutPromotion(filter, page, PAGE_SIZE, SORT_BY_PROVIDER_ID))
                 .takeWhile(page -> !page.isEmpty())
                 .flatMap(List::stream);
     }

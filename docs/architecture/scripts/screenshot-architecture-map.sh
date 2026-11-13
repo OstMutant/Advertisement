@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
-# Description: Screenshots every screen of architecture-map.html via a headless Playwright
-#   browser, since the generated file has no automated visual test of its own.
-# Uses: bash, a headless Playwright browser (Docker, same pinned image/version as playwright/run.sh).
-# Input: docs/architecture/architecture-map.html (must already exist and be current).
-# Output: docs/architecture/scripts/architecture-map-screenshots/{01-system,02-diagrams-list,
-#   03-diagram-module-deps,04-module-detail,05-diagram-spi,06-diagram-spi-zoomed,07-pipelines,
-#   08-backlog}.png (gitignored -- ephemeral verification artifacts, not committed).
-#
-# Mirrors playwright/run.sh's container conventions but is a standalone tool, not part of the e2e
-# suite -- it screenshots a static generated file, not the running app.
-#
-# Usage:
-#   bash docs/architecture/scripts/screenshot-architecture-map.sh
+# ── Header ──────────────────────────────────────────────────────────
+# Description: Screenshots the screens of architecture-map.html through a headless Playwright browser
+#   in the reusable container arch-map-shot (stopped when the run ends, kept with its installed
+#   playwright package so the next run starts fast), since the generated file has no automated
+#   visual test of its own, and checks what a
+#   picture cannot show: every Database ERD table sits in a module frame, every ERD and Module
+#   Dependencies arrow has a target row, every ERD Links link has a target row and a click on it
+#   flashes that row, every README flowchart block is drawn with the edge count
+#   of its source, and the page raises no JavaScript error. Mirrors playwright/run.sh's container
+#   conventions but is a standalone tool, not part of the e2e suite.
+# Usage: bash docs/architecture/scripts/screenshot-architecture-map.sh
+# Uses: bash, docker (the same pinned Playwright image and version as playwright/run.sh), node and
+#   playwright inside that container.
+# Env: None.
+# Input: docs/architecture/architecture-map.html (must already exist and be current) and the
+#   docs/architecture/vendor/ folder it loads its libraries from.
+# Outputs: docs/architecture/scripts/architecture-map-screenshots/{01-system,02-diagrams-list,
+#   03-diagram-module-deps,04-module-detail,04b-back-to-diagram-via-breadcrumb,05-diagram-spi,
+#   06-diagram-spi-zoomed,07-pipelines,08-backlog,09-diagram-erd,09b-erd-graph,10-readme-flow-system,
+#   11-readme-flow-tooling,11b-flow-block}.png (gitignored, ephemeral verification artifacts; every
+#   run first deletes the existing PNGs in that folder); the Playwright driver /tmp/arch-map-shot.js on the host; the arch-map-shot container is stopped, not removed, on every exit.
+# Returns: 0 when every screen was captured and every check held; 1 when the map file is missing, a
+#   check failed or the page raised a JavaScript error.
+# ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -33,6 +44,7 @@ STATUS=$(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null)
 if [ "$STATUS" != "running" ]; then
   docker start "$CONTAINER" >/dev/null
 fi
+trap 'docker stop "$CONTAINER" >/dev/null' EXIT
 
 # Install the playwright npm package once per container lifetime, not on every run.
 if ! docker exec "$CONTAINER" test -d /tmp/shot/node_modules/playwright; then
@@ -41,6 +53,8 @@ if ! docker exec "$CONTAINER" test -d /tmp/shot/node_modules/playwright; then
 fi
 
 docker cp "$HTML" "$CONTAINER:/tmp/shot/architecture-map.html"
+docker exec "$CONTAINER" rm -rf /tmp/shot/vendor
+docker cp "$REPO_ROOT/docs/architecture/vendor" "$CONTAINER:/tmp/shot/vendor"
 
 cat > /tmp/arch-map-shot.js <<'JS_EOF'
 const { chromium } = require('playwright');
@@ -75,6 +89,9 @@ async function goSystem(page) {
   // Confirm the module detail page (reached by clicking a node in the graph above) still renders
   // correctly -- driven directly via the exposed navigate() rather than a canvas-coordinate click,
   // since node positions depend on dagre's layout and aren't stable enough to hardcode a click at.
+  const depArrows = await page.evaluate(() => ({ edges: diagramCy.edges().length, withoutRow: diagramCy.edges().filter(e => !document.getElementById('dep-row-' + e.data('target'))).length }));
+  console.log('Module Dependencies arrows/without table row:', JSON.stringify(depArrows));
+  if (depArrows.withoutRow) jsErrors.push(depArrows.withoutRow + ' Module Dependencies arrows point at no table row');
   await page.evaluate(() => navigate({ screen: 'module', id: 'platform-commons' }));
   await page.waitForTimeout(300);
   await shot(page, '04-module-detail');
@@ -93,7 +110,7 @@ async function goSystem(page) {
   // per-subsystem card instead. Advertisement is one of the densest subsystems, worth checking
   // zoom on it.
   await page.locator('.domain-group .card', { hasText: 'Advertisement Subsystem' }).click();
-  await page.waitForTimeout(1200); // mermaid render settle
+  await page.waitForTimeout(1200); // cytoscape layout settle
   await shot(page, '05-diagram-spi');
   await page.locator('.zoom-controls button', { hasText: '+' }).click();
   await page.locator('.zoom-controls button', { hasText: '+' }).click();
@@ -110,6 +127,62 @@ async function goSystem(page) {
   await page.waitForTimeout(300);
   await shot(page, '08-backlog');
 
+  // Database ERD -- Cytoscape tables-and-relationships graph; every table must be a node.
+  await goSystem(page);
+  await page.locator('.special-card:has-text("Diagrams")').click();
+  await page.waitForTimeout(300);
+  await page.locator('.domain-group .card .card-title', { hasText: /^Entity Relationship Diagram$/ }).click();
+  await page.waitForTimeout(1500);
+  await shot(page, '09-diagram-erd');
+  await page.locator('#diagram-cy-wrap').screenshot({ path: '/tmp/shot/09b-erd-graph.png' });
+  const erd = await page.evaluate(() => ({
+    nodes: diagramCy.nodes(':childless').length, frames: diagramCy.nodes(':parent').length,
+    orphans: diagramCy.nodes(':childless').filter(n => n.parent().empty()).length,
+    edges: diagramCy.edges().length, tables: MODEL.dbErd.tables.length,
+    edgesWithoutRow: diagramCy.edges().filter(e => !document.getElementById(e.data('rowId'))).length
+  }));
+  console.log('ERD tables/nodes/module frames/orphans/edges:', JSON.stringify(erd));
+  if (erd.edgesWithoutRow) jsErrors.push(erd.edgesWithoutRow + ' ERD arrows point at no schema row');
+  if (erd.nodes !== erd.tables || erd.orphans) jsErrors.push('ERD graph has ' + erd.nodes + ' table nodes (' + erd.orphans + ' outside a module frame) for ' + erd.tables + ' tables');
+
+  // Links column of the table schemas: every link leads to an existing row and a real click flashes it.
+  const links = await page.evaluate(() => ({
+    anchors: document.querySelectorAll('[data-jump]').length,
+    expected: MODEL.dbErd.conceptualRelationships.length * 2,
+    dangling: [...document.querySelectorAll('[data-jump]')].filter(a => !document.getElementById(a.dataset.jump)).length,
+    standaloneSection: [...document.querySelectorAll('h3')].some(h => h.textContent.startsWith('Relationships not backed by a real foreign key'))
+  }));
+  console.log('ERD Links anchors/expected/dangling/standalone section:', JSON.stringify(links));
+  if (links.anchors !== links.expected) jsErrors.push('ERD has ' + links.anchors + ' Links links, expected ' + links.expected);
+  if (links.dangling) jsErrors.push(links.dangling + ' ERD Links links point at no schema row');
+  if (links.standaloneSection) jsErrors.push('ERD still shows the standalone relationships section');
+  const jumpIds = await page.evaluate(() => [...document.querySelectorAll('[data-jump]')].map(a => a.dataset.jump));
+  let notFlashed = 0;
+  for (let i = 0; i < jumpIds.length; i++) {
+    await page.evaluate(id => document.getElementById(id).classList.remove('row-flash'), jumpIds[i]);
+    await page.locator('[data-jump]').nth(i).click();
+    if (!(await page.evaluate(id => document.getElementById(id).classList.contains('row-flash'), jumpIds[i]))) notFlashed++;
+  }
+  if (notFlashed) jsErrors.push(notFlashed + ' clicks on ERD Links links did not flash their target row');
+
+  // README flow blocks on the System page (root README) and the Tooling page (INFRASTRUCTURE.md):
+  // every fence must be drawn, none left as raw Mermaid text.
+  for (const screen of ['System', 'Tooling']) {
+    await goSystem(page);
+    if (screen === 'Tooling') { await page.locator('.special-card:has-text("Tooling")').click(); await page.waitForTimeout(300); }
+    const flow = await page.evaluate(() => ({
+      blocks: document.querySelectorAll('.flow-block').length,
+      drawn: document.querySelectorAll('.flow-block[data-drawn]').length,
+      canvases: document.querySelectorAll('.flow-block canvas').length,
+      rawMermaid: document.querySelectorAll('pre.mermaid').length,
+      edgeMismatches: [...document.querySelectorAll('.flow-block .flow-src')].filter(p => parseFlowchart(p.textContent).edges.length !== (p.textContent.match(/-->|-\.->/g) || []).length).length
+    }));
+    console.log(screen + ' flow blocks:', JSON.stringify(flow));
+    if (flow.blocks !== flow.drawn || flow.rawMermaid || flow.edgeMismatches) jsErrors.push(screen + ': flow blocks not all drawn ' + JSON.stringify(flow));
+    await shot(page, screen === 'System' ? '10-readme-flow-system' : '11-readme-flow-tooling');
+    if (screen === 'Tooling') await page.locator('.flow-block').first().screenshot({ path: '/tmp/shot/11b-flow-block.png' });
+  }
+
   await browser.close();
   if (jsErrors.length) { console.error('JS errors during run:\n' + jsErrors.join('\n')); process.exit(1); }
   console.log('done');
@@ -119,11 +192,11 @@ JS_EOF
 docker cp /tmp/arch-map-shot.js "$CONTAINER:/tmp/shot/shot.js"
 docker exec "$CONTAINER" sh -c "cd /tmp/shot && node shot.js"
 
-SHOT_NAMES=(01-system 02-diagrams-list 03-diagram-module-deps 04-module-detail 04b-back-to-diagram-via-breadcrumb 05-diagram-spi 06-diagram-spi-zoomed 07-pipelines 08-backlog)
+SHOT_NAMES=(01-system 02-diagrams-list 03-diagram-module-deps 04-module-detail 04b-back-to-diagram-via-breadcrumb 05-diagram-spi 06-diagram-spi-zoomed 07-pipelines 08-backlog 09-diagram-erd 09b-erd-graph 10-readme-flow-system 11-readme-flow-tooling 11b-flow-block)
 rm -f "$OUT_DIR"/*.png
 for f in "${SHOT_NAMES[@]}"; do
   docker cp "$CONTAINER:/tmp/shot/$f.png" "$OUT_DIR/$f.png"
 done
 
 echo "Wrote ${#SHOT_NAMES[@]} screenshots to $OUT_DIR"
-echo "Container '$CONTAINER' left running (warm, like pw-runner) -- stop with: docker rm -f $CONTAINER"
+echo "Container '$CONTAINER' will be stopped on exit and kept for the next run -- remove it with: docker rm -f $CONTAINER"

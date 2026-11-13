@@ -36,6 +36,7 @@ public class ProviderProfileQueryConfig {
     @UIScope
     public SortProcessor providerProfileSortProcessor() {
         return new SortProcessor(new CustomSort(Sort.by(
+                Sort.Order.desc(ProviderProfileDto.Fields.promoted),
                 Sort.Order.desc(ProviderProfileDto.Fields.updatedAt),
                 Sort.Order.desc(ProviderProfileDto.Fields.createdAt)
         )));

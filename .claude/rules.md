@@ -345,10 +345,8 @@ for approval — never re-paraphrase the whole task back at length.
   Run `git status --short` and `git diff --cached --stat` (or fuller `git diff --cached` for a
   smaller change) and read the output before running `git commit`, every time, even when the
   change feels routine. "No untracked files showed up" is not the same check as "the staged diff
-  only contains what I meant to commit" — confirmed directly: build artifacts from a new module's
-  own `target/` directory landed in a commit because `.gitignore`'s per-module list was never
-  updated for that module, and `git add -A` staged them without complaint since nothing about that
-  looked untracked or unusual at a glance.
+  only contains what I meant to commit" — a blanket add can stage generated output that nothing
+  flags as unusual.
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
@@ -357,9 +355,7 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 `cmd.exe` reads `.bat` files in a legacy codepage, not UTF-8. A multi-byte UTF-8 character (em-dash
 `—`, smart quotes, etc.) anywhere in the file — even inside a `::`/`REM` comment — can corrupt
 `cmd.exe`'s own batch-label parsing, producing `The system cannot find the batch label specified`
-errors on real Windows for labels that objectively exist in the file (confirmed directly: an
-em-dash added to a comment in `scripts/collect-code.bat` broke `call :FindFiles`/`call :CountFiles`
-elsewhere in the same file). Use plain ASCII `-`/`--` instead of `—`/`–` in every `.bat` file,
+errors on real Windows for labels that exist in the file. Use plain ASCII `-`/`--` instead of `—`/`–` in every `.bat` file,
 including comments. Not an issue in `.sh` files (bash reads UTF-8 natively).
 
 ## Test Coverage After Bug Fixes
@@ -425,8 +421,7 @@ subdirectory, which belongs to that one group alone.
    result, or when explicitly asked for the current status — answer with the real current state
    then, never with continued silence. "Stay silent" means exactly that — no reply at all to a
    routine notification, not a placeholder acknowledgment ("...", "still running", "no change")
-   either; a placeholder is still unwanted chat noise on every tick, confirmed directly as a real
-   annoyance, not just a hypothetical one. Do not stop/restart the Monitor task to chase a quieter
+   either; a placeholder is still unwanted chat noise on every tick. Do not stop/restart the Monitor task to chase a quieter
    filter when it's firing on routine ticks — the Monitor keeps running regardless of whether a
    given notification gets a reply; responding to a routine tick with nothing is a valid, complete
    turn, not a gap that needs filling.
@@ -479,93 +474,9 @@ Keep the report human: what was done in plain terms, test results (counts, not j
 and review-finding decisions. Skip the enumerated file-changes section entirely.
 
 ### Final reports record real operational data in a fixed, mechanically-parseable block
-Every task file carries an `## Operational notes` block from the moment it is created (`/new-task`
-writes it with `n/a`/`none` values). Update its lines during the work as each fact becomes known
-— an ADR that shaped a decision, an Agent call, a script run — never reconstructed from memory at
-the end. Entries are real observations from the real task, not a synthetic exercise, and not free-form prose (a
-later aggregate pass greps/parses this across many task files, the same way `## ADR-NNN:` +
-`**Status:**` makes `DECISIONS.md` mechanically indexable — inconsistent formatting defeats that).
-Fixed key: value lines, one key per line, `n/a` for anything that doesn't apply to this task:
-
-```
-## Operational notes
-- token_cost_review: <tokens summed from Agent-tool review-purpose calls, or n/a>
-- token_cost_research: <tokens summed from Agent-tool research/investigation calls, or n/a>
-- token_cost_verification: <tokens summed from Agent-tool verification/testing calls, or n/a>
-- review_signal_ratio: <CONFIRMED/PLAUSIBLE findings that survived verification> / <total candidate findings raised across all finder angles>, or n/a if no /code-review ran this task
-- context_loading_task_type: <the matching .claude/nav/context-loading.md row, or n/a>
-- context_loading_consulted: <yes/no/n/a>
-- context_loading_matched: <yes/no/n/a — did the actual read pattern match that row's guidance>
-- flows_situation: <short phrase describing the situation, or n/a>
-- flows_chosen: <the command/skill actually used, or n/a>
-- flows_matched: <yes/no/n/a — did it match .claude/nav/flows.md's recommendation for that situation>
-- haiku_decomposition_used: <yes/no/n/a — did this run's implementation phase (autopilot step 2) or /sync-docs diff-mode's parallelization dispatch Haiku per the eligibility criteria in those commands, or n/a if neither applies>
-- haiku_decomposition_dispatch_count: <N Haiku dispatches used for this purpose, or n/a>
-- haiku_decomposition_rework_needed: <N dispatches whose output needed a correction after verification> / <N total such dispatches>, or n/a
-- adrs_referenced: <ADR-NNN (module), ADR-MMM (module), ... every ADR that actually shaped a decision or was followed in this task, in that exact key shape, or none — merely reading an ADR does not count>
-
-### Agent calls
-- <purpose> | subagent_type=<X> | tokens=<N> | tool_uses=<N> | duration_s=<N> | mode=<foreground|background> | batch=<parallel-group-id or solo>
-(one line per Agent-tool invocation this task made; omit the whole subsection, not empty, if none)
-
-### Script/command runs
-- <script + args> | duration_s=<N> | mode=<foreground|background> | result=<pass|fail|n/a>
-(one line per scripts/*.sh invocation this task made; omit the whole subsection, not empty, if none)
-
-### Review angle yield
-- <finder angle name> | survived=<N> | total_candidates=<N> | tokens=<N>
-(one line per finder angle from that /code-review run — this is what review_signal_ratio's
-aggregate is computed from; omit the whole subsection, not empty, if no /code-review ran)
-```
-
-Show this same block in the chat final report too, not only in the task file — writing it to the
-file alone is invisible to the user unless they go open that file themselves. Include it verbatim
-(or immediately adjacent to) the rest of the completion report, every time, not just when a number
-happens to look interesting.
-Token totals are never a full accounting — no tool reports main-thread token usage, state that as
-context if asked, not inside the block itself (keep the block just the key: value lines, nothing
-else, so parsing stays trivial). See `.claude/commands/sync-docs.md`'s Full Audit Mode for where
-this data gets aggregated and acted on.
-
-**`review_signal_ratio`** exists to answer, over time and across many tasks, whether a given
-`/code-review` effort level actually pays for itself — a low ratio sustained across many runs is
-evidence a lower effort level (fewer finder angles, less exhaustive verification) would have found
-the same real bugs for less cost; a high ratio is evidence the current level is well-calibrated.
-Compute it honestly from the real counts of that run, not a rounded guess. The per-angle
-**Review angle yield** breakdown exists specifically so this decision can be made per-angle, not
-just for the review process as a whole — an angle that's consistently expensive and low-yield
-across many tasks is a candidate to drop or narrow; an angle that keeps finding real bugs
-regardless of cost stays. Never drop an angle from one run's data alone.
-
-**`haiku_decomposition_rework_needed`** exists to answer, over time, whether dispatching Haiku
-per-unit for autopilot's step 2 (or `/sync-docs` diff-mode's parallelization) — no count or size
-threshold, per the standing Haiku-dispatch rule — is actually safe to keep doing with no gate at
-all: a high rework rate (corrections needed after verification) would be real evidence that a
-threshold is needed after all (some dispatches are getting work that still needed judgment); a
-low/zero rate confirms per-unit dispatch with no threshold is working as intended. Compute honestly
-per run, same discipline as `review_signal_ratio` — never skip recording a rework event just
-because it was caught and fixed quickly.
-
-**`adrs_referenced`** exists to answer, over time, which ADRs are actually load-bearing — applied
-in real work — versus ones nobody has used since they were written. `/record-decision` appends the
-ADR it creates to the current task's line itself and writes `**Applied:** 1` into that new ADR. When
-a task is closed, whoever closes it adds 1 to the `**Applied:** N` line of every ADR in the task's
-`adrs_referenced` (adding `**Applied:** 1` right after `**Status:**` where the line is absent),
-except an ADR this very task created, already counted at creation — one count per task, however
-many times it is cited. `.claude/nav/scripts/generate-adr-index.sh` only
-collects that line into an `Applied` column on the generated index (blank when absent, never 0); a consistently-zero count across many tasks is a
-signal that ADR is a candidate for lower-priority upkeep (not automatic deletion — some decisions
-are rarely touched specifically because they're settled), while a high count marks one worth
-keeping especially precise and current.
-
-**Agent calls vs. Script/command runs — different metrics, don't conflate them.** Every Agent-tool
-task-notification carries real `<usage>` data (`subagent_tokens`/`tool_uses`/`duration_ms`) — use
-it verbatim, don't estimate. Scripts (`build-and-test.sh`, `deploy-and-run.sh`, `playwright.sh`, etc.) are not
-LLM calls and have no token cost of their own — never invent one; only record their real wall-clock
-duration and pass/fail result. Main-thread (this conversation's own) token usage has no reporting
-tool at all — not a policy choice, a real gap, confirmed via `ToolSearch` finding no matching tool
-before writing this rule (2026-08-08) — do not estimate it either; the `token_cost_*` fields above
-stay Agent-only for this reason.
+Every task file carries an `## Operational notes` block from the moment it is created. Its keys,
+how each is filled and what the aggregate pass does with them are defined in `.claude/rules/backlog-tasks.md`;
+show the same block in the chat final report too, not only in the task file.
 
 ### Review-skill effort level — default stays put; deviation allowed only when obvious, always disclosed
 A review-style skill's effort level defaults to whatever it defaults to when the user doesn't name
@@ -683,138 +594,6 @@ project state the standing code-edit approval flow already covers.
 
 ---
 
-## Overlay Pattern
-
-### OverlaySession — immutable state machine
-Every overlay uses a `record OverlaySession(Mode mode, EntityDto entity, Runnable onSaved, boolean enteredFromView)`.
-Mode transitions return new instances — never mutate fields directly:
-```java
-session = session.toEdit();          // correct
-session = session.toView();          // correct
-session = session.withEntity(fresh); // correct — after save
-session.mode = Mode.EDIT;            // wrong — record, mutation is impossible
-```
-
-### switchTo() — the only way to transition between modes
-Always call `switchTo()` to transition between overlay modes. Never call `launchSession()`
-for transitions — `launchSession()` resets the entire layout and triggers an unnecessary
-JS scroll-reset. `launchSession()` is only for the initial overlay open.
-
-```java
-// correct — transitioning between modes
-session = session.toEdit();
-switchTo();
-
-// wrong — resets layout
-session = session.toEdit();
-launchSession(this::switchTo);
-```
-
-### currentFormHandler — reset before switchTo()
-At the start of `switchTo()` always reset `currentFormHandler = null` before the switch expression.
-Without this, after VIEW→EDIT→VIEW the handler remains non-null and `hasUnsavedChanges()`
-returns `true` even though the form is already closed.
-
-```java
-@Override
-protected void switchTo() {
-    currentFormHandler = null;  // always the first line
-    OverlayModeHandler handler = switch (session.mode()) { ... };
-    ...
-}
-```
-
-### afterSave() — update entity in session
-After saving in EDIT mode always update the entity in the session via `withEntity()`:
-```java
-if (session.mode() == Mode.EDIT) {
-    currentFormHandler.afterSave(true);
-    EntityDto fresh = currentFormHandler.getSavedDto();
-    if (fresh != null) session = session.withEntity(fresh);
-} else {
-    closeToList();
-}
-```
-
-### discardChanges() — the only name for resetting a form
-The method for resetting form state in FormOverlayModeHandler is always named `discardChanges()`.
-In `doCancel()` of the overlay always call it before transitioning:
-```java
-if (currentFormHandler != null) currentFormHandler.discardChanges();
-```
-
----
-
-## View Pattern
-
-### init() — structure and visibility
-The `@PostConstruct init()` method in all View classes is always `protected`, never `public`.
-The order inside init() is fixed:
-
-```java
-@PostConstruct
-protected void init() {
-    // 1. CSS class and sizing
-    // 2. Build main component (grid / container)
-    // 3. Build contentWrapper
-    // 4. add(contentWrapper, overlay)
-    // 5. Subscriptions (queryBar, pagination, shortcuts)
-    // 6. settingsPaginationBinding.register(...)
-    // 7. refresh()
-}
-```
-
-Do not split init() into small `initXxx()` methods if each does 1–2 lines.
-Extract into a separate method only when logic is complex (e.g. Grid column configuration
-via a dedicated `*GridConfigurator` class).
-
-### refresh() — always with try/catch
-The `refresh()` method in all View classes is always `private` and always guarded:
-
-```java
-private void refresh() {
-    try {
-        // fetch + render logic
-    } catch (ConstraintViolationException ex) {
-        log.warn("Validation error: {}", ex.getMessage(), ex);
-        showValidationErrors(ex);
-        clearContent();
-        paginationBar.setTotalCount(0);
-    } catch (Exception ex) {
-        log.error("Failed to refresh view", ex);
-        notificationService.error(...);
-        clearContent();
-        paginationBar.setTotalCount(0);
-    } finally {
-        queryStatusBar.update(); // if queryStatusBar is present in this view
-    }
-}
-```
-
-Never leave `refresh()` without try/catch — an unhandled exception means a blank screen for the user.
-
-### Refresh method name
-The data refresh method in a View is always named `refresh()`, never `refreshGrid()`,
-`refreshData()`, or any other variant.
-
----
-
-## Query Layer Pattern
-
-### FilterMeta and SortMeta — Fields.* constants only
-In `*SortMeta` and `*FilterMeta` classes, fields always reference typed `Fields.*` constants
-from the DTO, never raw strings:
-
-```java
-// correct — compiler catches renames
-SortFieldMeta.of(AdvertisementInfoDto.Fields.updatedAt, ADVERTISEMENT_SORT_UPDATED_AT)
-
-// wrong — silent failure on refactoring
-SortFieldMeta.of("updatedAt", ADVERTISEMENT_SORT_UPDATED)
-```
-
----
-
 ## Service Class Section Headers
 
 When a service class (or any class with 2+ clearly distinct concerns — query/filter, CRUD,
@@ -858,62 +637,3 @@ public record UserDto(Long id, String name, ...) {
 
 `@FieldNameConstants` works on records since Lombok 1.18.22 (project uses 1.18.34+).
 Import: `lombok.experimental.FieldNameConstants`.
-
----
-
-## Form Handler Pattern
-
-### buildBinder() — separate method
-Binder creation and field binding logic is always extracted into a separate `buildBinder(EntityDto dto)`
-method, never inlined into `activate()`.
-
-### History access — an icon button opening EntityActivityOverlay, not a tab
-`AbstractFormOverlayModeHandler` has no tab machinery at all (`buildTabbedContent()`,
-`buildContentWithActivity()`, `ActivityTabParams` were removed once all five domains migrated —
-see `.claude/nav/adr-index.md`). `layout.setContent(...)` is called unconditionally;
-history/restore is a header-action icon button (`.{domain}-history-button`) that opens the shared
-`EntityActivityOverlay` (`ui/views/components/audit/`) stacked on top via `BaseOverlay.openNested()`:
-
-```java
-private UiIconButton buildHistoryButton() {
-    UiIconButton historyBtn = new UiIconButton(getValue(USER_ACTIVITY_BUTTON), VaadinIcon.CLOCK.create());
-    historyBtn.addClassName("user-history-button");
-    historyBtn.addClickListener(_ -> entityActivityOverlay.openFor(EntityActivityOverlay.Parameters.builder()
-            .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
-            .parentSteps(params.getBreadcrumbSteps())
-            .parentFormLabel(params.getUser().name())
-            .currentLabelKey(USER_ACTIVITY_BUTTON)
-            .onRestoreRequested(this::handleRestoreFromActivity)
-            .build()));
-    return historyBtn;
-}
-```
-
----
-
-## Breadcrumb Pattern
-
-### BreadcrumbStep — a growing stack, not a fixed back-link
-`record BreadcrumbStep(String label, Runnable onClick)` (`ui/views/components/overlay/`) — `label`
-is an already-resolved `String` (not an `I18nKey`), so it also fits dynamic labels (e.g.
-`UserOverlay`'s current user name). `AbstractEntityOverlay.buildBreadcrumbSteps()` returns the
-list-tab step by default, plus a "View" step (`OVERLAY_BREADCRUMB_VIEW`) whenever
-`isEditMode() && enteredFromView()` — never rewrite existing segments when navigating deeper, only
-append. `OverlayLayout.setBreadcrumbLinks(List<Component>)` renders the chain with `›` separators
-only *between* links. `EntityActivityOverlay.openFor(...)` extends the calling overlay's own
-`buildBreadcrumbSteps()` (passed as `parentSteps`) with one more segment (`parentFormLabel`), so
-the nested history overlay's breadcrumb reflects the real navigation path taken, not a fixed
-2-segment pair. See `.claude/nav/adr-index.md` for the full history of this design.
-
----
-
-## Reference Implementations
-
-When adding a new domain, use these as reference:
-- View: `AdvertisementsView` (init structure) + `UserView` (refresh guard)
-- Overlay: `AdvertisementOverlay` (OverlaySession, afterSave, mode switching)
-- ViewModeHandler: `AdvertisementViewOverlayModeHandler` (AbstractViewOverlayModeHandler)
-- FormModeHandler: `AccountNameFormModeHandler` (buildBinder separate)
-- QueryBlock: `AdvertisementQueryBlock` and `UserQueryBlock` (identical structure)
-- FilterMeta: `AdvertisementFilterMeta` (Fields.* constants)
-- SortMeta: `AdvertisementSortMeta` (Fields.* constants)

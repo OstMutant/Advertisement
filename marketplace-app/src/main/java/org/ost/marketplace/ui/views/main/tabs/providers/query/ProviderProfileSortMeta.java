@@ -13,4 +13,5 @@ public class ProviderProfileSortMeta {
 
     public static final SortFieldMeta CREATED_AT = SortFieldMeta.of(ProviderProfileDto.Fields.createdAt, PROVIDERS_SORT_CREATED_AT);
     public static final SortFieldMeta UPDATED_AT = SortFieldMeta.of(ProviderProfileDto.Fields.updatedAt, PROVIDERS_SORT_UPDATED_AT);
+    public static final SortFieldMeta PROMOTED = SortFieldMeta.of(ProviderProfileDto.Fields.promoted, PROVIDERS_SORT_PROMOTED);
 }

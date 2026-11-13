@@ -1,0 +1,513 @@
+Pager usage is off.
+ ##### S2 rare cat150 (3k)
+ A.lookup: 3007 ids, 11.3 ms
+ --- A.page
+ Limit  (cost=31.79..509.36 rows=20 width=260) (actual time=9.874..9.878 rows=20 loops=1)
+   Buffers: shared hit=191 read=268
+   ->  Incremental Sort  (cost=31.79..68157.21 rows=2853 width=260) (actual time=9.872..9.874 rows=20 loops=1)
+         Sort Key: created_at DESC, id DESC
+         Presorted Key: created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=191 read=268
+         ->  Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=7.94..68028.82 rows=2853 width=260) (actual time=0.367..9.658 rows=21 loops=1)
+               Filter: ((deleted_at IS NULL) AND (id = ANY ('{...ids...}'::bigint[])))
+               Rows Removed by Filter: 10523
+               Buffers: shared hit=185 read=268
+ Planning:
+   Buffers: shared hit=94 read=11
+ Planning Time: 3.335 ms
+ Execution Time: 9.999 ms
+ --- A.count
+ Aggregate  (cost=18271.16..18271.17 rows=1 width=8) (actual time=114.377..114.379 rows=1 loops=1)
+   Buffers: shared hit=8588 read=3310
+   ->  Bitmap Heap Scan on advertisement a  (cost=9080.76..18264.03 rows=2853 width=0) (actual time=38.561..113.840 rows=2856 loops=1)
+         Recheck Cond: (id = ANY ('{...ids...}'::bigint[]))
+         Filter: (deleted_at IS NULL)
+         Rows Removed by Filter: 151
+         Heap Blocks: exact=2877
+         Buffers: shared hit=8588 read=3310
+         ->  Bitmap Index Scan on advertisement_pkey  (cost=0.00..9072.53 rows=3007 width=0) (actual time=38.013..38.014 rows=3007 loops=1)
+               Index Cond: (id = ANY ('{...ids...}'::bigint[]))
+               Buffers: shared hit=7618 read=1403
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 1.610 ms
+ Execution Time: 114.648 ms
+ --- F.page
+ Limit  (cost=1066.98..2389.32 rows=20 width=260) (actual time=104.541..114.495 rows=20 loops=1)
+   Buffers: shared hit=138503 read=983
+   ->  Incremental Sort  (cost=1066.98..264014.55 rows=3977 width=260) (actual time=104.539..114.491 rows=20 loops=1)
+         Sort Key: a.created_at DESC, a.id DESC
+         Presorted Key: a.created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=138503 read=983
+         ->  Gather Merge  (cost=1000.88..263835.58 rows=3977 width=260) (actual time=100.724..114.454 rows=21 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=138503 read=983
+               ->  Nested Loop Semi Join  (cost=0.85..262376.52 rows=1657 width=260) (actual time=0.900..63.773 rows=48 loops=3)
+                     Buffers: shared hit=138503 read=983
+                     ->  Parallel Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=0.42..57188.04 rows=395275 width=260) (actual time=0.028..17.028 rows=15256 loops=3)
+                           Filter: (deleted_at IS NULL)
+                           Rows Removed by Filter: 812
+                           Buffers: shared hit=1191 read=983
+                     ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..0.52 rows=1 width=8) (actual time=0.003..0.003 rows=0 loops=45769)
+                           Index Cond: ((taxon_id = ANY ('{150}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text) AND (entity_id = a.id))
+                           Heap Fetches: 0
+                           Buffers: shared hit=137312
+ Planning:
+   Buffers: shared hit=66 read=4
+ Planning Time: 1.141 ms
+ Execution Time: 114.656 ms
+ --- F.count
+ Aggregate  (cost=27342.03..27342.04 rows=1 width=8) (actual time=19.314..19.316 rows=1 loops=1)
+   Buffers: shared hit=12051
+   ->  Nested Loop  (cost=199.18..27332.09 rows=3977 width=0) (actual time=1.802..18.982 rows=2856 loops=1)
+         Buffers: shared hit=12051
+         ->  HashAggregate  (cost=198.75..240.60 rows=4185 width=8) (actual time=1.753..2.636 rows=3007 loops=1)
+               Group Key: ta.entity_id
+               Batches: 1  Memory Usage: 465kB
+               Buffers: shared hit=23
+               ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..188.27 rows=4192 width=8) (actual time=0.057..0.685 rows=3007 loops=1)
+                     Index Cond: ((taxon_id = ANY ('{150}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+                     Heap Fetches: 0
+                     Buffers: shared hit=23
+         ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..6.50 rows=1 width=8) (actual time=0.005..0.005 rows=1 loops=3007)
+               Index Cond: (id = ta.entity_id)
+               Filter: (deleted_at IS NULL)
+               Rows Removed by Filter: 0
+               Buffers: shared hit=12028
+ Planning:
+   Buffers: shared hit=8
+ Planning Time: 0.379 ms
+ Execution Time: 20.378 ms
+ --- G.page
+ Limit  (cost=272.84..272.86 rows=9 width=260) (actual time=11.328..11.334 rows=20 loops=1)
+   Buffers: shared hit=12051
+   InitPlan 1 (returns $0)
+     ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..188.27 rows=4192 width=8) (actual time=0.046..0.496 rows=3007 loops=1)
+           Index Cond: ((taxon_id = ANY ('{150}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+           Heap Fetches: 0
+           Buffers: shared hit=23
+   ->  Sort  (cost=84.57..84.59 rows=9 width=260) (actual time=11.326..11.329 rows=20 loops=1)
+         Sort Key: a.created_at DESC, a.id DESC
+         Sort Method: top-N heapsort  Memory: 41kB
+         Buffers: shared hit=12051
+         ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..84.42 rows=9 width=260) (actual time=0.943..10.517 rows=2856 loops=1)
+               Index Cond: (id = ANY ($0))
+               Filter: (deleted_at IS NULL)
+               Rows Removed by Filter: 151
+               Buffers: shared hit=12051
+ Planning Time: 0.220 ms
+ Execution Time: 11.504 ms
+ --- G.count
+ Aggregate  (cost=272.72..272.73 rows=1 width=8) (actual time=10.460..10.463 rows=1 loops=1)
+   Buffers: shared hit=12051
+   InitPlan 1 (returns $0)
+     ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..188.27 rows=4192 width=8) (actual time=0.038..0.477 rows=3007 loops=1)
+           Index Cond: ((taxon_id = ANY ('{150}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+           Heap Fetches: 0
+           Buffers: shared hit=23
+   ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..84.42 rows=9 width=0) (actual time=0.810..10.268 rows=2856 loops=1)
+         Index Cond: (id = ANY ($0))
+         Filter: (deleted_at IS NULL)
+         Rows Removed by Filter: 151
+         Buffers: shared hit=12051
+ Planning Time: 0.107 ms
+ Execution Time: 10.731 ms
+ --- B.page
+ Limit  (cost=1064.18..2330.62 rows=20 width=260) (actual time=54.607..61.721 rows=20 loops=1)
+   Buffers: shared hit=120190 read=15
+   ->  Incremental Sort  (cost=1064.18..252642.38 rows=3973 width=260) (actual time=54.605..61.715 rows=20 loops=1)
+         Sort Key: a.created_at DESC, a.id DESC
+         Presorted Key: a.created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=120190 read=15
+         ->  Gather Merge  (cost=1000.88..252463.59 rows=3973 width=260) (actual time=54.205..61.677 rows=21 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=120190 read=15
+               ->  Nested Loop Semi Join  (cost=0.85..251004.99 rows=1655 width=260) (actual time=0.729..29.532 rows=41 loops=3)
+                     Buffers: shared hit=120190 read=15
+                     ->  Parallel Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=0.42..57188.04 rows=395275 width=260) (actual time=0.026..6.903 rows=13146 loops=3)
+                           Filter: (deleted_at IS NULL)
+                           Rows Removed by Filter: 696
+                           Buffers: shared hit=1886
+                     ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..0.49 rows=1 width=8) (actual time=0.001..0.001 rows=0 loops=39438)
+                           Index Cond: ((taxon_id = ANY ('{150}'::bigint[])) AND (advertisement_id = a.id))
+                           Heap Fetches: 0
+                           Buffers: shared hit=118304 read=15
+ Planning:
+   Buffers: shared hit=65 read=9
+ Planning Time: 1.298 ms
+ Execution Time: 61.863 ms
+ --- B.count
+ Aggregate  (cost=27326.37..27326.38 rows=1 width=8) (actual time=12.855..12.856 rows=1 loops=1)
+   Buffers: shared hit=12044
+   ->  Nested Loop  (cost=152.78..27316.44 rows=3973 width=0) (actual time=1.071..12.680 rows=2856 loops=1)
+         Buffers: shared hit=12044
+         ->  HashAggregate  (cost=152.35..194.26 rows=4191 width=8) (actual time=1.046..1.565 rows=3007 loops=1)
+               Group Key: t.advertisement_id
+               Batches: 1  Memory Usage: 465kB
+               Buffers: shared hit=16
+               ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..141.86 rows=4196 width=8) (actual time=0.031..0.372 rows=3007 loops=1)
+                     Index Cond: (taxon_id = ANY ('{150}'::bigint[]))
+                     Heap Fetches: 0
+                     Buffers: shared hit=16
+         ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..6.50 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=3007)
+               Index Cond: (id = t.advertisement_id)
+               Filter: (deleted_at IS NULL)
+               Rows Removed by Filter: 0
+               Buffers: shared hit=12028
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.362 ms
+ Execution Time: 13.329 ms
+
+ ##### S3 cat1 (241k)
+ A.lookup: 241170 ids, 110.0 ms
+ --- A.page
+ Limit  (cost=603.66..610.50 rows=20 width=260) (actual time=25.194..25.198 rows=20 loops=1)
+   Buffers: shared hit=10
+   ->  Incremental Sort  (cost=603.66..78919.78 rows=228790 width=260) (actual time=25.192..25.194 rows=20 loops=1)
+         Sort Key: created_at DESC, id DESC
+         Presorted Key: created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=10
+         ->  Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=603.35..68624.23 rows=228790 width=260) (actual time=25.055..25.114 rows=21 loops=1)
+               Filter: ((deleted_at IS NULL) AND (id = ANY ('{...ids...}'::bigint[])))
+               Rows Removed by Filter: 70
+               Buffers: shared hit=10
+ Planning Time: 150.249 ms
+ Execution Time: 27.127 ms
+ --- A.count
+ Finalize Aggregate  (cost=45129.42..45129.43 rows=1 width=8) (actual time=408.173..422.734 rows=1 loops=1)
+   Buffers: shared hit=12309 read=24729
+   ->  Gather  (cost=45129.21..45129.42 rows=2 width=8) (actual time=404.241..422.723 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=12309 read=24729
+         ->  Partial Aggregate  (cost=44129.21..44129.22 rows=1 width=8) (actual time=239.976..239.977 rows=1 loops=3)
+               Buffers: shared hit=12309 read=24729
+               ->  Parallel Seq Scan on advertisement a  (cost=602.93..43890.89 rows=95329 width=0) (actual time=35.645..233.275 rows=76368 loops=3)
+                     Filter: ((deleted_at IS NULL) AND (id = ANY ('{...ids...}'::bigint[])))
+                     Rows Removed by Filter: 256966
+                     Buffers: shared hit=12309 read=24729
+ Planning Time: 157.424 ms
+ Execution Time: 426.214 ms
+ --- F.page
+ Limit  (cost=3.33..53.60 rows=20 width=260) (actual time=0.790..0.793 rows=20 loops=1)
+   Buffers: shared hit=261 read=11
+   ->  Incremental Sort  (cost=3.33..567860.64 rows=225931 width=260) (actual time=0.789..0.790 rows=20 loops=1)
+         Sort Key: a.created_at DESC, a.id DESC
+         Presorted Key: a.created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=261 read=11
+         ->  Nested Loop Semi Join  (cost=0.85..557693.75 rows=225931 width=260) (actual time=0.140..0.747 rows=21 loops=1)
+               Buffers: shared hit=261 read=11
+               ->  Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=0.42..63021.34 rows=948661 width=260) (actual time=0.029..0.070 rows=87 loops=1)
+                     Filter: (deleted_at IS NULL)
+                     Rows Removed by Filter: 4
+                     Buffers: shared hit=10
+               ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..0.52 rows=1 width=8) (actual time=0.007..0.007 rows=0 loops=87)
+                     Index Cond: ((taxon_id = ANY ('{1}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text) AND (entity_id = a.id))
+                     Heap Fetches: 0
+                     Buffers: shared hit=251 read=11
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.561 ms
+ Execution Time: 0.883 ms
+ --- F.count
+ Finalize Aggregate  (cost=54967.79..54967.80 rows=1 width=8) (actual time=308.980..318.280 rows=1 loops=1)
+   Buffers: shared hit=13868 read=24695
+   ->  Gather  (cost=54967.58..54967.79 rows=2 width=8) (actual time=305.410..318.264 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=13868 read=24695
+         ->  Partial Aggregate  (cost=53967.58..53967.59 rows=1 width=8) (actual time=297.997..298.001 rows=1 loops=3)
+               Buffers: shared hit=13868 read=24695
+               ->  Parallel Hash Semi Join  (cost=10442.71..53732.23 rows=94138 width=0) (actual time=55.033..292.117 rows=76368 loops=3)
+                     Hash Cond: (a.id = ta.entity_id)
+                     Buffers: shared hit=13868 read=24695
+                     ->  Parallel Seq Scan on advertisement a  (cost=0.00..41204.64 rows=395275 width=8) (actual time=0.035..106.650 rows=316637 loops=3)
+                           Filter: (deleted_at IS NULL)
+                           Rows Removed by Filter: 16696
+                           Buffers: shared hit=12344 read=24694
+                     ->  Parallel Hash  (cost=9202.31..9202.31 rows=99232 width=8) (actual time=53.169..53.170 rows=80390 loops=3)
+                           Buckets: 262144  Batches: 1  Memory Usage: 11552kB
+                           Buffers: shared hit=1458 read=1
+                           ->  Parallel Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..9202.31 rows=99232 width=8) (actual time=0.122..20.374 rows=80390 loops=3)
+                                 Index Cond: ((taxon_id = ANY ('{1}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+                                 Heap Fetches: 0
+                                 Buffers: shared hit=1458 read=1
+ Planning:
+   Buffers: shared hit=8
+ Planning Time: 0.272 ms
+ Execution Time: 318.452 ms
+ --- G.page
+ Limit  (cost=10676.12..10676.14 rows=9 width=260) (actual time=1361.855..1361.862 rows=20 loops=1)
+   Buffers: shared hit=820463 read=145669
+   InitPlan 1 (returns $0)
+     ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..10591.55 rows=238156 width=8) (actual time=0.055..35.910 rows=241170 loops=1)
+           Index Cond: ((taxon_id = ANY ('{1}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+           Heap Fetches: 0
+           Buffers: shared hit=1456
+   ->  Sort  (cost=84.57..84.59 rows=9 width=260) (actual time=1361.853..1361.857 rows=20 loops=1)
+         Sort Key: a.created_at DESC, a.id DESC
+         Sort Method: top-N heapsort  Memory: 40kB
+         Buffers: shared hit=820463 read=145669
+         ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..84.42 rows=9 width=260) (actual time=58.246..1280.540 rows=229103 loops=1)
+               Index Cond: (id = ANY ($0))
+               Filter: (deleted_at IS NULL)
+               Rows Removed by Filter: 12067
+               Buffers: shared hit=820463 read=145669
+ Planning Time: 0.220 ms
+ Execution Time: 1362.920 ms
+ --- G.count
+ Aggregate  (cost=10676.00..10676.01 rows=1 width=8) (actual time=1258.074..1258.076 rows=1 loops=1)
+   Buffers: shared hit=819766 read=146366
+   InitPlan 1 (returns $0)
+     ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..10591.55 rows=238156 width=8) (actual time=0.077..43.157 rows=241170 loops=1)
+           Index Cond: ((taxon_id = ANY ('{1}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+           Heap Fetches: 0
+           Buffers: shared hit=1 read=1455
+   ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..84.42 rows=9 width=0) (actual time=67.017..1234.839 rows=229103 loops=1)
+         Index Cond: (id = ANY ($0))
+         Filter: (deleted_at IS NULL)
+         Rows Removed by Filter: 12067
+         Buffers: shared hit=819766 read=146366
+ Planning Time: 0.131 ms
+ Execution Time: 1259.293 ms
+ --- B.page
+ Limit  (cost=3.19..50.63 rows=20 width=260) (actual time=0.734..0.737 rows=20 loops=1)
+   Buffers: shared hit=174 read=98
+   ->  Incremental Sort  (cost=3.19..540680.80 rows=227964 width=260) (actual time=0.733..0.734 rows=20 loops=1)
+         Sort Key: a.created_at DESC, a.id DESC
+         Presorted Key: a.created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=174 read=98
+         ->  Nested Loop Semi Join  (cost=0.85..530422.42 rows=227964 width=260) (actual time=0.076..0.702 rows=21 loops=1)
+               Buffers: shared hit=174 read=98
+               ->  Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=0.42..63021.34 rows=948661 width=260) (actual time=0.038..0.096 rows=87 loops=1)
+                     Filter: (deleted_at IS NULL)
+                     Rows Removed by Filter: 4
+                     Buffers: shared hit=2 read=8
+               ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..0.49 rows=1 width=8) (actual time=0.006..0.006 rows=0 loops=87)
+                     Index Cond: ((taxon_id = ANY ('{1}'::bigint[])) AND (advertisement_id = a.id))
+                     Heap Fetches: 0
+                     Buffers: shared hit=172 read=90
+ Planning:
+   Buffers: shared hit=23 read=9
+ Planning Time: 0.550 ms
+ Execution Time: 0.825 ms
+ --- B.count
+ Finalize Aggregate  (cost=52312.01..52312.02 rows=1 width=8) (actual time=310.357..319.750 rows=1 loops=1)
+   Buffers: shared hit=14740 read=23294
+   ->  Gather  (cost=52311.80..52312.01 rows=2 width=8) (actual time=307.112..319.740 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=14740 read=23294
+         ->  Partial Aggregate  (cost=51311.80..51311.81 rows=1 width=8) (actual time=297.157..297.161 rows=1 loops=3)
+               Buffers: shared hit=14740 read=23294
+               ->  Parallel Hash Semi Join  (cost=7775.39..51074.34 rows=94985 width=0) (actual time=51.574..291.243 rows=76368 loops=3)
+                     Hash Cond: (a.id = t.advertisement_id)
+                     Buffers: shared hit=14740 read=23294
+                     ->  Parallel Seq Scan on advertisement a  (cost=0.00..41204.64 rows=395275 width=8) (actual time=0.033..106.795 rows=316637 loops=3)
+                           Filter: (deleted_at IS NULL)
+                           Rows Removed by Filter: 16696
+                           Buffers: shared hit=14594 read=22444
+                     ->  Parallel Hash  (cost=6521.39..6521.39 rows=100320 width=8) (actual time=49.170..49.171 rows=80390 loops=3)
+                           Buckets: 262144  Batches: 1  Memory Usage: 11520kB
+                           Buffers: shared hit=89 read=841
+                           ->  Parallel Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..6521.39 rows=100320 width=8) (actual time=0.213..17.638 rows=80390 loops=3)
+                                 Index Cond: (taxon_id = ANY ('{1}'::bigint[]))
+                                 Heap Fetches: 0
+                                 Buffers: shared hit=89 read=841
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.316 ms
+ Execution Time: 319.897 ms
+
+ ##### S4 cat5 AND city201
+ A.lookup: 3130 ids, 83.4 ms
+ --- A.page
+ Limit  (cost=31.17..490.12 rows=20 width=260) (actual time=2.433..2.437 rows=20 loops=1)
+   Buffers: shared hit=223 read=95
+   ->  Incremental Sort  (cost=31.17..68162.74 rows=2969 width=260) (actual time=2.432..2.434 rows=20 loops=1)
+         Sort Key: created_at DESC, id DESC
+         Presorted Key: created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 35kB  Peak Memory: 35kB
+         Buffers: shared hit=223 read=95
+         ->  Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=8.25..68029.13 rows=2969 width=260) (actual time=0.176..2.391 rows=21 loops=1)
+               Filter: ((deleted_at IS NULL) AND (id = ANY ('{...ids...}'::bigint[])))
+               Rows Removed by Filter: 7361
+               Buffers: shared hit=223 read=95
+ Planning Time: 1.626 ms
+ Execution Time: 2.542 ms
+ --- A.count
+ Aggregate  (cost=18842.13..18842.14 rows=1 width=8) (actual time=24.039..24.040 rows=1 loops=1)
+   Buffers: shared hit=8828 read=3579
+   ->  Bitmap Heap Scan on advertisement a  (cost=9338.29..18834.71 rows=2969 width=0) (actual time=11.013..23.754 rows=2958 loops=1)
+         Recheck Cond: (id = ANY ('{...ids...}'::bigint[]))
+         Filter: (deleted_at IS NULL)
+         Rows Removed by Filter: 172
+         Heap Blocks: exact=3017
+         Buffers: shared hit=8828 read=3579
+         ->  Bitmap Index Scan on advertisement_pkey  (cost=0.00..9329.73 rows=3130 width=0) (actual time=10.570..10.570 rows=3130 loops=1)
+               Index Cond: (id = ANY ('{...ids...}'::bigint[]))
+               Buffers: shared hit=7885 read=1505
+ Planning Time: 1.748 ms
+ Execution Time: 24.770 ms
+ --- F.page
+ Limit  (cost=1021.80..2646.99 rows=20 width=260) (actual time=21.117..39.261 rows=20 loops=1)
+   Buffers: shared hit=37405 read=157
+   ->  Nested Loop  (cost=1021.80..283967.54 rows=3482 width=260) (actual time=21.115..39.254 rows=20 loops=1)
+         Join Filter: (ta.entity_id = tc.entity_id)
+         Buffers: shared hit=37405 read=157
+         ->  Gather Merge  (cost=1021.37..267615.66 rows=30762 width=268) (actual time=20.992..38.166 rows=186 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=36850 read=153
+               ->  Incremental Sort  (cost=21.34..263064.94 rows=12818 width=268) (actual time=5.937..16.260 rows=101 loops=3)
+                     Sort Key: a.created_at DESC, a.id DESC
+                     Presorted Key: a.created_at
+                     Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                     Buffers: shared hit=36850 read=153
+                     Worker 0:  Full-sort Groups: 5  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                     Worker 1:  Full-sort Groups: 5  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                     ->  Nested Loop Semi Join  (cost=0.85..262488.13 rows=12818 width=268) (actual time=0.571..15.490 rows=129 loops=3)
+                           Buffers: shared hit=36737 read=146
+                           ->  Parallel Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=0.42..57188.04 rows=395275 width=260) (actual time=0.041..2.375 rows=4033 loops=3)
+                                 Filter: (deleted_at IS NULL)
+                                 Rows Removed by Filter: 212
+                                 Buffers: shared hit=434 read=144
+                           ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..0.52 rows=1 width=8) (actual time=0.003..0.003 rows=0 loops=12100)
+                                 Index Cond: ((taxon_id = ANY ('{5}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text) AND (entity_id = a.id))
+                                 Heap Fetches: 0
+                                 Buffers: shared hit=36303 read=2
+         ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment tc  (cost=0.43..0.52 rows=1 width=8) (actual time=0.005..0.005 rows=0 loops=186)
+               Index Cond: ((taxon_id = '201'::bigint) AND (entity_type = 'ADVERTISEMENT'::text) AND (entity_id = a.id))
+               Heap Fetches: 0
+               Buffers: shared hit=555 read=4
+ Planning:
+   Buffers: shared hit=48
+ Planning Time: 1.102 ms
+ Execution Time: 39.508 ms
+ --- F.count
+ Finalize Aggregate  (cost=10421.13..10421.14 rows=1 width=8) (actual time=65.714..73.973 rows=1 loops=1)
+   Buffers: shared hit=13716 read=2
+   ->  Gather  (cost=10420.92..10421.13 rows=2 width=8) (actual time=63.526..73.963 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=13716 read=2
+         ->  Partial Aggregate  (cost=9420.92..9420.93 rows=1 width=8) (actual time=54.146..54.150 rows=1 loops=3)
+               Buffers: shared hit=13716 read=2
+               ->  Nested Loop  (cost=2247.77..9417.29 rows=1451 width=0) (actual time=31.631..54.041 rows=986 loops=3)
+                     Join Filter: (ta.entity_id = a.id)
+                     Buffers: shared hit=13716 read=2
+                     ->  Hash Join  (cost=2247.34..6296.74 rows=1529 width=16) (actual time=31.533..46.811 rows=1043 loops=3)
+                           Hash Cond: (tc.entity_id = ta.entity_id)
+                           Buffers: shared hit=1195 read=1
+                           ->  Parallel Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment tc  (cost=0.43..3877.93 rows=41809 width=8) (actual time=0.131..6.383 rows=33172 loops=3)
+                                 Index Cond: ((taxon_id = '201'::bigint) AND (entity_type = 'ADVERTISEMENT'::text))
+                                 Heap Fetches: 0
+                                 Buffers: shared hit=605 read=1
+                           ->  Hash  (cost=1846.43..1846.43 rows=32039 width=8) (actual time=31.026..31.027 rows=31575 loops=3)
+                                 Buckets: 32768  Batches: 1  Memory Usage: 1490kB
+                                 Buffers: shared hit=584
+                                 ->  HashAggregate  (cost=1526.04..1846.43 rows=32039 width=8) (actual time=16.873..23.660 rows=31575 loops=3)
+                                       Group Key: ta.entity_id
+                                       Batches: 1  Memory Usage: 3089kB
+                                       Buffers: shared hit=584
+                                       Worker 0:  Batches: 1  Memory Usage: 3089kB
+                                       Worker 1:  Batches: 1  Memory Usage: 3089kB
+                                       ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment ta  (cost=0.43..1444.97 rows=32427 width=8) (actual time=0.074..6.122 rows=31575 loops=3)
+                                             Index Cond: ((taxon_id = ANY ('{5}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+                                             Heap Fetches: 0
+                                             Buffers: shared hit=584
+                     ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..2.03 rows=1 width=8) (actual time=0.006..0.006 rows=1 loops=3130)
+                           Index Cond: (id = tc.entity_id)
+                           Filter: (deleted_at IS NULL)
+                           Rows Removed by Filter: 0
+                           Buffers: shared hit=12521 read=1
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.654 ms
+ Execution Time: 77.263 ms
+ --- B.page
+ Limit  (cost=1019.91..2618.47 rows=20 width=260) (actual time=19.718..34.821 rows=20 loops=1)
+   Buffers: shared hit=36486 read=275
+   ->  Nested Loop  (cost=1019.91..272774.68 rows=3400 width=260) (actual time=19.717..34.814 rows=20 loops=1)
+         Join Filter: (t.advertisement_id = c.advertisement_id)
+         Buffers: shared hit=36486 read=275
+         ->  Gather Merge  (cost=1019.48..256473.64 rows=32421 width=268) (actual time=19.643..33.649 rows=186 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=36074 read=128
+               ->  Incremental Sort  (cost=19.45..251731.43 rows=13509 width=268) (actual time=4.282..12.021 rows=101 loops=3)
+                     Sort Key: a.created_at DESC, a.id DESC
+                     Presorted Key: a.created_at
+                     Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                     Buffers: shared hit=36074 read=128
+                     Worker 0:  Full-sort Groups: 5  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                     Worker 1:  Full-sort Groups: 5  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                     ->  Nested Loop Semi Join  (cost=0.85..251123.53 rows=13509 width=268) (actual time=0.323..11.399 rows=129 loops=3)
+                           Buffers: shared hit=35954 read=128
+                           ->  Parallel Index Scan Backward using idx_advertisement_created_at on advertisement a  (cost=0.42..57188.04 rows=395275 width=260) (actual time=0.033..2.284 rows=3946 loops=3)
+                                 Filter: (deleted_at IS NULL)
+                                 Rows Removed by Filter: 206
+                                 Buffers: shared hit=562 read=4
+                           ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..0.49 rows=1 width=8) (actual time=0.002..0.002 rows=0 loops=11837)
+                                 Index Cond: ((taxon_id = ANY ('{5}'::bigint[])) AND (advertisement_id = a.id))
+                                 Heap Fetches: 0
+                                 Buffers: shared hit=35392 read=124
+         ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon c  (cost=0.43..0.49 rows=1 width=8) (actual time=0.006..0.006 rows=0 loops=186)
+               Index Cond: ((taxon_id = '201'::bigint) AND (advertisement_id = a.id))
+               Heap Fetches: 0
+               Buffers: shared hit=412 read=147
+ Planning:
+   Buffers: shared hit=160
+ Planning Time: 2.013 ms
+ Execution Time: 35.044 ms
+ --- B.count
+ Finalize Aggregate  (cost=8942.97..8942.98 rows=1 width=8) (actual time=66.205..72.745 rows=1 loops=1)
+   Buffers: shared hit=13054 read=239
+   ->  Gather  (cost=8942.75..8942.96 rows=2 width=8) (actual time=63.881..72.733 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=13054 read=239
+         ->  Partial Aggregate  (cost=7942.75..7942.76 rows=1 width=8) (actual time=53.319..53.323 rows=1 loops=3)
+               Buffers: shared hit=13054 read=239
+               ->  Nested Loop  (cost=1976.74..7939.21 rows=1417 width=0) (actual time=35.407..53.222 rows=986 loops=3)
+                     Join Filter: (t.advertisement_id = a.id)
+                     Buffers: shared hit=13054 read=239
+                     ->  Hash Join  (cost=1976.32..4994.52 rows=1493 width=16) (actual time=35.313..47.182 rows=1043 loops=3)
+                           Hash Cond: (c.advertisement_id = t.advertisement_id)
+                           Buffers: shared hit=532 read=239
+                           ->  Parallel Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon c  (cost=0.43..2839.98 rows=43698 width=8) (actual time=0.169..4.819 rows=33172 loops=3)
+                                 Index Cond: (taxon_id = '201'::bigint)
+                                 Heap Fetches: 0
+                                 Buffers: shared hit=149 read=239
+                           ->  Hash  (cost=1552.21..1552.21 rows=33894 width=8) (actual time=34.346..34.347 rows=31575 loops=3)
+                                 Buckets: 65536  Batches: 1  Memory Usage: 1746kB
+                                 Buffers: shared hit=377
+                                 ->  HashAggregate  (cost=1213.27..1552.21 rows=33894 width=8) (actual time=16.833..24.597 rows=31575 loops=3)
+                                       Group Key: t.advertisement_id
+                                       Batches: 1  Memory Usage: 3089kB
+                                       Buffers: shared hit=377
+                                       Worker 0:  Batches: 1  Memory Usage: 3089kB
+                                       Worker 1:  Batches: 1  Memory Usage: 3089kB
+                                       ->  Index Only Scan using idx_advertisement_taxon_taxon on advertisement_taxon t  (cost=0.43..1127.67 rows=34242 width=8) (actual time=0.113..5.221 rows=31575 loops=3)
+                                             Index Cond: (taxon_id = ANY ('{5}'::bigint[]))
+                                             Heap Fetches: 0
+                                             Buffers: shared hit=377
+                     ->  Index Scan using advertisement_pkey on advertisement a  (cost=0.42..1.96 rows=1 width=8) (actual time=0.005..0.005 rows=1 loops=3130)
+                           Index Cond: (id = c.advertisement_id)
+                           Filter: (deleted_at IS NULL)
+                           Rows Removed by Filter: 0
+                           Buffers: shared hit=12522
+ Planning:
+   Buffers: shared hit=80
+ Planning Time: 1.032 ms
+ Execution Time: 76.539 ms
+
