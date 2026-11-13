@@ -33,6 +33,12 @@ Checked against the sources on 2026-11-12:
 
 Schema edits in this task follow the project's rule for base changesets: edited in place with `validCheckSum ANY`, because the application has no production deployment; a database that already ran the old changeset gets the change after a reset. That is a recorded decision, not a gap (see the decision records of `marketplace-app` and the entry of `improvement-133` about in-place edits). A review finding that asked for new changesets instead was checked and does not apply under that rule.
 
+## Closing note
+
+Done: approach item 1. A moderation queue filtered by an author name returns nothing, list and count alike, when the user starter is absent (a blank name stays unfiltered); two tests in `FeedbackServiceTest` pin both cases; commit 2c0ad751; the whole local CI run passed.
+
+Not done, judged not critical: approach items 2 and 3. Rewriting the feedback table remarks and checking the comment of `idx_audit_created_at` change no behaviour — the first is the accuracy of a description, the second an unmeasured comment with at most a small write cost. Both are carried to the deferred findings (entry 48 of improvement-133).
+
 ## Related
 
 - [improvement-252](../completed/tasks/improvement-252-application-starts-without-each-optional-starter.md) — optional starters and `ComponentFactory`; the moderation queue fix must keep "Feedback starter without User starter" working when no author filter is given.
@@ -54,3 +60,10 @@ Schema edits in this task follow the project's rule for base changesets: edited 
 - haiku_decomposition_dispatch_count: n/a
 - haiku_decomposition_rework_needed: n/a
 - adrs_referenced: none
+
+### Script/command runs
+- scripts/build-and-test.sh --no-unit --integration-test FeedbackServiceTest | duration_s=212 | mode=background | result=pass
+- scripts/ci.sh (full run: unit, integration, e2e --full --ux, api_flows, sonar, archunit_metrics, lint, shellcheck, docs) | duration_s=1454 | mode=background | result=pass
+
+### Commands used
+- /ci | uses=1 | failed=0 | note=full run succeeded in about 24 minutes; the map regenerated inside the runner only, the host copy needs `scripts/ci/run.sh --sync-artifacts`

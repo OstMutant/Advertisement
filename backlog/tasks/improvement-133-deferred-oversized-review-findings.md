@@ -453,6 +453,12 @@ The changelogs are edited in place with `validCheckSum ANY`, so a database creat
 
 In full CI runs the first attempt of `adminEn signs up` (`playwright/e2e/global.setup.js`) sometimes fails at its first click: the `Sign Up` button is not there within the 10 s action timeout; the retry passes, so the run is green with "1 flaky". The run history shows it since at least 30 Oct, and in about half of the runs. Not reproducible by hand: 9 of 9 first attempts passed on a cold app with an empty database, idle, with 4 busy cores (load average 7), and under memory, disk and CPU pressure together. Excluded by measurement: bundle size, service worker, tracing, cold JVM, empty database, the Basic-auth probe, the external font. A trace of a failed attempt shows the page still in its loading state while the first UIDL request has no answer, and no error in the application log. Next step if it matters: sample CPU, memory and disk of the containers during the first two minutes of the e2e stage, so the next failure comes with data. An earlier investigation of this was confounded by a broken theme stylesheet (fixed).
 
+### 48. Two accuracy leftovers of a review: the feedback table remarks and the audit index comment (found while closing improvement-254, 2026-11-13)
+
+- The remarks in `feedback-spring-boot-starter/src/main/resources/db/feedback-changelog/changes/01-feedback-schema.xml` say a `feedback_content` row belongs to exactly one entry or reply and that "exactly one" holds for both `content_id` columns; the schema only has a `UNIQUE` constraint inside each table, and the service creates one content row per entry or reply (no path reuses one). Rewrite the three remarks to "unique within this table" plus that the service creates one content row per owner, and the matching sentence in `.claude/rules/feedback-spring-boot-starter.md` ("Schema"). No trigger, no schema change; the base changeset is edited in place.
+- The comment of `idx_audit_created_at` in `audit-spring-boot-starter/src/main/resources/db/audit-changelog/changes/01-audit-schema.xml` credits the index with the timeline's newest-first order; the timeline query sorts the result of a window-function CTE and no plan was recorded. Measure with `EXPLAIN (ANALYZE, BUFFERS)` for `deleteOlderThan` and `findTimeline` on a few thousand seeded rows; then the comment names only the purge, or the index goes, or the comment stays.
+- Why deferred: neither changes behaviour; judged not critical.
+
 ## Operational notes
 - token_cost_review: n/a
 - token_cost_research: n/a
