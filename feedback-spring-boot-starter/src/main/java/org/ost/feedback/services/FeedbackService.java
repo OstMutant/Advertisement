@@ -333,10 +333,12 @@ public class FeedbackService {
         return (int) repository.countModerationQueue(filter, authorIdsFilter.orElse(null));
     }
 
-    /** Empty Optional means no author filter applies (blank name, or no user starter present); a present Set holds every author id matching the name, paged through so a broad search drops none. */
+    /** Empty Optional means no author restriction (blank name); a present Set holds every author id matching the name, paged through so a broad search drops none, and is empty when no user starter is present. */
     private Optional<Set<Long>> resolveAuthorIdsFilter(String authorName) {
         if (authorName == null || authorName.isBlank()) return Optional.empty();
-        return userPortFactory.findIfAvailable().map(p -> resolveAllMatchingAuthorIds(p, authorName));
+        return Optional.of(userPortFactory.findIfAvailable()
+                .map(p -> resolveAllMatchingAuthorIds(p, authorName))
+                .orElseGet(Set::of));
     }
 
     private static Set<Long> resolveAllMatchingAuthorIds(UserPort userPort, String authorName) {
