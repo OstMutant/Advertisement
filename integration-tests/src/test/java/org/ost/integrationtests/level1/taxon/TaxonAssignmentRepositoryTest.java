@@ -21,7 +21,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Covers {@link TaxonAssignmentRepository} on a real PostgreSQL: idempotent {@code assign()}, both bulk-lookup directions and {@code countByTaxonIds}. */
+/** Covers {@link TaxonAssignmentRepository} on a real PostgreSQL: idempotent {@code assign()}, {@code unassign()}, {@code findAllByEntity}/{@code findAllByEntities} and {@code countByTaxonIds}. */
 @SpringBootTest(classes = {
         TaxonAutoConfiguration.class,
         RepositoryTestSupport.class
@@ -88,19 +88,6 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
         var assignments = assignmentRepository.findAllByEntities(EntityType.ADVERTISEMENT.name(), Set.of(1L, 2L, 3L));
 
         assertThat(assignments).extracting(TaxonAssignment::getEntityId).containsExactlyInAnyOrder(1L, 2L);
-    }
-
-    @Test
-    void findEntityIdsByTaxonIds_returnsEntitiesTaggedWithAnyOfTheGivenTaxons() {
-        Long electronics = saveTaxon("electronics");
-        Long vehicles = saveTaxon("vehicles");
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 1L, electronics);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 2L, vehicles);
-        assignmentRepository.assign(EntityType.ADVERTISEMENT.name(), 3L, electronics);
-
-        Set<Long> entityIds = assignmentRepository.findEntityIdsByTaxonIds(EntityType.ADVERTISEMENT.name(), Set.of(electronics));
-
-        assertThat(entityIds).containsExactlyInAnyOrder(1L, 3L);
     }
 
     @Test

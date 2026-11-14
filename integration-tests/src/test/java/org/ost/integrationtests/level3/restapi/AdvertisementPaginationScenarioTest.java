@@ -125,6 +125,33 @@ class AdvertisementPaginationScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
+    void categoryAndCityTogether_returnsOnlyTheEntitiesWithBoth() throws Exception {
+        RegisteredUser admin = createSeller();
+        long categoryX = createCategory(admin, "Plumbing");
+        long categoryY = createCategory(admin, "Electrical");
+        long categoryUnused = createCategory(admin, "Roofing");
+        long cityA = createCity(admin, "Kyiv");
+        long cityB = createCity(admin, "Lviv");
+
+        createAd(admin, "X in A first", "OFFER", categoryX, cityA);
+        createAd(admin, "X in A second", "OFFER", categoryX, cityA);
+        createAd(admin, "X in B", "OFFER", categoryX, cityB);
+        createAd(admin, "Y in A", "OFFER", categoryY, cityA);
+
+        mockMvc.perform(get("/api/advertisements")
+                        .param("categoryIds", String.valueOf(categoryX)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"))
+                .andExpect(jsonPath("$[*].title", org.hamcrest.Matchers.containsInAnyOrder("X in A first", "X in A second")));
+
+        mockMvc.perform(get("/api/advertisements")
+                        .param("categoryIds", String.valueOf(categoryUnused)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "0"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void combinedFilters_applyAsAnd() throws Exception {
         RegisteredUser seller = createSeller();
         createAd(seller, "Plumbing offer", "OFFER", null, null);

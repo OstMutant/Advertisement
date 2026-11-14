@@ -128,6 +128,34 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
     }
 
     @Test
+    void categoryAndCityTogether_returnsOnlyTheEntitiesWithBoth() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        long categoryX = createCategory(admin, "Plumbing");
+        long categoryY = createCategory(admin, "Electrical");
+        long categoryUnused = createCategory(admin, "Roofing");
+        long cityA = createCity(admin, "Kyiv");
+        long cityB = createCity(admin, "Lviv");
+
+        CreatedProvider firstBoth = createProvider("XInAFirst", "MASTER", categoryX, cityA);
+        CreatedProvider secondBoth = createProvider("XInASecond", "MASTER", categoryX, cityA);
+        createProvider("XInB", "MASTER", categoryX, cityB);
+        createProvider("YInA", "MASTER", categoryY, cityA);
+
+        mockMvc.perform(get("/api/provider-profiles")
+                        .param("categoryIds", String.valueOf(categoryX)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"))
+                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.containsInAnyOrder(
+                        (int) firstBoth.id(), (int) secondBoth.id())));
+
+        mockMvc.perform(get("/api/provider-profiles")
+                        .param("categoryIds", String.valueOf(categoryUnused)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "0"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void combinedFilters_applyAsAnd() throws Exception {
         RegisteredUser admin = registerUserAndIssueApiKey("Admin");
         long cityId = createCity(admin, "Lviv");

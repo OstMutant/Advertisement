@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
@@ -24,7 +25,6 @@ import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /** CRUD for {@code provider_profile} -- does not write category/city assignments. */
 @Slf4j
@@ -39,24 +39,16 @@ public class ProviderProfileService {
     // ── Query & filter ───────────────────────────────────────────────────────
 
     public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull ProviderProfileScope scope) {
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort), withTaxonFilter(filter, scope));
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), scope, resolveTaxonPredicate(filter).orElse(null));
     }
 
     public int count(@Valid @NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope) {
-        return repository.countByFilter(filter, withTaxonFilter(filter, scope)).intValue();
+        return repository.countByFilter(filter, scope, resolveTaxonPredicate(filter).orElse(null)).intValue();
     }
 
-    private ProviderProfileScope withTaxonFilter(ProviderProfileFilterDto filter, ProviderProfileScope scope) {
-        Set<Long> allowedIds = resolveTaxonFilter(filter)
-                .map(taxonIds -> scope.onlyIds() == null ? taxonIds
-                        : scope.onlyIds().stream().filter(taxonIds::contains).collect(Collectors.toSet()))
-                .orElse(scope.onlyIds());
-        return new ProviderProfileScope(allowedIds, scope.pinnedGroups(), scope.pinnedAfterRest());
-    }
-
-    private Optional<Set<Long>> resolveTaxonFilter(ProviderProfileFilterDto filter) {
+    private Optional<SqlPredicate> resolveTaxonPredicate(ProviderProfileFilterDto filter) {
         return taxonPortFactory.findIfAvailable()
-                .flatMap(p -> p.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, filter.getCategoryIds(), filter.getCityTaxonId()));
+                .flatMap(p -> p.categoryAndCityPredicate(EntityType.PROVIDER_PROFILE, ProviderProfileRepository.ID, filter.getCategoryIds(), filter.getCityTaxonId()));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────

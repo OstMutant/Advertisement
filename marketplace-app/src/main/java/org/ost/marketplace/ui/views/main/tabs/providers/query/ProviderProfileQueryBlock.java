@@ -24,10 +24,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** Query bar for the Providers catalog -- promoted/kind/created/updated/category/city filter rows (category and city only when the taxon starter is installed), mirroring {@link ProviderProfileFilterDto}'s field set. */
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-/** Query bar for the Providers catalog -- kind/created/updated/category/city filter rows, mirroring {@link ProviderProfileFilterDto}'s field set. */
 @SuppressWarnings("java:S2065") // Vaadin Component is Serializable; transient excludes non-serializable Spring proxies
 public class ProviderProfileQueryBlock extends QueryBlock<ProviderProfileFilterDto> {
 
@@ -88,22 +88,24 @@ public class ProviderProfileQueryBlock extends QueryBlock<ProviderProfileFilterD
                 ProviderProfileSortMeta.UPDATED_AT,
                 ProviderProfileFilterMeta.UPDATED_AT_START, ProviderProfileFilterMeta.UPDATED_AT_END);
 
-        // Categories row
-        MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
-        categoriesField.setPlaceholder(i18nService.get(PROVIDERS_FILTER_CATEGORIES));
-        categoriesField.setItemLabelGenerator(TaxonDto::getName);
-        categoriesField.getElement().setAttribute(DATA_TESTID, "provider-profile-filter-categories");
-        categoriesField.setItems(taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()));
-        filterRow(i18nService.get(PROVIDERS_FILTER_CATEGORIES), categoriesField, ProviderProfileFilterMeta.CATEGORY_IDS);
+        if (taxonCatalogService.isAvailable()) {
+            // Categories row
+            MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
+            categoriesField.setPlaceholder(i18nService.get(PROVIDERS_FILTER_CATEGORIES));
+            categoriesField.setItemLabelGenerator(TaxonDto::getName);
+            categoriesField.getElement().setAttribute(DATA_TESTID, "provider-profile-filter-categories");
+            categoriesField.setItems(taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()));
+            filterRow(i18nService.get(PROVIDERS_FILTER_CATEGORIES), categoriesField, ProviderProfileFilterMeta.CATEGORY_IDS);
 
-        // City row
-        ComboBox<TaxonDto> cityField = new ComboBox<>();
-        cityField.setPlaceholder(i18nService.get(PROVIDERS_FILTER_CITY));
-        cityField.setItemLabelGenerator(TaxonDto::getName);
-        cityField.setClearButtonVisible(true);
-        cityField.getElement().setAttribute(DATA_TESTID, "provider-profile-filter-city");
-        cityField.setItems(taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale()));
-        filterRow(i18nService.get(PROVIDERS_FILTER_CITY), cityField, ProviderProfileFilterMeta.CITY_TAXON_ID);
+            // City row
+            ComboBox<TaxonDto> cityField = new ComboBox<>();
+            cityField.setPlaceholder(i18nService.get(PROVIDERS_FILTER_CITY));
+            cityField.setItemLabelGenerator(TaxonDto::getName);
+            cityField.setClearButtonVisible(true);
+            cityField.getElement().setAttribute(DATA_TESTID, "provider-profile-filter-city");
+            cityField.setItems(taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale()));
+            filterRow(i18nService.get(PROVIDERS_FILTER_CITY), cityField, ProviderProfileFilterMeta.CITY_TAXON_ID);
+        }
 
         add(queryActionBlock);
     }

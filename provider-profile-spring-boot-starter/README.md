@@ -10,7 +10,7 @@ city, and a sanitized "about" write-up, shown on the public Providers catalog.
   actor's first "become a provider" save rather than eagerly at registration. `cityTaxonId` is not
   a row field — it is a `taxon_assignment` entry, same as `categoryIds`.
 - Filtered/paginated/sorted reads (`kind`, `createdAt`/`updatedAt` range, plus query-time
-  category/city filters both resolved via `TaxonPort.resolveCategoryAndCityFilter()`) for the public
+  category/city filters both obtained as a predicate via `TaxonPort.categoryAndCityPredicate()`) for the public
   Providers catalog, limited and ordered by a caller-given scope (ids to limit the list to, groups of
   ids to list before or after every other profile) that the starter applies without knowing why.
 - Sanitizes the `about` rich-text field via `html-sanitizer-lib`'s `HtmlSanitizer.sanitize()`, the
@@ -38,12 +38,12 @@ the module's only business-logic class.
   `ProviderProfileRepository.save` → `ProviderProfileCrudRepository.save`.
 - **Read:** `findById`/`findByActorId` → `ProviderProfileRepository`'s matching `JdbcClient` query,
   mapped by its `RowMapper` into a `ProviderProfileDto`.
-- **Filtered listing:** `getFiltered`/`count` → `ProviderProfileService` resolves `categoryIds` and
-  `cityTaxonId` filters into one allow-list of profile ids via
-  `TaxonPort.resolveCategoryAndCityFilter()`, intersects the result with the scope's ids when it has any, then
-  `ProviderProfileRepository.findByFilter`/`countByFilter` build the `WHERE`/`ORDER BY`/pagination
-  clauses via `query-lib`'s `SqlFilterBuilder`/`OrderByBuilder`, listing the scope's pinned groups
-  before the caller's own order, or after it when the scope says so.
+- **Filtered listing:** `getFiltered`/`count` → `ProviderProfileService` obtains the `categoryIds` and
+  `cityTaxonId` restriction as one predicate via `TaxonPort.categoryAndCityPredicate()`, then
+  `ProviderProfileRepository.findByFilter`/`countByFilter` apply the scope's ids and that predicate
+  together in the `WHERE` clause and build the `ORDER BY`/pagination clauses via `query-lib`'s
+  `SqlFilterBuilder`/`OrderByBuilder`, listing the scope's pinned groups before the caller's own
+  order, or after it when the scope says so.
 - **Delete:** `delete(id, version)` → `ProviderProfileRepository.delete` runs a real
   `DELETE ... WHERE id = :id AND version = :version`, throwing `StaleWriteException`
   on a stale version — no soft-delete columns, no restore path.
@@ -54,8 +54,8 @@ Liquibase changelog: `db/provider-profile-changelog/provider-profile-changelog-m
 `provider_profile` — `actor_id` carries a unique index (at most one profile per actor); it has no
 city column at all. Both category and city assignments live in `taxon-spring-boot-starter`'s own
 `taxon_assignment` table instead, written by `marketplace-orchestrator`'s
-`TaxonAssignmentWriteService` — this starter only resolves them read-only, via
-`TaxonPort.findEntityIdsWithAnyTaxon()`, for query-time filtering.
+`TaxonAssignmentWriteService` — this starter only reads them, through the predicate
+`TaxonPort.categoryAndCityPredicate()` returns, for query-time filtering.
 
 ## Dependencies
 

@@ -12,6 +12,7 @@ import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.model.AdKind;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.user.config.UserAutoConfiguration;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
@@ -26,21 +27,16 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Batch 1 exemplar: proves the Testcontainers repository-test pattern end-to-end against real
- * production SQL (not a mock, not a stub schema) — the highest-risk dynamic-SQL paths in
- * {@link AdvertisementRepository}, not exhaustive coverage. Boots both
- * {@code advertisement-spring-boot-starter} and {@code user-spring-boot-starter}'s real
- * autoconfiguration in one Spring context (satisfying {@code AdvertisementAutoConfiguration}'s
- * {@code @DependsOn("userLiquibase")} and the FK from {@code advertisement.created_by} to
- * {@code user_information.id}) — see {@code integration-tests/CLAUDE.md}.
+ * Testcontainers repository test of {@link AdvertisementRepository}'s dynamic-SQL paths against real production SQL, booting the
+ * user starter too because {@code AdvertisementAutoConfiguration} has {@code @DependsOn("userLiquibase")}.
  */
 @SpringBootTest(classes = {
         AdvertisementAutoConfiguration.class,
@@ -63,10 +59,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
 
     private Long actorId;
 
-    /** The Spring context (and its database) is cached and reused across every test method in
-     *  this class — clean both tables before each test so assertions on row counts/contents
-     *  never see another test method's leftover data. Deletes advertisement before
-     *  user_information to respect the FK. */
+    /** Cleans every table and creates the actor and the auditor before each test, because the cached Spring context and its database are shared across test methods. */
     @BeforeEach
     void cleanDatabaseAndCreateActor() {
         TestDataCleaner.cleanAll(jdbcClient);
@@ -139,37 +132,44 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(results).hasSize(2);
     }
 
-    /**
-     * Covers improvement-050 item 2: {@code buildIdClause()} used to bind {@code allowedIds} as a
-     * {@code Set}, which Spring expands into one {@code ?} placeholder per element for
-     * {@code IN (:allowedIds)} — unbounded for a popular category's advertisement count. Fixed by
-     * binding a plain array instead ({@code = ANY(:allowedIds)}, matching {@code
-     * findExistingIds()}'s already-proven pattern in this class), so Spring passes it through as a
-     * single JDBC parameter regardless of size.
-     */
+    /** A taxon predicate restricts the page to the advertisements it matches. */
     @Test
-    void findByFilter_allowedIdsRestrictsToMatchingRows() {
+    void findByFilter_taxonPredicateRestrictsToMatchingRows() {
         Advertisement first = save("First", "d1");
         Advertisement second = save("Second", "d2");
         save("Third", "d3");
 
         List<AdvertisementInfoDto> results = advertisementRepository.findByFilter(
                 AdvertisementFilterDto.empty(), PageRequest.of(0, 10),
-                Set.of(first.getId(), second.getId()));
+                new SqlPredicate("a.id = ANY(:_ids)", Map.of("_ids", new Long[]{first.getId(), second.getId()})));
 
         assertThat(results).extracting(AdvertisementInfoDto::getId)
                 .containsExactlyInAnyOrder(first.getId(), second.getId());
     }
 
     @Test
-    void countByFilter_allowedIdsRestrictsCount() {
+    void countByFilter_taxonPredicateRestrictsCount() {
         Advertisement first = save("First", "d1");
         save("Second", "d2");
         save("Third", "d3");
 
-        Long count = advertisementRepository.countByFilter(AdvertisementFilterDto.empty(), Set.of(first.getId()));
+        Long count = advertisementRepository.countByFilter(AdvertisementFilterDto.empty(),
+                new SqlPredicate("a.id = ANY(:_ids)", Map.of("_ids", new Long[]{first.getId()})));
 
         assertThat(count).isEqualTo(1L);
+    }
+
+    @Test
+    void findByFilter_predicateWithOrIsParenthesisedSoTheConsumerFilterStillApplies() {
+        Advertisement a = save("Vintage bicycle", "d1");
+        Advertisement b = save("Old car", "d2");
+        save("Vintage car", "d3");
+
+        List<AdvertisementInfoDto> results = advertisementRepository.findByFilter(
+                AdvertisementFilterDto.builder().title("Vintage").build(), PageRequest.of(0, 10),
+                new SqlPredicate("a.id = :_one OR a.id = :_two", Map.of("_one", b.getId(), "_two", a.getId())));
+
+        assertThat(results).extracting(AdvertisementInfoDto::getId).containsExactly(a.getId());
     }
 
     @Test

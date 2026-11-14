@@ -16,7 +16,7 @@ Java package root: `org.ost.provider`
 - `ProviderProfileService` — create/update, delete, sanitizes `about` via the shared
   `html-sanitizer-lib` module's `HtmlSanitizer.sanitize()`, enforces the `kind == SUPPORT`
   requires-privileged-actor rule, resolves query-time category and city
-  filters via `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not write category/city assignments (see
+  filters as one predicate via `TaxonPort.categoryAndCityPredicate()`. Does not write category/city assignments (see
   Key constraints) and does not enrich display fields — `getFiltered()`/`findById()`/
   `findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor display
   enrichment happens afterward via `marketplace-orchestrator`'s `ProviderProfileDisplayEnrichmentService`.

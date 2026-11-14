@@ -101,7 +101,6 @@ ADR-007. Unblocks `improvement-073`'s external API scope. See `completed/BACKLOG
 | Top | 🟡 | 248 | improvement-248 — the rest of the AI-instruction refactor: tighten the research pair and the analysts, five multi-line test comments and the generator comments, a full documentation sync, `/tighten-ai` on the rest |
 | Nice to have | — | 133 | everything else — no internal priority order, pick up opportunistically |
 | Nice to have | — | 223 | improvement-223 — a running collection of improvement ideas (not defects, not review findings); an entry is picked up only when the user takes it |
-| Later | 🔵 | 250 | improvement-250 — a Port returns a typed SQL predicate for a cross-module filter that can match an unbounded number of rows (Taxon category and city first), so no id set travels through Java; the plan, the decision-record texts and the execution steps are written, execution waits for the user's go |
 | Later | 🔵 | 237 | improvement-237 — a purchase as a reason for promoting: manual selling first, the payment module (hosted checkout, signed webhook, status machine, audit), the advertising and tax rules; parked until the mechanism of improvement-235 exists, the user will come back to it then |
 | Nice to have | — | 028 | improvement-028 — no GitHub CI pipeline; the local runner already proves the compile, unit, integration and e2e chain, what is left is moving it to GitHub Actions (needs the gh CLI set up and the user's push authorization) |
 | Before public launch | 🟡 | 096 | improvement-096 — the UI is desktop-only (2 @media queries in 26 theme CSS files); a four-phase mobile adaptation program, mobile Playwright viewport first; scheduled before any public launch |
@@ -141,12 +140,6 @@ Details, links, and per-batch rationale below.
 | [improvement-226](tasks/improvement-226-query-lib-reductions-from-optimize-run.md) | New (follow-up of the first `/reduce-code path query-lib` run, filed 2026-10-24) | Remove about 56 lines `query-lib/` does not need (a private copy of a constructor, three unused public methods, a duplicated test, throw-away test mappings, one wrong `pom.xml` comment) with every caller unchanged; six decisions wait for the user; moved to Nice to have 2026-10-26 |
 | [improvement-215](tasks/improvement-215-approval-gate-requires-template.md) | Moved down from Top 2026-10-28 (not critical for now) | The approval hooks accept any affirmative reply as approval and cannot see whether the plan was shown in the Approval Rule's template (Summary / Agent / Model / Input / Result); file changes through Bash are not gated at all. Planned split: the template check first (can the hook read the transcript?), the Bash write gate as its own design step |
 | [improvement-129](tasks/improvement-129-marketplace-feed-modernization.md) | New (user-supplied AI spec, verified against code) | Modernize `AdvertisementsView`/`AdvertisementCardView` into a LinkedIn/Facebook-Marketplace-style content feed — options-oriented proposal, not a locked plan; confirmed card is already NOT `vaadin-grid` (visual refresh, not structural rebuild) and all 5 named CSS tokens already exist; `ActorProfile`/avatar/"contact" from the original spec confirmed not to exist yet (descope or sequence after improvement-124); several open design questions listed in the issue need a decision before implementation |
-
-### Later — improvement-250
-
-| Task | Origin | What |
-|---|---|---|
-| [improvement-250](tasks/improvement-250-query-predicate-port-for-unbounded-cross-module-filters.md) | New (from the two research passes of improvement-249, the user asked for the plan to be prepared and not executed, 2026-11-09) | The rule "an id set where the result is bounded, a provider-built `SqlPredicate` where it can be unbounded", the two contract types, the Taxon predicate, both consumers, the decision-record updates and an ArchUnit guard |
 
 ### Later — improvement-237
 

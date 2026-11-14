@@ -8,7 +8,8 @@ any of them. No business logic lives here — only the shapes other modules agre
 
 - **`core.*`** — cross-cutting types shared by every module: `ComponentFactory` (top-level) and the
   `OptionalComponentUnavailableException` it throws when an optional component is not installed,
-  `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`, `SupportedLocales`), `core.config`
+  `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`, `SqlColumn`, `SqlPredicate`,
+  `SupportedLocales`), `core.config`
   (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`).
 - **`audit.*`** — the audit subsystem's contracts: `audit.api` (`AuditableSnapshot`), `audit.dto`
   (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`,

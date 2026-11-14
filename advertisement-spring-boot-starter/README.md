@@ -30,12 +30,12 @@ Every operation enters through `AdvertisementPortImpl`, the sole implementation 
 `AdvertisementPort` — it delegates every call, unchanged, straight to `AdvertisementService`, the
 module's only business-logic class.
 
-- **Filtered query:** `AdvertisementPort.getFiltered`/`count` → `AdvertisementService` resolves the
-  filter's category/city constraint by calling `TaxonPort.findEntityIdsWithAnyTaxon()` through
-  `ComponentFactory<TaxonPort>` (skipped entirely if the filter carries no category/city, or if the
-  taxon starter isn't on the classpath) and intersects the two constraints when both are present —
-  then `AdvertisementRepository.findByFilter`/`countByFilter` build the `WHERE`/`ORDER BY`/`LIMIT`
-  clauses via `SqlFilterBuilder`/`OrderByBuilder`/`PaginationSqlBuilder` and query `advertisement`.
+- **Filtered query:** `AdvertisementPort.getFiltered`/`count` → `AdvertisementService` obtains the
+  filter's category/city restriction as a predicate from `TaxonPort.categoryAndCityPredicate()`
+  through `ComponentFactory<TaxonPort>` (skipped entirely if the filter carries no category/city, or
+  if the taxon starter isn't on the classpath) — then `AdvertisementRepository.findByFilter`/
+  `countByFilter` append it to the `WHERE` clause beside the `SqlFilterBuilder` conditions, add the
+  `ORDER BY`/`LIMIT` clauses via `OrderByBuilder`/`PaginationSqlBuilder` and query `advertisement`.
 - **Save:** `AdvertisementPort.save(dto)` → `AdvertisementService.save`, transactional — loads the
   existing `Advertisement` row when updating, sanitizes the description through
   `HtmlSanitizer.sanitize()`, carries `createdAt`/`createdBy` forward from the existing row and the

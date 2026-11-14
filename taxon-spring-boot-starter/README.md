@@ -39,6 +39,9 @@ coordinates two independent services and never touches a repository directly:
   `TaxonAssignmentService.replaceAssignments`, which diffs the new taxon id set against the current
   one (`TaxonAssignmentRepository.findAllByEntity`) and issues only the resulting `assign`/`unassign`
   calls.
+- **Category/city predicate:** `TaxonPort.categoryAndCityPredicate` → `DefaultTaxonPort` →
+  `TaxonAssignmentService` → `TaxonAssignmentRepository`, which builds the `EXISTS` text and its
+  parameters without running it; the consumer appends it to its own page and count statements.
 
 ## Schema
 

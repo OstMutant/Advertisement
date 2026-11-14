@@ -78,6 +78,21 @@ class PromotedProviderProfileScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
+    void promotedAndCategory_returnsOnlyThePromotedProfilesOfThatCategory() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        long categoryId = createCategory(admin, "Plumbing");
+        ProfileWithReviews promotedInCategory = profileWithReviews("PromotedInCategory", 5, categoryId);
+        profileWithReviews("PromotedWithoutCategory", 5, null);
+        profileWithReviews("PlainInCategory", 0, categoryId);
+
+        mockMvc.perform(get(PROFILES).param("promoted", "true").param("categoryIds", String.valueOf(categoryId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(promotedInCategory.profileId()));
+    }
+
+    @Test
     void list_promotedSortAscending_listsThePromotedLast() throws Exception {
         registerUserAndIssueApiKey("Admin");
         ProfileWithReviews promoted = profileWithReviews("Promoted", 5);
@@ -153,10 +168,17 @@ class PromotedProviderProfileScenarioTest extends AbstractRestApiScenarioTest {
 
     /** Registers an owner with one profile and has the given number of other users each leave a 5-star review. */
     private ProfileWithReviews profileWithReviews(String ownerPrefix, int reviews) throws Exception {
+        return profileWithReviews(ownerPrefix, reviews, null);
+    }
+
+    /** Same as the two-argument form, with the profile placed in the given category when one is passed. */
+    private ProfileWithReviews profileWithReviews(String ownerPrefix, int reviews, Long categoryId) throws Exception {
         RegisteredUser owner = registerUserAndIssueApiKey(ownerPrefix);
+        String body = categoryId == null ? PROFILE_BODY : """
+                {"kind":"MASTER","about":"Experienced plumber","phone":"+380501234567","categoryIds":[%d]}""".formatted(categoryId);
         String profile = mockMvc.perform(post(PROFILES)
                         .header(HttpHeaders.AUTHORIZATION, bearer(owner))
-                        .contentType(MediaType.APPLICATION_JSON).content(PROFILE_BODY))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         long profileId = JsonScenarioUtils.extractId(profile);
@@ -173,6 +195,18 @@ class PromotedProviderProfileScenarioTest extends AbstractRestApiScenarioTest {
             }
         }
         return new ProfileWithReviews(owner, profileId, firstReviewId);
+    }
+
+    private long createCategory(RegisteredUser admin, String name) throws Exception {
+        String body = """
+                {"type":"CATEGORY","translations":[{"locale":"en","name":"%s","description":"%s services"},{"locale":"uk","name":"%s","description":"%s послуги"}]}"""
+                .formatted(name, name, name, name);
+        String response = mockMvc.perform(post("/api/taxons")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return JsonScenarioUtils.extractId(response);
     }
 
     private static String bearer(RegisteredUser user) {

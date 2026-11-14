@@ -2,11 +2,12 @@ package org.ost.platform.taxon.spi;
 
 import lombok.NonNull;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlColumn;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -14,8 +15,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Marketplace calls this to manage taxon assignments and resolve localised taxon data.
- * Injected via {@code ObjectProvider} — degrades gracefully when the starter is absent.
+ * Taxon catalog, assignment and filter-predicate contract; injected via {@code ObjectProvider} and degrades gracefully
+ * when the starter is absent.
  */
 public interface TaxonPort {
 
@@ -23,14 +24,11 @@ public interface TaxonPort {
     void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
                             @NonNull Set<Long> taxonIds);
 
-    /** Active taxon entries currently assigned to an entity, localised to the given locale. */
+    /** Taxon entries currently assigned to an entity, soft-deleted ones included, localised to the given locale. */
     List<TaxonDto> getForEntity(@NonNull EntityType entityType, @NonNull Long entityId,
                                 @NonNull Locale locale);
 
-    /**
-     * Batched variant: returns assignments for many entities in one call.
-     * Avoids N+1 when rendering card lists.
-     */
+    /** Batched variant of {@link #getForEntity}: the active assigned entries of many entities in one call. */
     Map<Long, List<TaxonDto>> getForEntities(@NonNull EntityType entityType,
                                              @NonNull Set<Long> entityIds,
                                              @NonNull Locale locale);
@@ -42,48 +40,25 @@ public interface TaxonPort {
     Optional<TaxonDto> findById(@NonNull Long taxonId, @NonNull Locale locale);
 
     /**
-     * Batched variant of {@link #findById}: resolves many entries by id in one call
-     * (even soft-deleted — used by audit rendering). Avoids N+1 when rendering card lists.
-     * Empty input set → empty result.
+     * Batched variant of {@link #findById}: resolves many entries by id in one call, soft-deleted ones included;
+     * an empty input set gives an empty result.
      */
     Map<Long, TaxonDto> findByIds(@NonNull Set<Long> taxonIds, @NonNull Locale locale);
 
     /**
-     * Returns the set of entity ids that have AT LEAST ONE of the given taxons assigned.
-     * Used by marketplace to filter advertisements without exposing taxon_assignment table names.
-     * Empty input set → empty result.
+     * A predicate restricting a consumer's statement to the entities carrying one of the given categories and the given city,
+     * built over the consumer's own key column and appended to its page and count statements; empty when neither filter is
+     * requested, and matching nothing for a present but empty {@code categoryIds}.
      */
-    Set<Long> findEntityIdsWithAnyTaxon(@NonNull EntityType entityType,
-                                        @NonNull Set<Long> taxonIds);
-
-    /**
-     * AND-combines an independently-resolved category-id filter and a single city-id filter into
-     * one entity-id constraint. Empty result means "no filter was requested" (never restricts);
-     * a present-but-empty set means the combined filter matches nothing.
-     */
-    default Optional<Set<Long>> resolveCategoryAndCityFilter(@NonNull EntityType entityType,
-                                                              Set<Long> categoryIds, Long cityTaxonId) {
-        Optional<Set<Long>> categoryConstraint = resolveTaxonIdFilter(entityType, categoryIds);
-        Optional<Set<Long>> cityConstraint = resolveTaxonIdFilter(entityType,
-                cityTaxonId == null ? null : Set.of(cityTaxonId));
-        if (categoryConstraint.isEmpty()) return cityConstraint;
-        if (cityConstraint.isEmpty()) return categoryConstraint;
-        Set<Long> intersected = new HashSet<>(categoryConstraint.get());
-        intersected.retainAll(cityConstraint.get());
-        return Optional.of(intersected);
-    }
-
-    private Optional<Set<Long>> resolveTaxonIdFilter(EntityType entityType, Set<Long> taxonIds) {
-        if (taxonIds == null) return Optional.empty();
-        return Optional.of(findEntityIdsWithAnyTaxon(entityType, taxonIds));
-    }
+    Optional<SqlPredicate> categoryAndCityPredicate(@NonNull EntityType entityType, @NonNull SqlColumn entityId,
+                                                    Set<Long> categoryIds, Long cityTaxonId);
 
     // ── Management operations ───────────────────────────────────────────────
 
     /** All entries of a given type, optionally including soft-deleted ones, localised. */
     List<TaxonDto> listAllByType(@NonNull TaxonType type, @NonNull Locale locale, boolean includeDeleted);
 
-    /** All locale translations for a given taxon entry. Used by the edit overlay. */
+    /** All locale translations for a given taxon entry. */
     List<TaxonTranslationDto> getTranslations(@NonNull Long taxonId);
 
     /** Usage counts (assignment count) per taxon id for all entries of a given type. */
@@ -96,13 +71,14 @@ public interface TaxonPort {
      *  caller last read; a stale value throws {@link org.ost.platform.core.StaleWriteException}. */
     void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId, Long version);
 
-    /** Soft-deletes the given taxon entry and records the deletion in the audit log. {@code version}
+    /** Soft-deletes the given taxon entry and, when an actor id is given and the audit starter is present, records the
+     *  deletion in the audit log. {@code version}
      *  must be the value the caller last read; a stale value throws {@link org.ost.platform.core.StaleWriteException}. */
     void softDelete(@NonNull Long id, Long actorId, Long version);
 
-    /** Restores a soft-deleted taxon entry and records the restore in the audit log. */
+    /** Restores a soft-deleted taxon entry and, when an actor id is given and the audit starter is present, records the restore in the audit log. */
     void restore(@NonNull Long id, Long actorId);
 
-    /** Returns the subset of the given ids that exist in the taxon table. Used by audit findExisting. */
+    /** Returns the subset of the given ids that exist in the taxon table. */
     Set<Long> findExistingIds(@NonNull Set<Long> ids);
 }

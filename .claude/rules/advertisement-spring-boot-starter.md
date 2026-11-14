@@ -41,10 +41,10 @@ Tables: `advertisement`
 - `@EnableJdbcRepositories(basePackages = "org.ost.advertisement.repository")` declared in `AdvertisementAutoConfiguration`.
 - `AdvertisementPortImpl` is pure delegation — no business logic inside the port.
 - `AdvertisementService`'s only remaining cross-domain dependency is `ComponentFactory<TaxonPort>`,
-  used solely for query-time category/city filter resolution
-  (`resolveTaxonIdFilter()` → `TaxonPort.findEntityIdsWithAnyTaxon()`, translating a category-id
-  filter into an advertisement-id set before `SqlFilterBuilder` builds the `WHERE` clause) — not
-  for writing or clearing taxon assignments, and not for display enrichment.
+  used solely for query-time category/city filtering (`resolveTaxonPredicate()` →
+  `TaxonPort.categoryAndCityPredicate()`; `AdvertisementRepository` appends the predicate it returns
+  to the page and count statements) — not for writing or clearing taxon assignments, and not for
+  display enrichment.
 - Actor-reference columns on `advertisement` are named `created_by`/`updated_by`/`deleted_by` —
   no `_user_id` suffix — matching `taxon`'s convention (see `.claude/nav/adr-index.md`). Sort-by-author
   is not an exposed feature (`AdvertisementSortMeta` has no such option);

@@ -79,8 +79,8 @@ produces a different DTO type. See `platform-commons/DECISIONS.md`.
 **Second, separate narrow exception — for `*.spi` interfaces:** a `default` method on a `*Port`
 interface may compose logic only when every operation it performs is a call to that *same
 interface's own other abstract methods* — no external service calls, no injected state, no side
-effects (e.g. `TaxonPort.resolveCategoryAndCityFilter`, which calls only `TaxonPort`'s own
-`findEntityIdsWithAnyTaxon`). This is a different exception from the DTO one above — a Port
+effects (e.g. a convenience overload that calls the same interface's fuller method with a default
+argument). This is a different exception from the DTO one above — a Port
 composing its own declared contract, not a value type deriving from its own fields — and is
 likewise narrow: a default method calling a *different* Port/service, holding state, or with side
 effects still belongs in an implementation class (`*PortImpl`/`Default*Port`) or a `*Service`. See

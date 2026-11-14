@@ -125,18 +125,21 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         aboutField.setMaxLength(ProviderProfileSaveDto.ABOUT_MAX_LENGTH);
         aboutField.addClassName("overlay__description-rich-editor");
 
+        boolean taxonAvailable = taxonCatalogService.isAvailable();
         List<TaxonDto> availableCategories = taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale());
-        categoryComboBox = new MultiSelectComboBox<>();
-        categoryComboBox.setLabel(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES));
-        categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
-        categoryComboBox.setItems(availableCategories);
-
         List<TaxonDto> availableCities = taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale());
-        cityComboBox = new ComboBox<>();
-        cityComboBox.setLabel(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
-        cityComboBox.setItemLabelGenerator(TaxonDto::getName);
-        cityComboBox.setItems(availableCities);
-        cityComboBox.setClearButtonVisible(true);
+        if (taxonAvailable) {
+            categoryComboBox = new MultiSelectComboBox<>();
+            categoryComboBox.setLabel(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CATEGORIES));
+            categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
+            categoryComboBox.setItems(availableCategories);
+
+            cityComboBox = new ComboBox<>();
+            cityComboBox.setLabel(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_CITY));
+            cityComboBox.setItemLabelGenerator(TaxonDto::getName);
+            cityComboBox.setItems(availableCities);
+            cityComboBox.setClearButtonVisible(true);
+        }
 
         phoneField = new UiTextField(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_PHONE), "+380 XX XXX XX XX", 32, false, "provider-profile-phone-field");
         telegramField = new UiTextField(getValue(PROVIDER_PROFILE_OVERLAY_FIELD_TELEGRAM), "@username", 64, false, "provider-profile-telegram-field");
@@ -152,16 +155,20 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
 
         kindField.setReadOnly(!canEdit);
         aboutField.setReadOnly(!canEdit);
-        categoryComboBox.setReadOnly(!canEdit);
-        cityComboBox.setReadOnly(!canEdit);
+        if (categoryComboBox != null) {
+            categoryComboBox.setReadOnly(!canEdit);
+            cityComboBox.setReadOnly(!canEdit);
+        }
         phoneField.setReadOnly(!canEdit);
         telegramField.setReadOnly(!canEdit);
         viberField.setReadOnly(!canEdit);
 
         kindField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         aboutField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        categoryComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        cityComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        if (categoryComboBox != null) {
+            categoryComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+            cityComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        }
         phoneField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         telegramField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         viberField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
@@ -169,7 +176,10 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
         Div cardHeader = new Div(VaadinIcon.BRIEFCASE.create(), new Span(getValue(PROVIDER_PROFILE_OVERLAY_SECTION_LABEL)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Div fieldsCard = new Div(cardHeader, kindField, aboutField, categoryComboBox, cityComboBox);
+        Div fieldsCard = new Div(cardHeader, kindField, aboutField);
+        if (categoryComboBox != null) {
+            fieldsCard.add(categoryComboBox, cityComboBox);
+        }
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div contactsHeader = new Div(VaadinIcon.PHONE.create(), new Span(getValue(CONTACT_SECTION_LABEL)));
@@ -305,20 +315,22 @@ public class ProviderProfileFormOverlayModeHandler extends AbstractFormOverlayMo
                         html -> html == null || Jsoup.parse(html).text().length() <= ProviderProfileSaveDto.ABOUT_MAX_LENGTH,
                         getValue(PROVIDER_PROFILE_OVERLAY_VALIDATION_ABOUT_LENGTH))
                 .bind(ProviderProfileEditDto::getAbout, ProviderProfileEditDto::setAbout);
-        binder.getBinder().forField(categoryComboBox)
-                .withConverter(
-                        selected -> selected.stream().map(TaxonDto::getId).collect(Collectors.toSet()),
-                        ids -> ids == null ? Set.of() : availableCategories.stream()
-                                .filter(t -> ids.contains(t.getId()))
-                                .collect(Collectors.toSet()))
-                .bind(ProviderProfileEditDto::getCategoryIds, ProviderProfileEditDto::setCategoryIds);
-        binder.getBinder().forField(cityComboBox)
-                .withConverter(
-                        selected -> selected == null ? null : selected.getId(),
-                        id -> id == null ? null : availableCities.stream()
-                                .filter(t -> t.getId().equals(id))
-                                .findFirst().orElse(null))
-                .bind(ProviderProfileEditDto::getCityTaxonId, ProviderProfileEditDto::setCityTaxonId);
+        if (categoryComboBox != null) {
+            binder.getBinder().forField(categoryComboBox)
+                    .withConverter(
+                            selected -> selected.stream().map(TaxonDto::getId).collect(Collectors.toSet()),
+                            ids -> ids == null ? Set.of() : availableCategories.stream()
+                                    .filter(t -> ids.contains(t.getId()))
+                                    .collect(Collectors.toSet()))
+                    .bind(ProviderProfileEditDto::getCategoryIds, ProviderProfileEditDto::setCategoryIds);
+            binder.getBinder().forField(cityComboBox)
+                    .withConverter(
+                            selected -> selected == null ? null : selected.getId(),
+                            id -> id == null ? null : availableCities.stream()
+                                    .filter(t -> t.getId().equals(id))
+                                    .findFirst().orElse(null))
+                    .bind(ProviderProfileEditDto::getCityTaxonId, ProviderProfileEditDto::setCityTaxonId);
+        }
         binder.getBinder().forField(phoneField)
                 .withNullRepresentation("")
                 .withValidator(v -> v == null || v.matches(ContactInfoDto.PHONE_PATTERN), getValue(PROVIDER_PROFILE_OVERLAY_VALIDATION_PHONE_FORMAT))

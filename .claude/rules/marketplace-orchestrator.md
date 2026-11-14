@@ -271,8 +271,8 @@ inventing a second wiring approach for one module).
   the `*PortImpl`/`*HookImpl` pure-delegation discipline one layer down — this module composes
   results from domain Ports only, never touches SQL directly.
 - **Not every cross-domain call moves here.** Query-time filter resolution (e.g.
-  `AdvertisementService.resolveTaxonIdFilter()`, used to translate a category-id filter into an
-  advertisement-id set before `SqlFilterBuilder` builds the `WHERE` clause) stays inside the owning
+  `AdvertisementService.resolveTaxonPredicate()`, which obtains the owning starter's category/city
+  predicate before the repository appends it to its `WHERE` clause) stays inside the owning
   starter — it's part of executing the query itself, not display composition. `TaxonService`/
   `UserPreferencesService`/`UserService` calling `AuditPort.capture*()` (cross-cutting event
   reporting — a fire-and-forget write with no read-back, no cross-domain decision-making) also

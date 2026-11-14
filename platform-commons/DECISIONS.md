@@ -2,6 +2,22 @@
 
 ---
 
+## ADR-036: `TaxonPort` exposes a typed SQL predicate; the default-method allowance stays for calls to the interface's own methods
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** taxon-spring-boot-starter, advertisement-spring-boot-starter, provider-profile-spring-boot-starter
+
+**Context:** The earlier decision allowed one default method with composed logic on `TaxonPort` (`resolveCategoryAndCityFilter`) as a named exception to "no business logic in platform-commons"; no other Port had one then, and `ProviderProfilePort` has since used the same allowance for two convenience overloads that call its own fuller methods. The method existed to combine id sets in memory; the id-set flow is replaced by a predicate built by Taxon (see the Taxon decision on the category and city filter).
+
+**Decision:** `findEntityIdsWithAnyTaxon`, `resolveCategoryAndCityFilter` and its private helper are removed; `TaxonPort` declares `categoryAndCityPredicate(...)` returning `Optional<SqlPredicate>`. `SqlColumn` (`alias + "." + column`) and `SqlPredicate` (text, bound parameters, `asAndClause()`) live in `core.model` as plain value objects: shared by three modules, no Spring or JDBC import, derivations only of their own fields, constructor invariants that fail fast. No governance exception is needed for them. The default-method allowance itself stays, as the one standing rule: a `default` method on a `*Port` interface may compose logic only when every operation is a call to that same interface's own other abstract methods — no external service calls, no injected state, no side effects; it does not extend to a default method that calls a different Port or service, holds state, or has side effects.
+
+**Rejected alternatives:** placing the types in `query-lib` (makes `platform-commons` depend on its JDBC starter) or in a new library (a first internal dependency of `platform-commons` for no gain).
+
+---
+
 ## ADR-035: Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer
 
 **Status:** Accepted
@@ -110,9 +126,9 @@ third time.
 
 ## ADR-032: `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons"
 
-**Status:** Accepted
+**Status:** Superseded by ADR-036
 
-**Applied:** 1
+**Applied:** 2
 
 **Also affects:** advertisement-spring-boot-starter, provider-profile-spring-boot-starter
 

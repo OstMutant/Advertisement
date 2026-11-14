@@ -19,6 +19,7 @@ import org.ost.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.SqlPredicate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -27,6 +28,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -115,7 +117,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
 
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.builder().kinds(Set.of(ProviderKind.MASTER, ProviderKind.SHOP)).build(),
-                PageRequest.of(0, 10), ProviderProfileScope.ALL);
+                PageRequest.of(0, 10), ProviderProfileScope.ALL, null);
 
         assertThat(results).extracting(ProviderProfileDto::getKind)
                 .containsExactlyInAnyOrder(ProviderKind.MASTER, ProviderKind.SHOP);
@@ -127,7 +129,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         save(newActor(), ProviderKind.SHOP);
 
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
-                ProviderProfileFilterDto.empty(), PageRequest.of(0, 10), ProviderProfileScope.ALL);
+                ProviderProfileFilterDto.empty(), PageRequest.of(0, 10), ProviderProfileScope.ALL, null);
 
         assertThat(results).hasSize(2);
     }
@@ -140,7 +142,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
 
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(), PageRequest.of(0, 10),
-                new ProviderProfileScope(Set.of(first.getId(), second.getId()), List.of(), false));
+                new ProviderProfileScope(Set.of(first.getId(), second.getId()), List.of(), false), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactlyInAnyOrder(first.getId(), second.getId());
@@ -152,7 +154,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         save(newActor(), ProviderKind.SHOP);
 
         Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(),
-                new ProviderProfileScope(Set.of(first.getId()), List.of(), false));
+                new ProviderProfileScope(Set.of(first.getId()), List.of(), false), null);
 
         assertThat(count).isEqualTo(1L);
     }
@@ -165,9 +167,62 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
 
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.builder().kinds(Set.of(ProviderKind.MASTER)).build(), PageRequest.of(0, 10),
-                new ProviderProfileScope(Set.of(master.getId(), shop.getId()), List.of(), false));
+                new ProviderProfileScope(Set.of(master.getId(), shop.getId()), List.of(), false), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId).containsExactly(master.getId());
+    }
+
+    @Test
+    void findByFilter_taxonPredicateRestrictsToMatchingRows() {
+        ProviderProfile first = save(actorId, ProviderKind.MASTER);
+        ProviderProfile second = save(newActor(), ProviderKind.SHOP);
+        save(newActor(), ProviderKind.SUPPORT);
+
+        List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
+                ProviderProfileFilterDto.empty(), PageRequest.of(0, 10), ProviderProfileScope.ALL,
+                new SqlPredicate("pp.id = ANY(:_ids)", Map.of("_ids", new Long[]{first.getId(), second.getId()})));
+
+        assertThat(results).extracting(ProviderProfileDto::getId)
+                .containsExactlyInAnyOrder(first.getId(), second.getId());
+    }
+
+    @Test
+    void countByFilter_taxonPredicateRestrictsCount() {
+        ProviderProfile first = save(actorId, ProviderKind.MASTER);
+        ProviderProfile second = save(newActor(), ProviderKind.SHOP);
+        save(newActor(), ProviderKind.SUPPORT);
+
+        Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(), ProviderProfileScope.ALL,
+                new SqlPredicate("pp.id = ANY(:_ids)", Map.of("_ids", new Long[]{first.getId(), second.getId()})));
+
+        assertThat(count).isEqualTo(2L);
+    }
+
+    @Test
+    void findByFilter_predicateAndOnlyIdsAreBothApplied() {
+        ProviderProfile first = save(actorId, ProviderKind.MASTER);
+        ProviderProfile second = save(newActor(), ProviderKind.SHOP);
+        ProviderProfile third = save(newActor(), ProviderKind.SUPPORT);
+
+        List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
+                ProviderProfileFilterDto.empty(), PageRequest.of(0, 10),
+                new ProviderProfileScope(Set.of(first.getId(), second.getId()), List.of(), false),
+                new SqlPredicate("pp.id = ANY(:_ids)", Map.of("_ids", new Long[]{second.getId(), third.getId()})));
+
+        assertThat(results).extracting(ProviderProfileDto::getId).containsExactly(second.getId());
+    }
+
+    @Test
+    void countByFilter_predicateAndOnlyIdsAreBothApplied() {
+        ProviderProfile first = save(actorId, ProviderKind.MASTER);
+        ProviderProfile second = save(newActor(), ProviderKind.SHOP);
+        ProviderProfile third = save(newActor(), ProviderKind.SUPPORT);
+
+        Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(),
+                new ProviderProfileScope(Set.of(first.getId(), second.getId()), List.of(), false),
+                new SqlPredicate("pp.id = ANY(:_ids)", Map.of("_ids", new Long[]{second.getId(), third.getId()})));
+
+        assertThat(count).isEqualTo(1L);
     }
 
     @Test
@@ -175,7 +230,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         save(actorId, ProviderKind.MASTER);
         save(newActor(), ProviderKind.SHOP);
 
-        Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(), ProviderProfileScope.ALL);
+        Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(), ProviderProfileScope.ALL, null);
 
         assertThat(count).isEqualTo(2L);
     }
@@ -189,7 +244,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.id))),
-                new ProviderProfileScope(null, List.of(Set.of(third.getId())), false));
+                new ProviderProfileScope(null, List.of(Set.of(third.getId())), false), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(third.getId(), first.getId(), second.getId());
@@ -205,7 +260,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.id))),
-                new ProviderProfileScope(null, List.of(Set.of(fourth.getId()), Set.of(second.getId(), third.getId())), false));
+                new ProviderProfileScope(null, List.of(Set.of(fourth.getId()), Set.of(second.getId(), third.getId())), false), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(fourth.getId(), second.getId(), third.getId(), first.getId());
@@ -220,7 +275,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
 
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(), PageRequest.of(0, 10, Sort.unsorted()),
-                new ProviderProfileScope(null, List.of(Set.of(first.getId(), third.getId())), false));
+                new ProviderProfileScope(null, List.of(Set.of(first.getId(), third.getId())), false), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(third.getId(), first.getId(), fourth.getId(), second.getId());
@@ -233,7 +288,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         ProviderProfile third = save(newActor(), ProviderKind.SUPPORT);
 
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
-                ProviderProfileFilterDto.empty(), PageRequest.of(0, 10, Sort.unsorted()), ProviderProfileScope.ALL);
+                ProviderProfileFilterDto.empty(), PageRequest.of(0, 10, Sort.unsorted()), ProviderProfileScope.ALL, null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(third.getId(), second.getId(), first.getId());
@@ -248,7 +303,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.id))),
-                new ProviderProfileScope(null, List.of(Set.of(first.getId())), true));
+                new ProviderProfileScope(null, List.of(Set.of(first.getId())), true), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(second.getId(), third.getId(), first.getId());
@@ -263,7 +318,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.id))),
-                new ProviderProfileScope(Set.of(first.getId(), second.getId()), List.of(Set.of(second.getId())), false));
+                new ProviderProfileScope(Set.of(first.getId(), second.getId()), List.of(Set.of(second.getId())), false), null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(second.getId(), first.getId());
@@ -275,7 +330,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         save(newActor(), ProviderKind.SHOP);
 
         Long count = providerProfileRepository.countByFilter(ProviderProfileFilterDto.empty(),
-                new ProviderProfileScope(null, List.of(Set.of(first.getId())), false));
+                new ProviderProfileScope(null, List.of(Set.of(first.getId())), false), null);
 
         assertThat(count).isEqualTo(2L);
     }
@@ -289,11 +344,11 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> firstPage = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 2, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.id))),
-                ProviderProfileScope.ALL);
+                ProviderProfileScope.ALL, null);
         List<ProviderProfileDto> secondPage = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(1, 2, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.id))),
-                ProviderProfileScope.ALL);
+                ProviderProfileScope.ALL, null);
 
         assertThat(firstPage).hasSize(2);
         assertThat(secondPage).hasSize(1);
@@ -312,7 +367,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.createdAt))),
-                ProviderProfileScope.ALL);
+                ProviderProfileScope.ALL, null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(second.getId(), first.getId());
@@ -331,7 +386,7 @@ class ProviderProfileRepositoryTest extends AbstractPostgresIntegrationTest {
         List<ProviderProfileDto> results = providerProfileRepository.findByFilter(
                 ProviderProfileFilterDto.empty(),
                 PageRequest.of(0, 10, Sort.by(Sort.Order.asc(ProviderProfileDto.Fields.updatedAt))),
-                ProviderProfileScope.ALL);
+                ProviderProfileScope.ALL, null);
 
         assertThat(results).extracting(ProviderProfileDto::getId)
                 .containsExactly(second.getId(), first.getId());

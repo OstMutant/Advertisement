@@ -14,6 +14,7 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.junit.jupiter.api.Test;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
@@ -47,13 +48,8 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * Codifies the cross-module architecture rules from the root {@code CLAUDE.md}/{@code rules.md}
- * as build-breaking tests instead of prose enforced by review alone — see
- * {@code marketplace-app/DECISIONS.md} for the rationale (two real violations previously reached
- * working code unnoticed under the prose-only approach).
- * Scans the whole {@code org.ost} tree, which this module's test classpath can already see in
- * full (every starter reaches marketplace-app transitively via marketplace-orchestrator, and
- * platform-commons is a direct dependency).
+ * Codifies the cross-module architecture rules of the root {@code CLAUDE.md}/{@code rules.md} as build-breaking tests over the whole
+ * {@code org.ost} tree that this module's test classpath sees (rationale in {@code marketplace-app/DECISIONS.md}).
  */
 @AnalyzeClasses(packages = "org.ost", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureRulesTest {
@@ -338,6 +334,26 @@ class ArchitectureRulesTest {
                                             + "category/city assignment writes must go through "
                                             + "marketplace-orchestrator's TaxonAssignmentWriteService, "
                                             + "see root CLAUDE.md guideline 2 \"Three layers, not two\""));
+                        }
+                    });
+                }
+            });
+
+    @ArchTest
+    static final ArchRule sql_predicates_are_built_only_in_starter_repositories =
+            classes().should(new ArchCondition<JavaClass>("not construct a SqlPredicate outside a starter repository") {
+                @Override
+                public void check(JavaClass javaClass, ConditionEvents events) {
+                    boolean starterRepository = javaClass.getPackageName().startsWith("org.ost.")
+                            && javaClass.getPackageName().contains(".repository");
+                    if (starterRepository || javaClass.isEquivalentTo(SqlPredicate.class)) {
+                        return;
+                    }
+                    javaClass.getConstructorCallsFromSelf().forEach(call -> {
+                        if (call.getTarget().getOwner().isEquivalentTo(SqlPredicate.class)) {
+                            events.add(SimpleConditionEvent.violated(javaClass,
+                                    javaClass.getFullName() + " constructs a SqlPredicate — only a starter repository may build one, "
+                                            + "the consumer receives it through the owner's Port"));
                         }
                     });
                 }

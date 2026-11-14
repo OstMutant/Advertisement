@@ -1650,7 +1650,7 @@ optional singleton services/ports"):
 
 **Status:** Accepted
 
-**Applied:** 1
+**Applied:** 2
 
 **Also affects:** advertisement-spring-boot-starter
 
@@ -1791,7 +1791,7 @@ same real decoupling benefit.
 
 ## ADR-036: `AdvertisementRepository.buildIdClause()` binds a plain array, not a `Set`, for the category-filter id list
 
-**Status:** Accepted
+**Status:** Superseded by ADR-006 (taxon-spring-boot-starter)
 
 **Context:** `AdvertisementService.resolveCategoryFilter()` calls
 `TaxonPort.findEntityIdsWithAnyTaxon()` to get the set of advertisement ids matching the selected

@@ -38,7 +38,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * Level 2: every operation of the REST API, called against a real Postgres once with every starter present and once for each
- * optional starter with its configuration left out, answers without a server fault; the operations listed for that starter answer 503.
+ * optional starter with its configuration left out, answers without a server fault and the operations listed for that starter answer 503;
+ * with the taxon starter left out the list filters ignore the category and city and no statement names the taxon assignment table.
  */
 class OptionalStarterRestAbsenceTest extends AbstractPostgresIntegrationTest {
 
@@ -77,6 +78,37 @@ class OptionalStarterRestAbsenceTest extends AbstractPostgresIntegrationTest {
 
         assertThat(faults(statuses)).isEmpty();
         assertThat(starter.unavailableOperations()).allSatisfy(operation -> assertThat(statuses).containsEntry(operation, "503"));
+    }
+
+    @Test
+    void withoutTheTaxonStarterTheCategoryAndCityFiltersAreIgnoredAndNoStatementNamesTheTaxonTable() {
+        runner("org.ost.taxon.").run(context -> {
+            assertThat(context.getStartupFailure()).isNull();
+            JdbcClient jdbcClient = context.getBean(JdbcClient.class);
+            TestDataCleaner.cleanAll(jdbcClient);
+            MockMvc mvc = MockMvcBuilders.webAppContextSetup(context)
+                    .addFilters(context.getBean("springSecurityFilterChain", Filter.class)).build();
+            String authorization = authorization(mvc);
+            // A statement that names the table fails while it is renamed, so a filter that still reached it would end in an exception.
+            jdbcClient.sql("ALTER TABLE taxon_assignment RENAME TO taxon_assignment_hidden").update();
+            try {
+                var created = mvc.perform(request(HttpMethod.POST, "/api/advertisements").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Unfiltered ad\",\"description\":\"Description\",\"adKind\":\"OFFER\"}")).andReturn().getResponse();
+                assertThat(created.getStatus()).isEqualTo(201);
+
+                var advertisements = mvc.perform(request(HttpMethod.GET, "/api/advertisements?categoryIds=999999&cityTaxonId=999999")
+                        .header(HttpHeaders.AUTHORIZATION, authorization)).andReturn().getResponse();
+                assertThat(advertisements.getStatus()).isEqualTo(200);
+                assertThat(advertisements.getContentAsString()).contains("Unfiltered ad");
+
+                var profiles = mvc.perform(request(HttpMethod.GET, "/api/provider-profiles?categoryIds=999999&cityTaxonId=999999")
+                        .header(HttpHeaders.AUTHORIZATION, authorization)).andReturn().getResponse();
+                assertThat(profiles.getStatus()).isEqualTo(200);
+            } finally {
+                jdbcClient.sql("ALTER TABLE taxon_assignment_hidden RENAME TO taxon_assignment").update();
+            }
+        });
     }
 
     /** A server fault is a 5xx other than 503, a request that ended in an unhandled exception, or a context that did not start. */

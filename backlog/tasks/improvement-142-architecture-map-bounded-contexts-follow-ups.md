@@ -68,7 +68,7 @@ below for whoever implements this, so it doesn't need to be re-derived from scra
     {"domain": "Advertisement", "notes": [
       "AdvertisementService.enrichWithMediaSummary() calls AttachmentPort.getMediaSummaries() at read time -- never denormalized onto the advertisement row.",
       "UserPort.findByIds() enriches the author's name/email; advertisement never stores a denormalized author name.",
-      "TaxonPort.findEntityIdsWithAnyTaxon() filters by category without a direct SQL JOIN to taxon_assignment."
+      "TaxonPort.categoryAndCityPredicate() returns the Taxon-built category/city restriction that advertisement appends to its own statements -- advertisement code names no taxon table or column."
     ]},
     {"domain": "Audit", "notes": [
       "audit_log is the single table for both the write log and snapshot storage (its own snapshot_data JSONB column) -- there is no separate snapshot table.",

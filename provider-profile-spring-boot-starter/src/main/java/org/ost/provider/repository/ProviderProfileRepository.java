@@ -7,6 +7,8 @@ import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.SqlColumn;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.provider.entity.ProviderProfile;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
@@ -62,6 +64,8 @@ public class ProviderProfileRepository {
             FROM provider_profile pp
             """;
 
+    public static final SqlColumn ID = new SqlColumn("pp", "id");
+
     private final JdbcClient jdbcClient;
     private final ProviderProfileCrudRepository crud;
 
@@ -95,18 +99,18 @@ public class ProviderProfileRepository {
                     SortField.of(ProviderProfileDto.Fields.id, "pp.id")));
 
     public List<ProviderProfileDto> findByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull Pageable pageable,
-                                                  @NonNull ProviderProfileScope scope) {
+                                                  @NonNull ProviderProfileScope scope, SqlPredicate taxonPredicate) {
         var params = new MapSqlParameterSource();
         String orderBy = buildOrderBy(params, OrderByBuilder.build(pageable.getSort(), SORT_FIELDS), scope);
         String sql = (SELECT + "%s%s%s")
-                .formatted(buildWhere(params, filter, scope), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
+                .formatted(buildWhere(params, filter, scope, taxonPredicate), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope) {
+    public Long countByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope, SqlPredicate taxonPredicate) {
         var params = new MapSqlParameterSource();
         String sql = "SELECT COUNT(*) FROM provider_profile pp%s"
-                .formatted(buildWhere(params, filter, scope));
+                .formatted(buildWhere(params, filter, scope, taxonPredicate));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
@@ -127,11 +131,16 @@ public class ProviderProfileRepository {
         return " ORDER BY " + String.join(", ", clauses);
     }
 
-    private static String buildWhere(MapSqlParameterSource params, ProviderProfileFilterDto filter, ProviderProfileScope scope) {
+    private static String buildWhere(MapSqlParameterSource params, ProviderProfileFilterDto filter, ProviderProfileScope scope,
+                                     SqlPredicate taxonPredicate) {
         List<String> conditions = new ArrayList<>();
         if (scope.onlyIds() != null) {
             params.addValue("allowedIds", scope.onlyIds().toArray(new Long[0]));
             conditions.add("pp.id = ANY(:allowedIds)");
+        }
+        if (taxonPredicate != null) {
+            params.addValues(taxonPredicate.params());
+            conditions.add("(" + taxonPredicate.sql() + ")");
         }
         String dynamic = FILTER.build(params, filter);
         if (!dynamic.isBlank()) conditions.add(dynamic);

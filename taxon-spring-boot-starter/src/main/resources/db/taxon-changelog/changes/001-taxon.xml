@@ -91,8 +91,11 @@
                        columnNames="entity_type, entity_id, taxon_id"
                        constraintName="pk_taxon_assignment"/>
 
-        <createIndex indexName="idx_taxon_assignment_taxon_id" tableName="taxon_assignment">
+        <!-- Covers the Taxon-built category and city predicate and the usage counts: an index-only lookup by taxon, entity type and entity id. -->
+        <createIndex indexName="idx_taxon_assignment_cover" tableName="taxon_assignment">
             <column name="taxon_id"/>
+            <column name="entity_type"/>
+            <column name="entity_id"/>
         </createIndex>
 
     </changeSet>

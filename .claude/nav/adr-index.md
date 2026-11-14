@@ -162,10 +162,10 @@ yet — not zero.
 | ADR-029 (marketplace-app) | marketplace-app | Accepted |  |  | Optimistic locking via a stored version column — no auto-reload on conflict |
 | ADR-032 (marketplace-app) | marketplace-app | Accepted |  |  | Request correlation id via SLF4J MDC, plus closing silent-service logging gaps |
 | ADR-033 (marketplace-app) | marketplace-app | Accepted **Applied:** 1 |  |  | Optional-port UI components use `ComponentFactory<Port>`, never `@ConditionalOnBean` on the component class |
-| ADR-034 (marketplace-app) | marketplace-app | Accepted |  | 1 | No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention |
-| ADR-034 (marketplace-app) | advertisement-spring-boot-starter | Accepted |  | 1 | No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention |
+| ADR-034 (marketplace-app) | marketplace-app | Accepted |  | 2 | No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention |
+| ADR-034 (marketplace-app) | advertisement-spring-boot-starter | Accepted |  | 2 | No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention |
 | ADR-035 (marketplace-app) | marketplace-app | Accepted |  |  | `advertisement` stores no denormalized attachment columns — media summary enriched at read time via a bulk `AttachmentPort` lookup |
-| ADR-036 (marketplace-app) | marketplace-app | Accepted |  |  | `AdvertisementRepository.buildIdClause()` binds a plain array, not a `Set`, for the category-filter id list |
+| ADR-036 (marketplace-app) | marketplace-app | Superseded by ADR-006 (taxon-spring-boot-starter) |  |  | `AdvertisementRepository.buildIdClause()` binds a plain array, not a `Set`, for the category-filter id list |
 | ADR-039 (marketplace-app) | marketplace-app | Accepted |  |  | Maven Enforcer — dependency hygiene enforced at build time, starter-to-starter ban activated per-starter not at the root |
 | ADR-041 (marketplace-app) | marketplace-app | Accepted |  |  | ArchUnit codifies cross-module architecture rules — lives in `marketplace-app/src/test`, not a new module |
 | ADR-042 (marketplace-app) | marketplace-app | Accepted |  |  | `UserPickerField` gains an offset-based lookup (`OffsetPageable`) instead of deriving a page number from Vaadin's raw offset |
@@ -206,6 +206,10 @@ yet — not zero.
 | ADR-003 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `marketplace-app` becomes a true BFF client — zero direct domain `*Port` access, one named exception |
 | ADR-004 (marketplace-orchestrator) | marketplace-orchestrator | Accepted |  |  | `*Hook` implementations that only need domain-port access move here; `pom.xml` gains all 6 starter dependencies directly, superseding ADR-001's "never depends on a starter jar" |
 | ADR-005 (marketplace-orchestrator) | marketplace-orchestrator | Accepted **Applied:** 1 |  |  | `ActivityEnrichHookImpl` and `AdvertisementAuditEnrichService` move here too, behind the forwarder-SPI pattern |
+| ADR-036 (platform-commons) | platform-commons | Accepted |  | 1 | `TaxonPort` exposes a typed SQL predicate; the default-method allowance stays for calls to the interface's own methods |
+| ADR-036 (platform-commons) | taxon-spring-boot-starter | Accepted |  | 1 | `TaxonPort` exposes a typed SQL predicate; the default-method allowance stays for calls to the interface's own methods |
+| ADR-036 (platform-commons) | advertisement-spring-boot-starter | Accepted |  | 1 | `TaxonPort` exposes a typed SQL predicate; the default-method allowance stays for calls to the interface's own methods |
+| ADR-036 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | 1 | `TaxonPort` exposes a typed SQL predicate; the default-method allowance stays for calls to the interface's own methods |
 | ADR-035 (platform-commons) | platform-commons | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
 | ADR-035 (platform-commons) | marketplace-orchestrator | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
 | ADR-035 (platform-commons) | marketplace-app | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
@@ -216,9 +220,9 @@ yet — not zero.
 | ADR-035 (platform-commons) | promotion-spring-boot-starter | Accepted |  | 2 | Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer |
 | ADR-034 (platform-commons) | platform-commons | Accepted |  | 1 | `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement` |
 | ADR-033 (platform-commons) | platform-commons | Accepted |  |  | `AttachmentAllowedContentTypes` — single shared whitelist for attachment content types |
-| ADR-032 (platform-commons) | platform-commons | Accepted |  | 1 | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
-| ADR-032 (platform-commons) | advertisement-spring-boot-starter | Accepted |  | 1 | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
-| ADR-032 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  | 1 | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | platform-commons | Superseded by ADR-036 |  | 2 | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | advertisement-spring-boot-starter | Superseded by ADR-036 |  | 2 | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
+| ADR-032 (platform-commons) | provider-profile-spring-boot-starter | Superseded by ADR-036 |  | 2 | `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons" |
 | ADR-031 (platform-commons) | platform-commons | Accepted |  |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-031 (platform-commons) | provider-profile-spring-boot-starter | Accepted |  |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
 | ADR-031 (platform-commons) | marketplace-orchestrator | Accepted |  |  | Provider profile city storage unified to `taxon_assignment`, matching Advertisement — scalar shape kept, not converted to a list |
@@ -295,7 +299,11 @@ yet — not zero.
 | ADR-006 (scripts/sonar) | scripts/sonar | Accepted |  | 1 | SonarQube server and scanner containers get a pull-then-up freshness check, not just an API health check |
 | ADR-008 (scripts/sonar) | scripts/sonar | Accepted |  |  | `sonar.sources`/`sonar.java.binaries` module list auto-validated against `pom.xml` before every run, not hand-maintained |
 | ADR-009 (scripts/sonar) | scripts/sonar | Accepted |  |  | dashboard browsable anonymously — `sonar.forceAuthentication` set to `false` every run, not once by hand |
-| ADR-001 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted |  | 1 | Filter resolves through `Set<Long>`, not SQL JOIN |
+| ADR-006 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted |  | 1 | Category and city filter is a Taxon-built SQL predicate the owner splices into its own statement |
+| ADR-006 (taxon-spring-boot-starter) | advertisement-spring-boot-starter | Accepted |  | 1 | Category and city filter is a Taxon-built SQL predicate the owner splices into its own statement |
+| ADR-006 (taxon-spring-boot-starter) | provider-profile-spring-boot-starter | Accepted |  | 1 | Category and city filter is a Taxon-built SQL predicate the owner splices into its own statement |
+| ADR-006 (taxon-spring-boot-starter) | platform-commons | Accepted |  | 1 | Category and city filter is a Taxon-built SQL predicate the owner splices into its own statement |
+| ADR-001 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Superseded by ADR-006 |  | 2 | Filter resolves through `Set<Long>`, not SQL JOIN |
 | ADR-002 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-06-26) |  |  | DefaultTaxonPort is a coordination layer, not pure delegation |
 | ADR-003 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Accepted (done 2026-06-26) |  |  | TaxonType enum is a closed set in platform-commons |
 | ADR-004 (taxon-spring-boot-starter) | taxon-spring-boot-starter | Superseded 2026-07-17 — `TaxonAuditHook` removed entirely |  |  | TaxonAuditHook fires per assignment change, not per batch |

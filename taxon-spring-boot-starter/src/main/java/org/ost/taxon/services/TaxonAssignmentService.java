@@ -4,6 +4,8 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlColumn;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.taxon.entities.TaxonAssignment;
 import org.ost.taxon.repository.TaxonAssignmentRepository;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -56,8 +59,9 @@ public class TaxonAssignmentService {
                 .collect(Collectors.groupingBy(TaxonAssignment::getEntityId));
     }
 
-    public Set<Long> findEntityIdsByTaxonIds(@NonNull EntityType entityType, @NonNull Set<Long> taxonIds) {
-        return assignmentRepository.findEntityIdsByTaxonIds(entityType.name(), taxonIds);
+    public Optional<SqlPredicate> categoryAndCityPredicate(@NonNull EntityType entityType, @NonNull SqlColumn entityId,
+                                                            Set<Long> categoryIds, Long cityTaxonId) {
+        return assignmentRepository.categoryAndCityPredicate(entityType.name(), entityId, categoryIds, cityTaxonId);
     }
 
     public Map<Long, Long> countByTaxonIds(@NonNull Set<Long> taxonIds) {

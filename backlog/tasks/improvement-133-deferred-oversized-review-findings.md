@@ -225,17 +225,9 @@ actually goes" table says belongs in that module's `DECISIONS.md` — which does
 either yet. Needs a `/record-decision` pass to actually preserve the rationale, not just a one-line
 pointer with nothing on the other end.
 
-### 23. `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
+### 23. (done 2026-11-13) `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
 
-`AdvertisementService` and `ProviderProfileService` each repeat the same one-line guard —
-`if (taxonFilter.filter(Set::isEmpty).isPresent()) { return List.of(); }` /
-`return 0;` — once in `getFiltered` and once in `count` (confirmed directly against current
-source: 4 copies total, 2 per service). Distinct from the cross-module `resolveCategoryAndCityFilter`
-duplication Phase 9 already extracted (that one spanned two starters; this one is same-class,
-2-line, single-method-body scale) — deferred rather than fixed inline because it's small enough
-that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
-removes; needs a real judgment call on whether extraction is worth it before touching either
-service, not a reflexive DRY pass.
+Resolved by the category/city predicate change: `AdvertisementService` and `ProviderProfileService` no longer hold an empty-set guard in `getFiltered` or `count`, because the restriction is appended to the statement in SQL.
 
 ### 24. `integration-tests`: no global HikariCP pool-size cap across `@SpringBootTest` contexts risks Postgres `max_connections` exhaustion (found during improvement-199 Checkpoint 1, 2026-09-24)
 
