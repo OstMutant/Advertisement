@@ -15,16 +15,6 @@ Centralize `ObjectMapper.readValue` calls to eliminate JSON parsing inside proje
 JSON deserialization happens per row in activity queries.
 **Trigger:** cursor pagination implemented or activity feed grows beyond 20 rows per page.
 
-### C — Snapshot equality check cache
-`jsonEquals readTree` is expensive for large history lists.
-Fix: add parsed snapshot cache in `AuditHistoryPanel.configure()`.
-**Trigger:** history lists regularly exceed 100 items.
-
-### D — EntityDisplayNameResolver lookup
-`EntityDisplayNameResolver.supports()` uses linear scan over resolver list.
-Fix: replace with map lookup.
-**Trigger:** resolver count exceeds 5.
-
 ### E — Pagination hardcoded LIMIT values
 Hardcoded `LIMIT 20/100` in pagination queries.
 Fix: replace with cursor pagination.
@@ -33,11 +23,6 @@ Fix: replace with cursor pagination.
 ### F — EntityType enum to string registry
 Migrate `EntityType` enum to string registry/descriptor pattern for extensibility.
 **Trigger:** second consumer project appears that needs custom entity types.
-
-### G — AttachmentHistoryExtension rename
-`AdvertisementHistoryExtension` carries "Advertisement" in its name but is generic over `EntityType`.
-Fix: rename to `AttachmentHistoryExtension`.
-**Trigger:** second entity type uses attachment history extension.
 
 ### H — EntityType.storageKey() method
 S3 folder currently uses `name().toLowerCase()` for storage segment.

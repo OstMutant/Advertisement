@@ -7,13 +7,14 @@
 #   ensure_sonar_token.
 # Usage: source scripts/utils/ensure-sonar-token.sh; then call
 #   ensure_sonar_token <compose_file> <props_file> <sonar_url>.
-# Uses: bash, docker, curl.
+# Uses: bash, docker, curl, scripts/utils/docker-pull-retry.sh (docker_pull_missing_retry).
 # Env: None.
 # Input: None -- paths passed as arguments.
 # Outputs: starts/migrates the SonarQube server container if needed; writes a regenerated token
 #   into <props_file> if the existing one was invalid; progress messages to stdout.
 # Returns: 0 on success; 1 if admin/admin token generation itself failed.
 # ────────────────────────────────────────────────────────────────────────────
+source "$(dirname "${BASH_SOURCE[0]}")/docker-pull-retry.sh"
 
 #######################################
 # Ensures the SonarQube server at $3 is reachable and $2's own sonar.token= value authenticates
@@ -29,6 +30,7 @@
 ensure_sonar_token() {
   local compose_file="$1" props_file="$2" sonar_url="$3"
 
+  docker_pull_missing_retry $(docker compose -f "$compose_file" config --images)
   docker compose -f "$compose_file" up -d
 
   echo "Waiting for SonarQube to be ready..."
@@ -45,6 +47,7 @@ ensure_sonar_token() {
       if echo "$migrate_result" | grep -q '"state":"NOT_SUPPORTED"'; then
         echo "Migration not supported on the embedded database — wiping local scan history and starting fresh on the new image..."
         docker compose -f "$compose_file" down -v
+        docker_pull_missing_retry $(docker compose -f "$compose_file" config --images)
         docker compose -f "$compose_file" up -d
       fi
     fi

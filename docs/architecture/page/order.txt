@@ -1,0 +1,12 @@
+core
+system
+module
+pipelines
+backlog
+diagram-engine
+spi-map
+db-erd-and-contexts
+diagrams
+adrs
+search
+start

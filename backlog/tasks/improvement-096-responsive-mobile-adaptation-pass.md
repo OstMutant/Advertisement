@@ -22,6 +22,11 @@ date+time rows (`Created from [date][time] to [date][time]`) cannot fit; the use
 columns; overlay forms assume a wide two-column-ish content width; gallery thumbnails are
 fixed-size.
 
+Confirmed in a real browser at 375 px width (a screenshot of the Providers tab): the expanded filter
+panel is wider than the screen, so the page itself scrolls sideways and the City field is cut off at
+the right edge. The promotion strip added later keeps its own scrolling row inside the screen and is
+not part of this overflow.
+
 ## Suggested fix
 
 Phased program, each phase e2e-verified (add a mobile-viewport Playwright project first so every

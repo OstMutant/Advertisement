@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: creates the advertisement table with its indexes, including the pg_trgm trigram index that serves the title search. -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -48,9 +49,10 @@
         <createIndex indexName="idx_advertisement_deleted_at" tableName="advertisement">
             <column name="deleted_at"/>
         </createIndex>
-        <createIndex indexName="idx_advertisement_ad_kind" tableName="advertisement">
-            <column name="ad_kind"/>
-        </createIndex>
+
+        <!-- Trigram index: the title filter is ILIKE '%text%', which a B-tree index cannot serve (createIndex has no operator class, hence sql). -->
+        <sql>CREATE EXTENSION IF NOT EXISTS pg_trgm</sql>
+        <sql>CREATE INDEX idx_advertisement_title_trgm ON advertisement USING GIN (title gin_trgm_ops)</sql>
 
     </changeSet>
 

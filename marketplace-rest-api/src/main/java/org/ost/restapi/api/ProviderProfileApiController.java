@@ -59,23 +59,18 @@ import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-/**
- * Full CRUD over {@link ProviderProfileSaveService}/{@link ProviderProfileReadService} — v1 is
- * self-service only, {@code targetUserId} is always the caller's own id. Every returned
- * {@link ProviderProfileDto} is enriched with category/city names and actor info via
- * {@link ProviderProfileDisplayEnrichmentService}, the same pipeline the Vaadin UI uses.
- */
+/** Full CRUD over {@link ProviderProfileSaveService}/{@link ProviderProfileReadService}; {@code targetUserId} is always the caller's own id, and every returned profile is enriched like the Vaadin UI's. */
 @RestController
 @RequestMapping("/api/provider-profiles")
 @RequiredArgsConstructor
 public class ProviderProfileApiController {
 
 
-    // Mirrors ProviderProfileSortMeta's UI-sortable set -- marketplace-rest-api can't import that
-    // class (wrong dependency direction, see .claude/rules/marketplace-rest-api.md), so both sides
-    // independently reference the same ProviderProfileDto.Fields.* constants instead.
+    // Same sortable set as ProviderProfileSortMeta, built from the shared ProviderProfileDto.Fields constants.
     private static final Set<String> SORTABLE_FIELDS = Set.of(
-            ProviderProfileDto.Fields.createdAt, ProviderProfileDto.Fields.updatedAt);
+            ProviderProfileDto.Fields.createdAt, ProviderProfileDto.Fields.updatedAt, ProviderProfileDto.Fields.promoted);
+
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, ProviderProfileDto.Fields.promoted, ProviderProfileDto.Fields.updatedAt, ProviderProfileDto.Fields.createdAt);
 
     private final ProviderProfileSaveService saveService;
     private final ProviderProfileReadService readService;
@@ -107,14 +102,14 @@ public class ProviderProfileApiController {
         return enrich(readService.findById(id).orElseThrow(), SupportedLocales.DEFAULT);
     }
 
-    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers.")
+    @Operation(operationId = "listProviderProfiles", summary = "List/filter/sort provider profiles", description = "size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings), or the shared default for anonymous callers. Default order when sort is omitted: promoted profiles first, then most recently changed, then most recently created, then id; sort=promoted,asc lists the promoted ones last. promoted=true keeps only promoted profiles. Each item has promoted and promotionReason.")
     @GetMapping
     public ResponseEntity<List<ProviderProfileDto>> list(@AuthenticationPrincipal Long actorId,
             @ModelAttribute @Valid ProviderProfileFilterDto filter, @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String sort, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale,
             HttpServletRequest httpRequest) {
         int size = userProfileService.resolveProviderProfilesPageSize(actorId);
-        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
+        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS, DEFAULT_SORT);
         List<ProviderProfileDto> items = readService.getFiltered(filter, page, size, sortObj);
         items = enrichmentService.enrichWithCategoriesAndCity(items, Locale.forLanguageTag(locale));
         items = enrichmentService.enrichWithActorInfo(items);
@@ -122,12 +117,14 @@ public class ProviderProfileApiController {
         return PagedResponseBuilder.build(httpRequest, page, size, total, items);
     }
 
+
     @Operation(operationId = "getProviderProfile", summary = "Get one provider profile by id",
             description = "Public. Returns one provider profile with its ETag, the version to send back via If-Match on update or delete. 404 when the id is unknown.")
     @ApiResponse(responseCode = "200", headers = @Header(name = "ETag", description = "Version to send back via If-Match on update/delete"))
     @GetMapping("/{id}")
     public ResponseEntity<ProviderProfileDto> getById(@PathVariable Long id, @RequestParam(defaultValue = SupportedLocales.DEFAULT_TAG) String locale) {
         ProviderProfileDto profile = enrich(readService.findById(id).orElseThrow(NoSuchElementException::new), Locale.forLanguageTag(locale));
+        profile = enrichmentService.enrichWithPromotion(profile);
         return ETagUtil.withVersion(ResponseEntity.ok(), profile.getVersion()).body(profile);
     }
 
@@ -237,4 +234,5 @@ public class ProviderProfileApiController {
                     snapshot.cityTaxonId(), snapshot.phone(), snapshot.telegram(), snapshot.viber());
         }
     }
+
 }

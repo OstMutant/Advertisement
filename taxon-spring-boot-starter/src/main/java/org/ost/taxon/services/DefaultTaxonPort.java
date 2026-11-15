@@ -3,6 +3,8 @@ package org.ost.taxon.services;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlColumn;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
@@ -40,7 +42,7 @@ public class DefaultTaxonPort implements TaxonPort {
     @Transactional
     public void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
                                    @NonNull Set<Long> taxonIds) {
-        assignmentService.replaceAssignments(entityType, entityId, taxonIds, null);
+        assignmentService.replaceAssignments(entityType, entityId, taxonIds);
     }
 
     @Override
@@ -89,16 +91,13 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public Map<Long, TaxonDto> findByIds(@NonNull Set<Long> taxonIds, @NonNull Locale locale) {
-        if (taxonIds.isEmpty()) {
-            return Map.of();
-        }
         return buildDtoLookup(taxonIds.stream().toList(), locale, false);
     }
 
     @Override
-    public Set<Long> findEntityIdsWithAnyTaxon(@NonNull EntityType entityType,
-                                                @NonNull Set<Long> taxonIds) {
-        return assignmentService.findEntityIdsByTaxonIds(entityType, taxonIds);
+    public Optional<SqlPredicate> categoryAndCityPredicate(@NonNull EntityType entityType, @NonNull SqlColumn entityId,
+                                                            Set<Long> categoryIds, Long cityTaxonId) {
+        return assignmentService.categoryAndCityPredicate(entityType, entityId, categoryIds, cityTaxonId);
     }
 
     // ── Management operations ───────────────────────────────────────────────

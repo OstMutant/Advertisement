@@ -8,7 +8,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.integrationtests.support.ProviderProfileServiceTestSupport;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
@@ -19,12 +21,17 @@ import org.ost.provider.services.ProviderProfileService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -128,31 +135,97 @@ class ProviderProfileServiceTest {
     }
 
     @Test
-    void getFiltered_cityFilter_resolvesViaTaxonPortAndPassesAsAllowedIds() {
+    void getFiltered_taxonPredicate_passesTheScopeUnchangedAndThePredicate() {
         ProviderProfileService service = newService();
         TaxonPort taxonPort = mock(TaxonPort.class);
+        SqlPredicate predicate = new SqlPredicate("pp.id = ANY(:_ids)", Map.of("_ids", new Long[]{20L}));
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, null, 7L)).thenReturn(Optional.of(Set.of(10L, 20L)));
+        when(taxonPort.categoryAndCityPredicate(EntityType.PROVIDER_PROFILE, ProviderProfileRepository.ID, null, 7L))
+                .thenReturn(Optional.of(predicate));
         ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
         PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(10L, 20L), List.of(), false);
 
-        service.getFiltered(filter, 0, 10, Sort.unsorted());
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), scope);
 
-        verify(repository).findByFilter(filter, pageable, Set.of(10L, 20L));
+        verify(repository).findByFilter(eq(filter), eq(pageable), same(scope), same(predicate));
     }
 
     @Test
-    void getFiltered_categoryAndCityFilters_passesTaxonPortsResolvedIntersection() {
+    void getFiltered_taxonPortAbsent_passesTheScopeUnchangedAndNullPredicate() {
+        ProviderProfileService service = newService();
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.empty());
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(10L, 20L), List.of(), false);
+
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), scope);
+
+        verify(repository).findByFilter(eq(filter), eq(pageable), same(scope), isNull());
+    }
+
+    @Test
+    void getFiltered_portReturnsNoPredicate_passesTheScopeUnchangedAndNullPredicate() {
         ProviderProfileService service = newService();
         TaxonPort taxonPort = mock(TaxonPort.class);
         when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
-        when(taxonPort.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, Set.of(1L), 7L)).thenReturn(Optional.of(Set.of(20L)));
-        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder()
-                .categoryIds(Set.of(1L)).cityTaxonId(7L).build();
+        when(taxonPort.categoryAndCityPredicate(EntityType.PROVIDER_PROFILE, ProviderProfileRepository.ID, null, 7L))
+                .thenReturn(Optional.empty());
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
         PageRequest pageable = PageRequest.of(0, 10, Sort.unsorted());
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(10L, 20L), List.of(), false);
 
-        service.getFiltered(filter, 0, 10, Sort.unsorted());
+        service.getFiltered(filter, 0, 10, Sort.unsorted(), scope);
 
-        verify(repository).findByFilter(filter, pageable, Set.of(20L));
+        verify(repository).findByFilter(eq(filter), eq(pageable), same(scope), isNull());
+    }
+
+    @Test
+    void count_taxonPredicate_passesTheScopeUnchangedAndThePredicate() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        SqlPredicate predicate = new SqlPredicate("pp.id = ANY(:_ids)", Map.of("_ids", new Long[]{20L}));
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.categoryAndCityPredicate(EntityType.PROVIDER_PROFILE, ProviderProfileRepository.ID, null, 7L))
+                .thenReturn(Optional.of(predicate));
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(10L, 20L), List.of(), false);
+        when(repository.countByFilter(any(), any(), any())).thenReturn(1L);
+
+        int count = service.count(filter, scope);
+
+        assertThat(count).isEqualTo(1);
+        verify(repository).countByFilter(eq(filter), same(scope), same(predicate));
+    }
+
+    @Test
+    void count_taxonPortAbsent_passesTheScopeUnchangedAndNullPredicate() {
+        ProviderProfileService service = newService();
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.empty());
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(10L, 20L), List.of(), false);
+        when(repository.countByFilter(any(), any(), any())).thenReturn(1L);
+
+        int count = service.count(filter, scope);
+
+        assertThat(count).isEqualTo(1);
+        verify(repository).countByFilter(eq(filter), same(scope), isNull());
+    }
+
+    @Test
+    void count_portReturnsNoPredicate_passesTheScopeUnchangedAndNullPredicate() {
+        ProviderProfileService service = newService();
+        TaxonPort taxonPort = mock(TaxonPort.class);
+        when(taxonPortFactory.findIfAvailable()).thenReturn(Optional.of(taxonPort));
+        when(taxonPort.categoryAndCityPredicate(EntityType.PROVIDER_PROFILE, ProviderProfileRepository.ID, null, 7L))
+                .thenReturn(Optional.empty());
+        ProviderProfileFilterDto filter = ProviderProfileFilterDto.builder().cityTaxonId(7L).build();
+        ProviderProfileScope scope = new ProviderProfileScope(Set.of(10L, 20L), List.of(), false);
+        when(repository.countByFilter(any(), any(), any())).thenReturn(1L);
+
+        int count = service.count(filter, scope);
+
+        assertThat(count).isEqualTo(1);
+        verify(repository).countByFilter(eq(filter), same(scope), isNull());
     }
 }

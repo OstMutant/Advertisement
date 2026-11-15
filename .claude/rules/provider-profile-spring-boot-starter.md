@@ -16,7 +16,7 @@ Java package root: `org.ost.provider`
 - `ProviderProfileService` — create/update, delete, sanitizes `about` via the shared
   `html-sanitizer-lib` module's `HtmlSanitizer.sanitize()`, enforces the `kind == SUPPORT`
   requires-privileged-actor rule, resolves query-time category and city
-  filters via `TaxonPort.findEntityIdsWithAnyTaxon()`. Does not write category/city assignments (see
+  filters as one predicate via `TaxonPort.categoryAndCityPredicate()`. Does not write category/city assignments (see
   Key constraints) and does not enrich display fields — `getFiltered()`/`findById()`/
   `findByActorId()` return raw (unenriched) `ProviderProfileDto`s; category/city/actor display
   enrichment happens afterward via `marketplace-orchestrator`'s `ProviderProfileDisplayEnrichmentService`.
@@ -37,6 +37,10 @@ Tables: `provider_profile`
 ## Key constraints
 
 - `ProviderProfilePort` lives in `platform-commons`.
+- The list and its count take a `ProviderProfileScope` from the caller: ids to limit the list to and
+  groups of ids to list before (or after) everything else. The starter never learns why; the scope is
+  merged with the category/city filter ids by intersection, and the filter's `promoted` field is ignored
+  by the SQL filter (the orchestrator resolves it).
 - `@EnableJdbcRepositories(basePackages = "org.ost.provider.repository")` declared in
   `ProviderProfileAutoConfiguration`.
 - `ProviderProfilePortImpl` is pure delegation — no business logic inside the port.

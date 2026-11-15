@@ -1,0 +1,135 @@
+  :root {
+    --ink: #1a202c; --muted: #718096; --line: #e2e8f0; --bg: #f7f8fa; --card: #ffffff;
+    --accent: #2b6cb0; --active: #2f855a; --active-bg: #e6fffa; --transitional: #c05621;
+    --transitional-bg: #fffaf0; --deprecated: #718096; --deprecated-bg: #f1f3f5;
+    --critical: #c0392b; --critical-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 24px; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 17px; margin: 0 0 6px; }
+  header .subtitle { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  #search-wrap { position: relative; width: 280px; max-width: 100%; }
+  #search-box { width: 100%; font-size: 13px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--bg); }
+  #search-box:focus { outline: none; border-color: var(--accent); }
+  #search-results { position: absolute; right: 0; top: 100%; margin-top: 4px; width: 420px; max-width: 90vw; max-height: 60vh; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 10; }
+  .search-hit { padding: 7px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .search-hit:last-child { border-bottom: none; }
+  .search-hit:hover, .search-hit.first { background: var(--bg); }
+  .search-kind { display: inline-block; min-width: 64px; margin-right: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  .search-empty { padding: 8px 12px; font-size: 12px; color: var(--muted); font-style: italic; }
+  #breadcrumb { font-size: 13px; }
+  #breadcrumb a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  #breadcrumb a:hover { text-decoration: underline; }
+  #breadcrumb .sep { color: var(--muted); margin: 0 6px; }
+  #breadcrumb .current { color: var(--ink); font-weight: 600; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  h2.screen-title { font-size: 22px; margin: 0 0 4px; }
+  .screen-desc { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .domain-group { margin-bottom: 28px; }
+  .domain-group h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); transform: translateY(-1px); }
+  .card.card-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card.link-card { display: block; color: inherit; text-decoration: none; }
+  .section-title { margin: 20px 0 4px; }
+  .card .card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .card .card-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-top: 8px; }
+  .badge.ACTIVE { color: var(--active); background: var(--active-bg); }
+  .badge.TRANSITIONAL { color: var(--transitional); background: var(--transitional-bg); }
+  .badge.DEPRECATED { color: var(--deprecated); background: var(--deprecated-bg); }
+  .metric-good { color: var(--active); background: var(--active-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .metric-watch { color: var(--transitional); background: var(--transitional-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .metric-critical { color: var(--critical); background: var(--critical-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .special-card { background: linear-gradient(135deg,#2b6cb0,#2c5282); color: #fff; }
+  .special-card .card-desc { color: #cbd5e0; }
+  .module-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+  .module-header h2 { margin: 0; }
+  .domain-tag { font-size: 12px; color: var(--accent); background: #ebf4ff; padding: 3px 10px; border-radius: 10px; }
+  section.block { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  section.block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 12px; }
+  .dep-list { list-style: none; margin: 0; padding: 0; }
+  .dep-list li { padding: 6px 0; border-bottom: 1px solid #f0f2f4; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .dep-list li:last-child { border-bottom: none; }
+  .dep-list a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .dep-list a:hover { text-decoration: underline; }
+  .dep-tag { font-size: 10px; color: var(--muted); background: var(--bg); padding: 2px 7px; border-radius: 8px; }
+  .empty-hint { font-size: 12px; color: var(--muted); font-style: italic; }
+  .row-flash { animation: row-flash-anim 1.5s ease-out; }
+  @keyframes row-flash-anim { 0% { background-color: #fefcbf; } 100% { background-color: transparent; } }
+  table.simple.rowspan-table td { text-align: left; vertical-align: middle; }
+  .spi-calls { margin-top: 4px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .spi-calls code { background: none; padding: 0; font-size: 11px; }
+  .spi-methodcount { margin-top: 4px; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .spi-method-list { margin-top: 2px; font-size: 11px; line-height: 1.6; }
+  .spi-method-unused { color: var(--muted); font-style: italic; }
+  .adr-item { padding: 8px 0; border-bottom: 1px solid #f0f2f4; font-size: 13px; }
+  .adr-item:last-child { border-bottom: none; }
+  .adr-item .adr-id { color: var(--accent); font-weight: 600; font-size: 12px; }
+  table.simple { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  table.simple th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 2px solid var(--line); }
+  table.simple td { padding: 8px; border-bottom: 1px solid #f0f2f4; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
+  table.simple tr:last-child td { border-bottom: none; }
+  table.simple a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  table.simple a:hover { text-decoration: underline; }
+  table.simple a.module-badge { display: inline-block; color: #fff; font-weight: 600; padding: 3px 10px; border-radius: 10px; font-size: 12px; text-decoration: none; cursor: pointer; margin: 2px 2px 2px 0; white-space: nowrap; }
+  table.simple a.module-badge:hover { opacity: 0.85; text-decoration: none; }
+  .scope-label { font-size: 12px; color: var(--muted); }
+  code.path { font-size: 11px; color: var(--muted); }
+  .md-code { background: #1e293b; color: #e2e8f0; padding: 10px 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; overflow-x: auto; margin: 8px 0; }
+  .info-list { list-style: none; margin: 0; padding: 0; }
+  .info-list li { padding: 6px 0; border-bottom: 1px solid #f0f2f4; font-size: 13px; line-height: 1.5; }
+  .info-list li:last-child { border-bottom: none; }
+  .info-list code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .header-entry { padding: 14px 0; border-bottom: 1px solid #e5e8eb; }
+  .header-entry:last-child { border-bottom: none; }
+  .header-entry-file { font-family: monospace; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .header-entry-field { font-size: 13px; line-height: 1.5; margin: 3px 0; white-space: pre-wrap; }
+  .header-entry-field strong { color: var(--muted); font-weight: 600; }
+  .table-chip { display: inline-block; background: #f1f3f5; color: var(--ink); font-size: 11px; padding: 3px 9px; border-radius: 6px; margin: 2px 4px 2px 0; font-family: monospace; }
+  .diagram-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; overflow: auto; max-height: 75vh; }
+  /* Cytoscape-rendered diagrams (Module Dependencies, SPI Map, bounded-contexts graph) manage
+     their own internal pan/zoom transform -- the canvas element's DOM size never actually changes
+     with zoom, so this container never really overflows and native scrollbars never engage. Drag
+     empty canvas space to pan instead (see the diagram-note text above each one). */
+  #diagram-cy-wrap { overflow: hidden; max-height: none; }
+  .diagram-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .rel-row-flash { animation: rel-row-flash-anim 1.5s ease-out; }
+  @keyframes rel-row-flash-anim { 0% { background: #fff3bf; } 100% { background: transparent; } }
+  .diagram-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .diagram-toolbar button { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .diagram-toolbar button:hover { background: var(--bg); }
+  .zoom-controls { display: flex; align-items: center; gap: 6px; }
+  .zoom-controls span#zoom-label { font-size: 12px; color: var(--muted); width: 42px; text-align: center; display: inline-block; }
+  .adr-item a { color: var(--ink); text-decoration: none; cursor: pointer; }
+  .adr-item a:hover .adr-id { text-decoration: underline; }
+  .adr-item .adr-file { color: var(--muted); font-size: 12px; }
+  .adr-item .adr-status { color: var(--muted); font-size: 11px; margin-left: 6px; }
+  h3 .section-link { font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none; margin-left: 8px; cursor: pointer; }
+  h3 .section-link:hover { text-decoration: underline; }
+  a.module-link { color: var(--accent); cursor: pointer; text-decoration: none; }
+  a.module-link:hover { text-decoration: underline; }
+  .table-chip-row { margin-bottom: 12px; }
+  .table-chip-row a { display: inline-block; margin: 2px 6px 2px 0; }
+  .table-chip-row code.path { background: #f1f3f5; padding: 3px 8px; border-radius: 6px; }
+  .adr-subheading { font-size: 12px; font-weight: 600; color: var(--muted); margin: 4px 0 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .adr-subheading .section-link { text-transform: none; letter-spacing: normal; font-weight: 500; }
+  .glossary-item { margin-bottom: 20px; }
+  .glossary-item:last-child { margin-bottom: 0; }
+  .glossary-item > strong { display: block; font-size: 13px; margin-bottom: 6px; }
+  #adr-popup { border: none; border-radius: 10px; padding: 0; max-width: 720px; width: 90vw; max-height: 80vh; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+  #adr-popup::backdrop { background: rgba(20,24,28,.5); }
+  #adr-popup .adr-popup-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
+  #adr-popup .adr-popup-header h3 { margin: 0; font-size: 15px; }
+  #adr-popup .adr-popup-header .adr-status { display: block; margin-top: 4px; }
+  #adr-popup .adr-popup-close { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--muted); line-height: 1; padding: 2px 6px; }
+  #adr-popup .adr-popup-close:hover { color: var(--ink); }
+  #adr-popup .adr-popup-body { padding: 16px 20px; overflow: auto; max-height: calc(80vh - 60px); font-size: 13px; line-height: 1.6; }
+  #adr-popup .adr-popup-body p { margin: 0 0 10px; }
+  #adr-popup .adr-popup-body p:last-child { margin-bottom: 0; }
+  #adr-popup .adr-popup-body ul, #adr-popup .adr-popup-body ol { margin: 0 0 10px 20px; padding: 0; }
+  #adr-popup .adr-popup-body code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  #adr-popup .adr-popup-body table.simple { margin: 0 0 10px; }

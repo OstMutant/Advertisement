@@ -35,8 +35,8 @@ fallback). The `--progress=plain` flag in `deploy-and-run.sh` then enables line-
 BuildKit is active.
 
 **`docker compose` CLI plugin** — needed by `scripts/deploy-and-run/reset.sh` (starting dev DB when no
-container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). Not present by
-default in this sandbox.
+container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). The sandbox image
+built from `Dockerfile.claude` installs both through the script below; an older image lacks them.
 
 **Both plugins are installed automatically, not manually — `scripts/utils/ensure-docker-plugins.sh`.**
 `deploy-and-run.sh` (`ensure_buildx`, before its build step), `scripts/deploy-and-run/reset.sh` and
@@ -173,17 +173,17 @@ Streams full Maven/Testcontainers output live via `tee`. After the run:
 - `integration-tests/reports/surefire/` — one `.txt`/`.xml` pass/fail report per test class
   (copied from Maven's own `target/surefire-reports/`)
 
-`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/`attachment`/
-`provider-profile-spring-boot-starter` changed since their last `~/.m2` install (comparing each
-module's newest `.java` file's mtime against its installed JAR) and only reinstalls those before
-testing, instead of rebuilding all 9 non-`integration-tests` reactor modules every run (measured
+`run.sh` auto-detects which modules `integration-tests` depends on changed since their last `~/.m2`
+install (comparing each module's newest `.java` file's mtime against its installed JAR; the module
+list and detection rule are in `.claude/rules/integration-tests.md`) and only reinstalls those before
+testing, instead of rebuilding every reactor module every run (measured
 ~1:47-3:35 total when nothing needed
 reinstalling vs. 3-7 min walking the full reactor, dominated by ~100s of "nothing to compile"
 Maven overhead across those modules in this sandbox). No manual flag needed — confirmed the
 detection correctly triggers a reinstall when a starter file actually changes, not just when
 nothing changed. `--no-check` bypasses the detection entirely (test against whatever's in `~/.m2`
 right now) — only for deliberately reproducing behavior against an older build. See
-`integration-tests/CLAUDE.md` and `.claude/nav/adr-index.md` for the full rule.
+`.claude/rules/integration-tests.md` and `.claude/nav/adr-index.md` for the full rule.
 
 Raw `mvn`, no reports folder: `mvn -pl integration-tests -am test` (or, in this sandbox only,
 prefixed with `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`).
@@ -223,6 +223,16 @@ needed here.
    `Monitor` against `/tmp/activity-monitor/playwright.sh/tree.txt`.
 2. Stay quiet on routine step transitions; surface a real error (with its named pointer's detail)
    or a stall.
+
+---
+
+## Cleaning the Docker host
+
+```bash
+bash scripts/docker-clean.sh --dry-run --all     # plan only, nothing removed
+bash scripts/docker-clean.sh --caches            # containers + rebuildable caches
+```
+Containers only by default; every volume or cache scope is a flag named by what it loses, and a scope that is not a pure cache asks for the typed word `DELETE` (or `--yes`). The working session's container is recognised by a host-bound `/app` together with the host-bound Docker socket and is never removed, nor is a volume a surviving container still mounts. Nothing calls it automatically; `/docker-clean` wraps it with a plan and a question. The flags and the exact lists are in the script's own header.
 
 ---
 
@@ -275,9 +285,6 @@ bash scripts/ci.sh --rebuild                                         # force an 
                                                                        # container recreation even
                                                                        # when the Dockerfile is
                                                                        # unchanged
-bash scripts/ci.sh --refresh-tools                                    # force re-download of
-                                                                        # buildx/compose/dagu even
-                                                                        # if already cached
 bash scripts/ci.sh --no-archunit-metrics                                # skip ArchUnit's
                                                                           # module-coupling export
                                                                           # (on by default)
@@ -318,8 +325,8 @@ cached via `ci-tools-cache` (downloaded once, reused across image rebuilds — s
 overrides (container/network names, ports, volume names — default to the exact values already in
 use, so normal dev usage is unaffected) for the isolated e2e stack.
 
-**How to run it — `ci.sh` is now an 8th `activity-monitor.sh`-wrappable script, same mechanism as
-the other 7, not a separate one:**
+**How to run it — `ci.sh` is wrapped by `activity-monitor.sh` like the other covered
+scripts:**
 
 ```bash
 bash scripts/activity-monitor.sh -- bash scripts/ci.sh --foreground
@@ -340,8 +347,8 @@ one-step-at-a-time sequence view. Steps backed by one well-known container
 (`unit`/`integration`/`e2e`/`api_flows`/`archunit_metrics`) get the same live `docker inspect`-based
 container-state warning `deploy-and-run.sh`/`playwright.sh` already have.
 
-`bash scripts/ci.sh` (default, no `--foreground`) is unaffected — still triggers in the background
-and returns immediately, exactly as before; check on it later via Dagu's own web UI
+`bash scripts/ci.sh` (default, no `--foreground`) triggers in the background
+and returns immediately; check on it later via Dagu's own web UI
 (`http://localhost:8082`) or by running `python3 -u scripts/ci/dagu-rest-run-monitor.py` directly
 (prints the same real per-step transitions, as raw `AGENTIC_*_BLOCK` marker lines rather than a
 rendered tree, when nothing is wrapping it).

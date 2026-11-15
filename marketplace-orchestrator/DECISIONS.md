@@ -72,6 +72,7 @@ sets `Retry-After` from it instead of a fixed value.
 ## ADR-009: `StaleWriteException` replaces `OptimisticLockingFailureException` as the project-wide stale-write signal
 
 **Status:** Accepted
+**Applied:** 1
 
 **Context:** `org.springframework.dao.OptimisticLockingFailureException` (a Spring Data framework
 type) was the de facto "stale write" signal across the whole reactor — declared in
@@ -319,6 +320,10 @@ question at extraction time, not verified against a real second caller yet.
 
 ## ADR-002: `AdvertisementSaveService`'s cascade-cleanup-on-delete folds into the same transaction, not a separate step
 **Status:** Accepted
+
+**Verified:** 2026-11-07
+
+**Applied:** 3
 
 **Context:** `AdvertisementService.delete()` (the starter) used to clean up the advertisement's own
 taxon assignments and attachments before soft-deleting the row, all inside one

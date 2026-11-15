@@ -1,6 +1,7 @@
 package org.ost.user.config;
 
 import liquibase.integration.spring.SpringLiquibase;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.spi.UserAccountPort;
 import org.ost.platform.user.spi.UserAuthorizationPort;
@@ -32,8 +33,9 @@ import javax.sql.DataSource;
 
 /**
  * Auto-configures the User domain -- Liquibase migration, Spring Security beans (password
- * encoder, {@code UserDetailsService}, {@code AuthenticationManager}), and every
- * {@code User*Port} component-factory bean.
+ * encoder, {@code UserDetailsService}, {@code AuthenticationManager}, {@code SecurityContextRepository}),
+ * the lenient settings {@code ObjectMapper}, and the component-factory beans of the user ports,
+ * {@code UserSettingsChangedHook} and {@code AuditPort}.
  */
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
@@ -112,6 +114,12 @@ public class UserAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<UserSettingsChangedHook> userSettingsChangedHookFactory(ObjectProvider<UserSettingsChangedHook> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> p) {
         return new ComponentFactory<>(p);
     }
 }

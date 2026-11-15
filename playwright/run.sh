@@ -8,16 +8,15 @@
 #   Reuses `pw-runner` across calls -- the `playwright`/`@playwright/test` npm packages are only
 #   installed once (skipped on later runs if already present), and the pinned npm package version
 #   must match the container's own pre-baked Playwright browser version (both hardcoded here as
-#   PLAYWRIGHT_VERSION -- bump both together, never independently). --lint is a separate mode that
-#   skips the app/DB entirely -- it only syncs the same spec/flow/helper files plus
-#   eslint.config.js/package.json, installs eslint/eslint-plugin-playwright, and runs `npx eslint .`.
+#   PLAYWRIGHT_VERSION -- bump both together, never independently).
 # Usage: bash playwright/run.sh [scenario] [--ux] [--full] [--lint] [--grep <pattern>] [--workers <n>] [--repeat-each <n>]
 #   (no scenario)         run every *.spec.js file
 #   e2e                   run all e2e specs (skips the --full blocks by default)
 #   e2e --full            run e2e specs including the --full blocks
 #   <spec-name>           run a single spec file by name (with or without .spec.js)
 #   --ux                  also take screenshots (embedded in the HTML report)
-#   --lint                run ESLint over e2e/ instead of running any tests -- ignores scenario/--ux/--full/--grep
+#   --lint                run ESLint over e2e/ and the architecture-map page script instead of running any tests -- skips the
+#                         app and the database entirely; ignores scenario/--ux/--full/--grep (see Input, Outputs, Returns)
 #   --shot <url>          save a full-page PNG of any web page (for example the Dagu UI at http://localhost:8082)
 #                         instead of running any tests -- needs neither the app nor the database; the PNG lands in
 #                         scripts/logs/playwright/shots/ (see Outputs). Ignores scenario/--ux/--full/--grep
@@ -28,7 +27,8 @@
 #   --repeat-each <n>     forwarded to Playwright's own --repeat-each, runs every selected test n times
 # Uses: bash, docker, curl, npx playwright (inside pw-runner), npx eslint (inside pw-runner, --lint
 #   only), playwright/shot.js (inside pw-runner, --shot only), scripts/deploy-and-run/reset.sh (DB reset, only when the DB actually has data),
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
+#   scripts/utils/session-id.sh (write_session_info), scripts/utils/docker-pull-retry.sh (docker_pull_missing_retry).
 # Env: APP_URL (default http://localhost:8081), APP_CONTAINER (marketplace-app), PW_CONTAINER
 #   (pw-runner), DB_PORT (5432), DB_USER (experiments_user), DB_NAME (experiments) -- all
 #   overridable, used by scripts/ci/dagu/ci.yaml's e2e step for its isolated e2e stack.
@@ -40,8 +40,9 @@
 #   PW_LINT_MAX_WARNINGS (default: the repo-root .env value) -- --lint fails when ESLint reports more
 #   warnings than this, so the count of raw locators can only go down.
 # Input: playwright/e2e/*.js, playwright/e2e/_flows/*.js,
-#   playwright/playwright.config.js. --lint also reads playwright/eslint.config.js/package.json,
-#   ignores playwright.config.js.
+#   playwright/playwright.config.js. --lint instead reads the same spec/flow/helper files plus
+#   playwright/eslint.config.js and package.json (ignores playwright.config.js), and for the page
+#   lint docs/architecture/page/eslint.config.js, order.txt and the fragments order.txt names.
 # Outputs: HTML report (a result) at playwright/pw-report/index.html. Full raw console log (same
 #   content streamed live to stdout, a process log, not a result) at scripts/logs/playwright/run.log
 #   -- kept in a separate host destination from pw-report/, same logs-vs-reports split
@@ -56,21 +57,25 @@
 #   .claude/nav/adr-index.md) -- then copied out via `docker cp`; the same volume can also be inspected
 #   directly at any time, e.g. `docker exec pw-runner cat /reports/playwright-log/orchestrator.log`.
 #   Restarts marketplace-app if the DB needed a reset. --lint produces no HTML report/run.log --
-#   ESLint output goes straight to stdout. --shot produces no HTML report/run.log either -- only
+#   ESLint output goes straight to stdout; it installs the package.json devDependencies and leaves
+#   the scratch directories /lint (e2e lint) and /lint-page (page lint, the joined page script) in pw-runner. --shot produces no HTML report/run.log either -- only
 #   scripts/logs/playwright/shots/<name>.png, a look-at-a-page image, not a test result.
 # Returns: 0 if the Playwright run passes; non-zero if the app container isn't found/doesn't start,
 #   the DB reset fails, or any test fails. Also prints a single-line AGENTIC_SUCCESS_BLOCK JSON
 #   marker on a clean finish, or an AGENTIC_ERROR_BLOCK JSON marker
 #   (errorCategory/isRetryable/currentStep/description/durationSeconds) on any failure path, for
 #   an AI agent reading raw script output to parse machine-readable status instead of scraping
-#   free text. --lint: 0 if ESLint reports no errors, non-zero otherwise -- same two JSON markers.
+#   free text. --lint: 0 if the e2e lint stays within PW_LINT_MAX_WARNINGS and, only then, the page
+#   lint (fixed zero-warning limit) is clean, non-zero otherwise -- same two JSON markers.
 #   --shot: 0 if the PNG was written, non-zero otherwise -- same two JSON markers.
 # ────────────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
@@ -99,10 +104,7 @@ for arg in "$@"; do
   else SCENARIO="$arg"; fi
 done
 
-# ── Ensure marketplace-app is running ──────────────────────────────────────
-# All names/ports below are overridable via env vars (default shown), so a second, isolated
-# stack (see scripts/deploy-and-run.sh's own override block) can run this same script concurrently with
-# a normal dev stack — used by scripts/ci/dagu/ci.yaml's e2e step.
+# ── Ensure marketplace-app is running (names and ports are env-overridable so an isolated second stack can run beside the dev stack) ──
 APP_URL="${APP_URL:-http://localhost:8081}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
 PW_CONTAINER="${PW_CONTAINER:-pw-runner}"
@@ -110,52 +112,37 @@ DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-experiments_user}"
 DB_NAME="${DB_NAME:-experiments}"
 
-# Playwright version must match image (see /app/.claude/rules/playwright.md) -- one place to bump both
-# instead of two independent literals in the same file.
-PLAYWRIGHT_VERSION="1.61.1"
+# One pinned version drives both the npm packages and the image tag, which must match (see .claude/rules/playwright.md).
+PLAYWRIGHT_VERSION="1.65.0"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
-# ── Reuse pw-runner if already running, otherwise start it ───────────────────
-# Moved ahead of the app-container/DB-reset checks below (rather than staying next to the spec-sync
-# step further down, which is where it conceptually belongs) so log_orchestrator has a container to
-# write into from the very start of this script's own progress messages, not just from the test
-# invocation onward. test-reports is a shared named Docker volume (never a WSL/Windows-drive path,
-# see .claude/nav/adr-index.md) -- mounted here so it's present the moment pw-runner is (re)created.
-# Since pw-runner is normally reused across calls (not recreated every run), an already-running
-# container from before this mount was added won't pick it up until it's next recreated (e.g. via
-# `docker rm -f pw-runner`).
+# ── Reuse pw-runner if running, else start it, before the app/DB checks so log_orchestrator can write from the first message ──
+docker_pull_missing_retry "$PLAYWRIGHT_IMAGE"
 if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
-  docker run -d --name "$PW_CONTAINER" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
+  docker run -d --name "$PW_CONTAINER" --label "$PROJECT_LABEL" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
 else
   PW_STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
   if [ "$PW_STATUS" != "running" ]; then
     docker rm -f "$PW_CONTAINER"
-    docker run -d --name "$PW_CONTAINER" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
+    docker run -d --name "$PW_CONTAINER" --label "$PROJECT_LABEL" --network host -v "${TEST_REPORTS_VOLUME:-test-reports}:/reports" "$PLAYWRIGHT_IMAGE" sleep 86400
   fi
 fi
 docker exec "$PW_CONTAINER" sh -c "mkdir -p /reports/playwright-log" >/dev/null 2>&1 || true
 
-# Kills any stale Playwright process left running inside pw-runner from a prior crashed/interrupted
-# run, so it can't conflict with this one.
+# Kills a Playwright process left running in pw-runner by an interrupted run.
 docker exec "$PW_CONTAINER" pkill -f "node.*playwright" 2>/dev/null || true
 
-# This script's own top-level progress messages (app container startup, DB reset) otherwise go only
-# to whichever terminal invoked this script -- never persisted anywhere, unlike the actual test
-# output (already captured in run.log). A synchronous, foreground `docker exec -i ... cat >>` per
-# checkpoint (not a background pipe/fifo -- these messages are short and infrequent) mirrors each
-# one into the volume too, so it stays inspectable independent of terminal access.
+#######################################
+# Appends one progress message to orchestrator.log in the test-reports volume, so it outlives the terminal.
+# The write is a synchronous docker exec per message, not a background pipe: messages are short and infrequent.
+# Arguments: $1 the message.
+# Returns: 0 always (a failed write is ignored).
+#######################################
 log_orchestrator() {
   echo "$1" | docker exec -i "$PW_CONTAINER" sh -c "cat >> /reports/playwright-log/orchestrator.log" 2>/dev/null || true
 }
 
-# Copies e2e/*.js (specs, shared helpers, fixtures, setup) and e2e/_flows/*.js into pw-runner's <dest>/e2e -- shared
-# by both the lint path (below) and the test-run path (further down), since both need the same
-# real test source to check/execute against. Takes the destination dir so each path can use its
-# own node_modules (see --lint's own /lint below) -- sharing /tmp/node_modules between the two
-# previously caused the lint path's `npm install` (eslint/eslint-plugin-playwright only) to
-# satisfy the test-run path's own `[ ! -d /tmp/node_modules ]` existence check without actually
-# installing playwright/@playwright/test, breaking every test run until /tmp/node_modules was
-# manually removed (confirmed directly).
+# Copies e2e/*.js and e2e/_flows/*.js into pw-runner's <dest>/e2e; the lint and test paths pass different dests to keep separate node_modules.
 sync_e2e_files() {
   local dest="$1"
   docker exec "$PW_CONTAINER" bash -c "mkdir -p $dest/e2e"
@@ -170,10 +157,7 @@ sync_e2e_files() {
   fi
 }
 
-# ── Lint mode — no app/DB needed, exits before any of that gets checked ──────
-# Uses its own /lint directory (own node_modules) -- never /tmp -- so its eslint/
-# eslint-plugin-playwright install can never collide with the test-run path's own playwright/
-# @playwright/test install below (see sync_e2e_files's own comment for the incident this avoids).
+# ── Lint mode (no app/DB needed): own /lint directory, never /tmp, because a shared /tmp/node_modules let the lint install pass the test run's install check ──
 if [ -n "$LINT" ]; then
   echo "Running ESLint..."
   docker exec "$PW_CONTAINER" bash -c "rm -rf /lint && mkdir -p /lint"
@@ -184,6 +168,15 @@ if [ -n "$LINT" ]; then
   PW_LINT_MAX_WARNINGS="${PW_LINT_MAX_WARNINGS:-$(grep -E '^PW_LINT_MAX_WARNINGS=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
   docker exec "$PW_CONTAINER" bash -c "cd /lint && npx eslint . ${PW_LINT_MAX_WARNINGS:+--max-warnings $PW_LINT_MAX_WARNINGS}"
   EXIT_CODE=$?
+  if [ "$EXIT_CODE" -eq 0 ]; then
+    # Page script of the architecture map: fragments joined in page/order.txt order, linted with its own config and a zero warning limit
+    docker exec "$PW_CONTAINER" bash -c "rm -rf /lint-page && mkdir -p /lint-page && ln -s /lint/node_modules /lint-page/node_modules"
+    docker cp "$ROOT/docs/architecture/page/eslint.config.js" "$PW_CONTAINER":/lint-page/
+    while IFS= read -r page_file; do cat "$ROOT/docs/architecture/page/$page_file.js"; done < "$ROOT/docs/architecture/page/order.txt" \
+      | docker exec -i "$PW_CONTAINER" bash -c "cat > /lint-page/page.js"
+    docker exec "$PW_CONTAINER" bash -c "cd /lint-page && npx eslint . --max-warnings 0"
+    EXIT_CODE=$?
+  fi
   if [ "$EXIT_CODE" -ne 0 ]; then
     emit_agentic_error_block "business" "false" "eslint-lint" "ESLint found lint errors (exit $EXIT_CODE) -- see output above."
   else
@@ -192,8 +185,7 @@ if [ -n "$LINT" ]; then
   exit $EXIT_CODE
 fi
 
-# ── Shot mode — no app/DB needed, exits before any of that gets checked ──────
-# Uses its own /shot directory (own node_modules), for the same reason as /lint above.
+# ── Shot mode (no app/DB needed): own /shot directory with its own node_modules, same reason as /lint ──
 if [ -n "$SHOT_REQUESTED" ] && [ -z "$SHOT_URL" ]; then
   echo "ERROR: --shot needs a URL" >&2
   emit_agentic_error_block "validation" "false" "arg-parsing" "--shot needs a URL -- pass it as the next argument."
@@ -229,7 +221,7 @@ if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
   echo "  docker-compose -f scripts/deploy-and-run/docker-compose.db.yml -f scripts/deploy-and-run/docker-compose.seaweedfs.yml up -d"
-  echo "  docker run -d --name marketplace-app --network host \\"
+  echo "  docker run -d --name marketplace-app --label $PROJECT_LABEL --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"
   echo "    -e DB_PASSWORD=experiments_user_password \\"
@@ -268,9 +260,7 @@ else
     || { echo "ERROR: $APP_CONTAINER running but not responding"; log_orchestrator "ERROR: $APP_CONTAINER running but not responding"; docker logs --tail=30 "$APP_CONTAINER"; emit_agentic_error_block "transient" "true" "check-app-container" "$APP_CONTAINER is running but not responding on $APP_URL."; exit 1; }
 fi
 
-# ── Reset / seed database ─────────────────────────────────────────────────────
-# Tables are only truncated while the app is stopped — never live, and only
-# when actually needed (skip entirely if already empty).
+# ── Reset / seed database: tables are truncated only while the app is stopped and only when the DB has data ──
 DB_CONTAINER=$(docker ps --filter "publish=$DB_PORT" --format "{{.Names}}" | head -1)
 if [ -n "$DB_CONTAINER" ]; then
   ROW_COUNT=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
@@ -317,9 +307,7 @@ docker exec "$PW_CONTAINER" bash -c "rm -rf /tmp/e2e /tmp/playwright.config.js /
 sync_e2e_files /tmp
 docker cp "$ROOT/playwright/playwright.config.js" "$PW_CONTAINER":/tmp/
 
-# ── Build run command ─────────────────────────────────────────────────────────
-# APP_URL must be forwarded explicitly -- playwright.config.js reads it from the pw-runner
-# container's own env, not this script's shell (docker exec starts a fresh environment).
+# ── Build run command (APP_URL is forwarded explicitly because playwright.config.js reads the container's env, not this shell's) ──
 ADMIN_EMAIL="${ADMIN_EMAIL:-$(grep -E '^ADMIN_EMAIL=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(grep -E '^ADMIN_PASSWORD=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
 PW_WORKERS="${PW_WORKERS:-$(grep -E '^PW_WORKERS=' "$ROOT/.env" 2>/dev/null | cut -d= -f2-)}"
@@ -327,25 +315,10 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright APP_URL=$(printf '%q' "$APP_URL"
 [ -n "$UX" ]   && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
 [ -n "$FULL" ] && PW_ENV="$PW_ENV PW_FULL=1"
 
-# Full console output also persists to a log file, not just the terminal -- otherwise the only
-# record of a real failure's cause is whatever a Windows/PowerShell terminal's own scrollback
-# happens to still hold, easily lost on a long run. Written inside the container to
-# /reports/playwright-log/run.log -- deliberately NOT /reports/playwright/ (the HTML reporter's own
-# outputFolder) -- the HTML reporter clears its outputFolder when it finalizes the report after the
-# run, which silently deleted run.log every time it lived in that same folder (confirmed directly).
-# Both paths are under the shared test-reports named Docker volume, never a WSL/Windows-drive path,
-# so never subject to the docker-desktop-bind-mounts issue documented in .claude/nav/adr-index.md --
-# then copied out to $RUN_LOG via `docker cp` after the run. `tee` still prints live to stdout
-# unchanged; the inner `exit ${PIPESTATUS[0]}` (escaped so it evaluates inside the container, not
-# this host shell) propagates the real playwright exit code through docker exec's own $?, since
-# there's no host-side pipe left to lose it in.
-# No mkdir -p here -- `docker cp` (below) creates the destination directory itself when it doesn't
-# exist, so a raw bash `mkdir -p` against this WSL/Windows-drive host path was pure redundancy that
-# cost every run a real filesystem write vulnerable to the docker-desktop-bind-mounts issue
-# documented in .claude/nav/adr-index.md (confirmed directly to fail with "Permission denied" on a
-# real Docker Desktop/WSL2 machine). `docker cp` itself is daemon-mediated and not subject to it.
+# run.log is written to /reports/playwright-log, not /reports/playwright, whose folder the HTML reporter clears on finalize.
 RUN_LOG="$ROOT/scripts/logs/playwright/run.log"
 
+# In the docker exec strings below, \${PIPESTATUS[0]} is escaped to evaluate in the container and keep playwright's exit code through tee.
 EXTRA_ARGS="${WORKERS:+--workers $WORKERS} ${REPEAT_EACH:+--repeat-each $REPEAT_EACH}"
 # printf %q keeps a pattern with spaces or shell characters one argument inside the bash -c string below.
 GREP_ARG=""
@@ -375,13 +348,7 @@ fi
 
 EXIT_CODE=$?
 
-# ── Copy HTML report + run log back from the shared test-reports volume ──────
-# Two separate docker cp calls to two separate host destinations -- the HTML report (a result) goes
-# to playwright/pw-report/ as before; run.log (a process log) now goes to scripts/logs/playwright/
-# instead of also landing in pw-report/, so logs and reports stay separated on the host the same as
-# run-all-tests/build-and-test already are, not just inside the volume (they already lived in
-# separate volume paths -- see header -- specifically so the HTML reporter's own outputFolder-
-# clearing can't delete run.log; that volume-side split is unrelated to this host-side one).
+# ── Copy HTML report and run log back from the test-reports volume to playwright/pw-report/ and scripts/logs/playwright/ ──
 docker cp "$PW_CONTAINER":/reports/playwright/. "$ROOT/playwright/pw-report/" 2>/dev/null && \
   echo "HTML report: $ROOT/playwright/pw-report/index.html"
 docker cp "$PW_CONTAINER":/reports/playwright-log/. "$ROOT/scripts/logs/playwright/" 2>/dev/null

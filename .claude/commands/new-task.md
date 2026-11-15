@@ -49,7 +49,7 @@ Steps:
 
    <cross-references to related tasks/ADRs/CLAUDE.md sections already surfaced in conversation>
 
-   <the empty `## Operational notes` block exactly as `.claude/rules.md` defines it, every key at
+   <the empty `## Operational notes` block exactly as `.claude/rules/backlog-tasks.md` defines it (`Read` it first: a path rule does not load on a `Write`), every key at
      `n/a` and `adrs_referenced: none` — updated during the work, never left for the end>
    ```
    If the conversation so far doesn't have enough concrete detail for these sections (e.g. the

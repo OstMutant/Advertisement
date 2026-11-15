@@ -12,18 +12,21 @@
 #   normal use, run.sh owns this container's full lifecycle (pull/create/recreate/start).
 #   SONARQUBE_VERSION=<tag> docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
 #   --force-recreate to upgrade (then wipe volumes per above, since migration isn't supported).
+#   Run directly, export PROJECT_LABEL first (source scripts/utils/project-label.sh).
 # Uses: docker compose.
-# Env: SONARQUBE_VERSION (default 26.9.0.129388-community, see Docker Hub's sonarqube tags for
-#   available versions), SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true (Elasticsearch bootstrap checks
-#   off, needed for the embedded DB on a typical dev machine's resource limits).
-# Input: None (self-contained service definition).
+# Env: SONARQUBE_VERSION (default 26.11.0.134175-community, see Docker Hub's sonarqube tags for
+#   available versions), PROJECT_LABEL, SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true (Elasticsearch
+#   bootstrap checks off, needed for the embedded DB on a typical dev machine's resource limits).
+# Input: PROJECT_LABEL from the shell environment, not the repo-root .env (no --project-directory).
 # Outputs: a running `sonarqube` container; dashboard at http://localhost:9099 once up.
 # ────────────────────────────────────────────────────────────────────────────
 
 services:
   sonarqube:
-    image: sonarqube:${SONARQUBE_VERSION:-26.9.0.129388-community}
+    image: sonarqube:${SONARQUBE_VERSION:-26.11.0.134175-community}
     container_name: sonarqube
+    labels:
+      - ${PROJECT_LABEL}
     ports:
       - "9099:9000"
     volumes:

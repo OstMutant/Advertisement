@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: creates the taxon, taxon_translation and taxon_assignment tables with their indexes, including the unique index on type and code. -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -67,11 +68,6 @@
                        columnNames="taxon_id, locale"
                        constraintName="pk_taxon_translation"/>
 
-        <createIndex indexName="idx_taxon_translation_locale_name" tableName="taxon_translation">
-            <column name="locale"/>
-            <column name="name"/>
-        </createIndex>
-
         <!-- ── taxon_assignment ──────────────────────────────────────────── -->
         <createTable tableName="taxon_assignment"
                       remarks="Generic: any entity type can have taxons assigned (no FK to advertisement table). Idempotent assignment (replaceAssignments handles add/remove diff). Used for filtering advertisements by category without exposing the join table to marketplace UI.">
@@ -89,15 +85,17 @@
             <column name="assigned_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()" remarks="When the assignment was made">
                 <constraints nullable="false"/>
             </column>
-            <column name="assigned_by" type="BIGINT" remarks="User ID who made the assignment"/>
         </createTable>
 
         <addPrimaryKey tableName="taxon_assignment"
                        columnNames="entity_type, entity_id, taxon_id"
                        constraintName="pk_taxon_assignment"/>
 
-        <createIndex indexName="idx_taxon_assignment_taxon_id" tableName="taxon_assignment">
+        <!-- Covers the Taxon-built category and city predicate and the usage counts: an index-only lookup by taxon, entity type and entity id. -->
+        <createIndex indexName="idx_taxon_assignment_cover" tableName="taxon_assignment">
             <column name="taxon_id"/>
+            <column name="entity_type"/>
+            <column name="entity_id"/>
         </createIndex>
 
     </changeSet>

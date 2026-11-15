@@ -2,8 +2,28 @@
 
 ---
 
-## ADR-001: Filter resolves through `Set<Long>`, not SQL JOIN
+## ADR-006: Category and city filter is a Taxon-built SQL predicate the owner splices into its own statement
+
 **Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** advertisement-spring-boot-starter, provider-profile-spring-boot-starter, platform-commons
+
+**Context:** The id-set flow carries an id set of unbounded size through Java, twice per list page: at 241,000 matching rows one page costs about 0.9-1.1 s on the server before the JDBC transfer, and the trigger the earlier decision named for revisiting (a category above 10,000 ids) is reached. The revisit options it named were a starter-owned JOIN helper or a pre-computed mapping; a predicate built by the owner is the first. Measured on PostgreSQL 18 with 1,000,000 advertisements and 2,581,390 assignments (page plus count, median of five rounds, ms, per list page): 241k matching 336 against 838 for today's flow, 66k 257 against 345, 31k 273 against 281; selective filters get slower without a covering index (6.3k 262 against 117) and mostly faster with it (6.3k 35 against 95; 3k stays slower, 127 against 48). The JOIN form of the distinct ids is 2.5 to 5 times slower on the big filters (1694 against 383 ms at 241k).
+
+**Decision:** The owner of the rule 3 data builds the predicate. A reference to another module's entity is an opaque id; a filter over another module's data whose result is bounded (a page of ids, promotion placements, a user's selection) stays an id set or a bulk lookup through the Port; a filter whose result can match an unbounded number of rows is a predicate built by the owning module. `TaxonPort.categoryAndCityPredicate(entityType, entityId, categoryIds, cityTaxonId)` returns `Optional<SqlPredicate>`; Taxon writes the whole `EXISTS` on `taxon_assignment` (aliases `_tac`, `_tay`, parameters `_taxon*`); the consumer passes its own `SqlColumn` and splices the result into its page and count statements. Empty when neither filter is requested or Taxon is absent (the list is then unfiltered, as before); a present but empty category set matches nothing. `SqlColumn` and `SqlPredicate` are plain value objects in `platform-commons` `core.model` that carry only derivations of their own fields; only first-party starter repositories construct a predicate. A covering index `(taxon_id, entity_type, entity_id)` replaces the `taxon_id` index (usage-count full scan +24% on PostgreSQL 18). A consumer writes no foreign table or column name, so the decision about raw cross-starter joins stands unchanged.
+
+**Consequences:** Removing Taxon leaves no Taxon name in a consumer; a Taxon schema change is caught by Taxon's own contract test run against PostgreSQL; the early "empty set" returns and the Java intersection of the profile service go. The deployment assumption is one database and a role that may read `taxon_assignment`; splitting databases or roles would end the approach.
+
+**Rejected alternatives:** a relation table owned by the consumer (leaves Taxon ids behind after Taxon is removed), a database function (adds a database object for no gain), keeping the id set (fails the filter-in-database goal at scale), the JOIN of the distinct ids (slower on the big filters).
+
+---
+
+## ADR-001: Filter resolves through `Set<Long>`, not SQL JOIN
+**Status:** Superseded by ADR-006
+
+**Applied:** 2
 
 **Context:** Advertisement filtering by category requires joining `taxon_assignment` to
 `advertisement`. A direct JOIN would couple `AdvertisementRepository` SQL to `taxon_assignment`

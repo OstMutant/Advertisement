@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Pure delegation to {@link FeedbackService} -- no business logic of its own, per this project's {@code *PortImpl} convention. */
 @Service
@@ -47,6 +48,11 @@ public class FeedbackPortImpl implements FeedbackPort {
     @Override
     public FeedbackAggregateDto getAggregate(@NonNull EntityType entityType, @NonNull Long entityId) {
         return service.getAggregate(entityType, entityId);
+    }
+
+    @Override
+    public Set<Long> findEntityIdsWithRatingAtLeast(@NonNull EntityType entityType, double minAverage, int minReviews) {
+        return service.findEntityIdsWithRatingAtLeast(entityType, minAverage, minReviews);
     }
 
     @Override
@@ -112,6 +118,12 @@ public class FeedbackPortImpl implements FeedbackPort {
     @Transactional
     public void rejectComment(@NonNull Long commentId) {
         service.rejectComment(commentId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        service.deleteByEntity(entityType, entityId);
     }
 
     @Override

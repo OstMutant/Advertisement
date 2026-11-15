@@ -4947,6 +4947,116 @@
           }
         },
         {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"other user registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"otherId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Other\",\n  \"email\": \"flow.other.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: feedback.other\nlabel: Register other user\nkind: optional\n\nRegisters a second ordinary user, who does not own the flow provider profile."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"otherKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "flow.other.{{runId}}@example.com",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: feedback.otherkey\nlabel: Issue other key\nkind: optional\n\nIssues the API key of the second user."
+          }
+        },
+        {
           "name": "createProviderProfileFeedback",
           "event": [
             {
@@ -4997,7 +5107,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{userKey}}",
+                  "value": "{{otherKey}}",
                   "type": "string"
                 }
               ]
@@ -5054,7 +5164,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{userKey}}",
+                  "value": "{{otherKey}}",
                   "type": "string"
                 }
               ]
@@ -5182,122 +5292,12 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{userKey}}",
+                  "value": "{{otherKey}}",
                   "type": "string"
                 }
               ]
             },
             "description": "step: feedback.update\nlabel: Edit review\nkind: optional\n\nEdits the flow user's review and stores its new version."
-          }
-        },
-        {
-          "name": "registerUser",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"other user registered\", function () {",
-                  "  pm.response.to.have.status(201);",
-                  "});",
-                  "pm.collectionVariables.set(\"otherId\", pm.response.json().id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{host}}/api/users",
-              "host": [
-                "{{host}}"
-              ],
-              "path": [
-                "api",
-                "users"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Flow Other\",\n  \"email\": \"flow.other.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
-            },
-            "description": "step: feedback.other\nlabel: Register other user\nkind: optional\n\nRegisters a second ordinary user, who does not own the flow provider profile."
-          }
-        },
-        {
-          "name": "issueApiKey",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"key issued\", function () {",
-                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
-                  "});",
-                  "pm.collectionVariables.set(\"otherKey\", pm.response.json().rawKey);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{host}}/api/api-keys",
-              "host": [
-                "{{host}}"
-              ],
-              "path": [
-                "api",
-                "api-keys"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "basic",
-              "basic": [
-                {
-                  "key": "username",
-                  "value": "flow.other.{{runId}}@example.com",
-                  "type": "string"
-                },
-                {
-                  "key": "password",
-                  "value": "{{userPassword}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "description": "step: feedback.otherkey\nlabel: Issue other key\nkind: optional\n\nIssues the API key of the second user."
           }
         },
         {
@@ -6093,6 +6093,116 @@
           }
         },
         {
+          "name": "registerUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"other user registered\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.collectionVariables.set(\"modOtherId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/users",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flow Moderation Other\",\n  \"email\": \"flow.modother.{{runId}}@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "step: moderation.other\nlabel: Register other user\nkind: optional\n\nRegisters a second ordinary user, who does not own the flow provider profile."
+          }
+        },
+        {
+          "name": "issueApiKey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"key issued\", function () {",
+                  "  pm.expect(pm.response.json().rawKey).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"modOtherKey\", pm.response.json().rawKey);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{host}}/api/api-keys",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "api-keys"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "flow.modother.{{runId}}@example.com",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.otherkey\nlabel: Issue other key\nkind: optional\n\nIssues the API key of the second user."
+          }
+        },
+        {
           "name": "createProviderProfile",
           "event": [
             {
@@ -6199,7 +6309,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{userKey}}",
+                  "value": "{{modOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -6429,7 +6539,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{userKey}}",
+                  "value": "{{modOtherKey}}",
                   "type": "string"
                 }
               ]
@@ -6932,6 +7042,48 @@
               ]
             },
             "description": "step: moderation.profiledelete\nlabel: Delete profile\nkind: optional\n\nDeletes the flow moderation provider profile."
+          }
+        },
+        {
+          "name": "deleteUser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"other user deleted\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/users/{{modOtherId}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{modOtherId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{modOtherKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "step: moderation.otherdelete\nlabel: Delete other user\nkind: optional\n\nDeletes the second user with its own key."
           }
         },
         {

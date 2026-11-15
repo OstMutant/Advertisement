@@ -1,6 +1,7 @@
 package org.ost.taxon.config;
 
 import liquibase.integration.spring.SpringLiquibase;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.taxon.TaxonPackageMarker;
@@ -15,7 +16,7 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 import javax.sql.DataSource;
 
-/** Auto-configuration entry point: wires this starter's Liquibase changelog, {@code taxon.repository} JDBC repositories, and the {@link TaxonPort} {@link ComponentFactory} bean. */
+/** Auto-configuration entry point: wires this starter's Liquibase changelog, {@code taxon.repository} JDBC repositories, and the {@link ComponentFactory} beans of the ports it provides and uses ({@link TaxonPort}, {@link AuditPort}). */
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan(basePackageClasses = TaxonPackageMarker.class)
@@ -35,6 +36,12 @@ public class TaxonAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<TaxonPort> taxonPortFactory(ObjectProvider<TaxonPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> p) {
         return new ComponentFactory<>(p);
     }
 }

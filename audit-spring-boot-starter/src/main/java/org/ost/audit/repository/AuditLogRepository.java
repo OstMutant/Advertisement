@@ -138,18 +138,17 @@ public class AuditLogRepository {
                 .addValue("offset", (long) page * size);
         String orderBy = OrderByBuilder.build(sort, SORT_FIELDS);
         String sql = ("WITH numbered AS (\n" + NUMBERED_SELECT + ")\n" + """
-                        SELECT * FROM numbered al
-                        WHERE 1=1%s
+                        SELECT * FROM numbered al%s
                         %s
                         LIMIT :limit OFFSET :offset
-                        """).formatted(FILTER.build(params, filter, " AND "), orderBy);
+                        """).formatted(FILTER.build(params, filter, " WHERE "), orderBy);
         return jdbcClient.sql(sql).paramSource(params).query(projectionMapper).list();
     }
 
     public int countTimeline(@NonNull AuditTimelineFilterDto filter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
-        String sql = "SELECT COUNT(*) FROM audit_log al WHERE 1=1%s"
-                .formatted(FILTER.build(params, filter, " AND "));
+        String sql = "SELECT COUNT(*) FROM audit_log al%s"
+                .formatted(FILTER.build(params, filter, " WHERE "));
         return jdbcClient.sql(sql).paramSource(params).query(Integer.class).single();
     }
 

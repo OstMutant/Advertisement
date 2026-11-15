@@ -7,6 +7,8 @@ import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.SqlColumn;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
@@ -57,6 +59,8 @@ public class AdvertisementRepository {
             SqlBoundFilter.of(adKinds,        "a.ad_kind",      (m, v) -> inSet(m, v.getAdKinds()))
     ));
 
+    public static final SqlColumn ID = new SqlColumn("a", "id");
+
     private static final String ADVERTISEMENT_SELECT =
             "SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version FROM advertisement a";
 
@@ -94,26 +98,25 @@ public class AdvertisementRepository {
                     SortField.of(AdvertisementInfoDto.Fields.id, "a.id")));
 
     public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable,
-                                                    Set<Long> allowedIds) {
+                                                    SqlPredicate taxonPredicate) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
         String sql = (ADVERTISEMENT_SELECT + " WHERE a.deleted_at IS NULL%s%s%s%s")
-                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
+                .formatted(buildTaxonClause(params, taxonPredicate), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(@NonNull AdvertisementFilterDto filter, Set<Long> allowedIds) {
+    public Long countByFilter(@NonNull AdvertisementFilterDto filter, SqlPredicate taxonPredicate) {
         var params = new MapSqlParameterSource();
         String sql = "SELECT COUNT(*) FROM advertisement a WHERE a.deleted_at IS NULL%s%s"
-                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "));
+                .formatted(buildTaxonClause(params, taxonPredicate), FILTER.build(params, filter, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
-    private static String buildIdClause(MapSqlParameterSource params, Set<Long> ids) {
-        if (ids == null) return "";
-        // A Long[] (not a Collection) binds as one JDBC bigint[] parameter regardless of set size, keeping the query plan cacheable across sizes -- same approach as findExistingIds() below.
-        params.addValue("allowedIds", ids.toArray(new Long[0]));
-        return " AND a.id = ANY(:allowedIds)";
+    private static String buildTaxonClause(MapSqlParameterSource params, SqlPredicate predicate) {
+        if (predicate == null) return "";
+        params.addValues(predicate.params());
+        return predicate.asAndClause();
     }
 
     public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId, Long version) {

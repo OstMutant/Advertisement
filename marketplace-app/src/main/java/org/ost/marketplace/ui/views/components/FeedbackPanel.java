@@ -130,7 +130,7 @@ public class FeedbackPanel extends Div
     private void buildFormContainer(EntityRef entityRef) {
         formContainer = new Div();
         formContainer.addClassName("feedback-form-container");
-        if (addFormOpen && access.isLoggedIn() && !hasOwnEntry) {
+        if (addFormOpen && canAdd()) {
             formContainer.add(buildForm(entityRef));
         } else {
             formContainer.add(buildAddTrigger(entityRef));
@@ -151,8 +151,12 @@ public class FeedbackPanel extends Div
         return trigger;
     }
 
+    private boolean canAdd() {
+        return access.isLoggedIn() && !hasOwnEntry && !access.getCurrentUserId().equals(ownerUserId);
+    }
+
     private void updateAddControlsVisibility(EntityRef entityRef) {
-        if (access.isLoggedIn() && !hasOwnEntry) {
+        if (canAdd()) {
             if (!addFormOpen) {
                 formContainer.removeAll();
                 formContainer.add(buildAddTrigger(entityRef));

@@ -12,6 +12,7 @@ Real entry points, independently invocable:
 bash .claude/nav/scripts/generate-adr-index.sh
 bash .claude/nav/scripts/check-flows-completeness.sh
 bash .claude/nav/scripts/check-hardcoded-counts.sh
+bash .claude/nav/scripts/check-module-lists.sh
 node .claude/nav/scripts/md-to-decisions-json.js <module> [<module> ...]
 node .claude/nav/scripts/md-to-decisions-json.js --stdout <module>
 node .claude/nav/scripts/md-to-decisions-json.js --extract <module> <ADR-NNN>[,<ADR-NNN>...]
@@ -23,8 +24,8 @@ before building the model that reads it), by `/record-decision`, and by a standi
 `.claude/rules.md` rule requiring it after any `DECISIONS.md` edit. The `docs` stage no longer
 diffs the committed index against a fresh regeneration — it regenerates it and `scripts/ci/run.sh`
 copies the result back to the host, so a run just leaves the fresh file to commit.
-`check-flows-completeness.sh` and `check-hardcoded-counts.sh` are the `docs` stage's read-only
-verifiers.
+`check-flows-completeness.sh`, `check-hardcoded-counts.sh` and `check-module-lists.sh` are the `docs`
+stage's read-only verifiers.
 
 `md-to-decisions-json.js` has two distinct real callers, not one flow: its `--stdout` mode is
 called by `docs/architecture/scripts/generate-architecture-model.sh` (a script in a different
@@ -35,6 +36,7 @@ directly, on demand, per `.claude/nav/README.md`'s own guidance, not from any ot
 flowchart TD
     CI[scripts/ci/dagu/ci.yaml docs stage] --> FL[check-flows-completeness.sh]
     CI --> H[check-hardcoded-counts.sh]
+    CI --> ML[check-module-lists.sh]
     CI --> GAM
     GAM["docs/architecture/scripts/generate-architecture-model.sh"] --> G[generate-adr-index.sh]
     RD["/record-decision command"] --> G

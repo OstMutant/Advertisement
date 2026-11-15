@@ -6,9 +6,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.provider.entity.ProviderProfile;
@@ -36,25 +38,17 @@ public class ProviderProfileService {
 
     // ── Query & filter ───────────────────────────────────────────────────────
 
-    public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
-        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
-        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
-            return List.of();
-        }
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
+    public List<ProviderProfileDto> getFiltered(@Valid @NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull ProviderProfileScope scope) {
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), scope, resolveTaxonPredicate(filter).orElse(null));
     }
 
-    public int count(@Valid @NonNull ProviderProfileFilterDto filter) {
-        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
-        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
-            return 0;
-        }
-        return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
+    public int count(@Valid @NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope) {
+        return repository.countByFilter(filter, scope, resolveTaxonPredicate(filter).orElse(null)).intValue();
     }
 
-    private Optional<Set<Long>> resolveTaxonFilter(ProviderProfileFilterDto filter) {
+    private Optional<SqlPredicate> resolveTaxonPredicate(ProviderProfileFilterDto filter) {
         return taxonPortFactory.findIfAvailable()
-                .flatMap(p -> p.resolveCategoryAndCityFilter(EntityType.PROVIDER_PROFILE, filter.getCategoryIds(), filter.getCityTaxonId()));
+                .flatMap(p -> p.categoryAndCityPredicate(EntityType.PROVIDER_PROFILE, ProviderProfileRepository.ID, filter.getCategoryIds(), filter.getCityTaxonId()));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────

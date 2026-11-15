@@ -7,21 +7,12 @@
 
 ## Items
 
-### A — snapshot version race in `AttachmentSnapshotService.capture()`
+### A — snapshot version race when a snapshot is inserted (`AttachmentSnapshotRepository.insert`)
 Version is computed as `COALESCE((SELECT MAX(version) ...), 0) + 1` — a classic
 read-then-insert race: two concurrent captures for the same entity can both read the same
 MAX and insert duplicate versions.
 **Fix:** `UNIQUE(entity_type, entity_id, version)` constraint (Liquibase changeset in this
 starter) + catch `DuplicateKeyException` and retry once. Cheap and definitive.
-
-### B — ~~media summary last-write-wins in `AdvertisementService.onMediaChanged()`~~ — resolved as a byproduct of improvement-042 (2026-07-14)
-Was: two concurrent uploads to the same advertisement both read media state and both write the
-denormalized summary — the later write may reflect the earlier state. `onMediaChanged()`,
-`AdvertisementRepository.updateMedia()`, and the denormalized `media_url`/`media_content_type`/
-`media_count` columns it raced over no longer exist — `AdvertisementService.enrichWithMediaSummary()`
-now computes the media summary fresh at read time via `AttachmentPort.getMediaSummaries()`, on
-every list/detail fetch. There is no stored summary left to race on a write, so this item is
-moot, not fixed by a concurrency control — see `marketplace-app/DECISIONS.md` ADR-035.
 
 ### C — `saveAll()` issues row-by-row inserts
 `AttachmentService.commitTempUploadsQuiet()` uses `CrudRepository.saveAll()`, which in
@@ -42,6 +33,19 @@ narrowed 2026-07-19. A composite index does not protect against the real concurr
 double-commit of the same gallery produces *different* UUIDs per temp upload, so no uniqueness
 constraint can catch it — that needs commit idempotency (item A's territory). Plain `UNIQUE(url)`
 is what actually hardens an invariant the code depends on. Bundle with item A's changeset.
+
+## Checked against the code (2026-11-11)
+
+All four items still hold; none was done and none was started.
+
+- A: the version is still `COALESCE((SELECT MAX(version) ...), 0) + 1` inside one `INSERT`, now in `AttachmentSnapshotRepository.insert` (the item named the service, which no longer holds the SQL). The schema has only a non-unique index on `(entity_type, entity_id)`; the remarks of the `version` column say it is not a real optimistic-lock check.
+- C: `AttachmentService.commitTempUploadsQuiet` still calls `attachmentRepository.saveAll`, which is `CrudRepository.saveAll`: one `INSERT` per element.
+- D: `attachment.url` is `NOT NULL` and has no unique constraint; the only indexes are `idx_attachment_entity` and `idx_attachment_deleted_at`.
+- E: `TaxonAssignmentService.replaceAssignments` still loops `unassign` over the removed taxons and `assign` over the added ones inside one `@Transactional` method, so a save costs the number of added plus removed taxons in statements; no upper limit on the categories of one entity was found in the code.
+- The schema file was touched since this item was written (the unused GIN index on `changes_summary` was dropped, remarks were corrected) without taking A or D along, so "bundle with any schema touch" does not happen by itself.
+- Before the unique constraints of A and D: check the development and any real database for duplicate urls (`SELECT url, COUNT(*) FROM attachment GROUP BY url HAVING COUNT(*) > 1`) and duplicate versions, or the changeset stops.
+
+Decision 2026-11-11: not done now; A and D stay a pair for the next schema touch, C waits for galleries above ten items, E goes to the taxon module as its own task if it is picked up.
 
 ## Trigger
 

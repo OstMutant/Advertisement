@@ -38,18 +38,6 @@ item 25), not encoded in the type system. Surfaced by the same Altitude pass. Po
 a `SqlOperator`-level cardinality marker, or splitting the factory method shapes — needs a design
 decision, not a mechanical fix.
 
-### 3. `integration-tests/run.sh` silently drops all but the last test-class scenario argument (found during Batch I, 2026-07-30)
-
-`run.sh`'s arg-parsing loop (`for arg in "$@"; do ... else SCENARIO="$arg"; fi; done`) overwrites
-`SCENARIO` on every non-flag argument instead of accumulating them, so
-`bash scripts/integration-tests.sh --sandbox ClassA ClassB ClassC` silently runs only `ClassC` —
-`ClassA`/`ClassB` are dropped with no warning or error. Confirmed directly during Batch I: a run
-intended to cover 5 attachment-domain test classes only ran the last one named; had to be redone
-with a single comma-joined `-Dtest=...`-style argument instead (which the script does forward
-correctly as one opaque `SCENARIO` string). Fix is small and mechanical (join extra positional args
-with a comma instead of overwriting) but touches a shared script used by every batch's test cycle,
-so it's deferred here for a deliberate pass rather than a rushed inline fix.
-
 ### 4. Unify entity→DTO simple-mapping convention across all modules (decided during Batch C, 2026-07-30)
 
 **Convention adopted:** when a DTO is built by pure field copy with no join/enrichment (no locale,
@@ -89,19 +77,6 @@ be a new dependency addition, not a small fix — out of proportion here. Revisi
 starter accumulates enough of these simple mappings that a `@Mapper` interface would clearly pay
 for the added dependency.
 
-### 5. `UserFormOverlayModeHandler` repeats the same field-copy block, same shape improvement-132 Batch F just fixed for advertisements (found during Batch F review, 2026-07-30)
-
-`marketplace-app/.../users/overlay/modes/UserFormOverlayModeHandler.java` inline-duplicates the
-same two-field (`name`, `role`) copy lambda at `loadRestored()` and `discardChanges()` — the exact
-shape `improvement-132` Batch F's item 14 just extracted into `copyEditFields()` for
-`AdvertisementFormOverlayModeHandler`. Surfaced by Batch F's own `/code-review` reuse-angle finder
-while reviewing the item 14 fix; left untouched since it's a different class outside Batch F's
-approved scope (items 13/14/15/17, all in `AdvertisementFormOverlayModeHandler`/buttons/fields/
-`AccessEvaluator`). Fix is mechanical and small — extract a `copyEditFields(src, tgt)` method
-mirroring the same precedent (`TaxonFormOverlayModeHandler.copyLocaleFields()`) — but is deferred
-here rather than expanded into Batch F, since touching a second, unrelated form handler mid-batch
-would have widened the reviewed diff beyond what was approved.
-
 ### 6. `integration-tests`: `@EnableJdbcAuditing` still copy-pasted alongside `@RepositoryTestAutoConfig` in all 5 locations (found during Batch K review, 2026-07-31)
 
 Batch K (item 31) centralized the 8-class `@ImportAutoConfiguration` array into one composed
@@ -111,7 +86,7 @@ adjacent `@EnableJdbcAuditing` line is a fixed constant with no per-site variati
 in all 5 locations, and was left untouched — folding it into the same composed annotation (or a
 new one) would fully collapse the pair to one annotation everywhere. Left out of Batch K's scope
 (item 31 named only the `@ImportAutoConfiguration` array); a future touch to how JDBC auditing is
-enabled would otherwise still require editing all 5 files.
+enabled would otherwise still require editing all 5 files. Checked 2026-11-11: `RestApiTestAutoConfig` composes `RepositoryTestAutoConfig`, so folding `@EnableJdbcAuditing` into it would also switch auditing on for the Level 3 REST scenarios, which supply their own request-scoped `AuditorAware`; check those scenarios first, or use a second composed annotation for the Level 1 sites only.
 
 ### 7. `integration-tests`: `auditorAware()`/`currentActorHook()`/`@MockitoBean S3Client+StorageService` bean triads duplicated across 3-4 `TestConfig` classes (found during Batch K review, 2026-07-31)
 
@@ -124,23 +99,9 @@ Batch K (out of the approved item-31 scope) — needs a design decision (a secon
 `@TestConfiguration` bean bag alongside `RepositoryTestSupport`? a builder-style test fixture?)
 before it can be sized as a mechanical fix.
 
-### 8. `TaxonFormOverlayModeHandler`/`CityFormOverlayModeHandler` pure duplication (from improvement-132 Batch E, 2026-07-29)
+### 9. `docs/architecture/scripts/DECISIONS.md`: ADR-003 and ADR-024 are UI/layout churn that shouldn't have been separate ADRs (found 2026-08-07)
 
-Every method, field, and control-flow path in `TaxonFormOverlayModeHandler.java` and
-`CityFormOverlayModeHandler.java` matches line-for-line — a pure mechanical rename of each other.
-`marketplace-app/DECISIONS.md` ADR-065's stated reason for not sharing a generic base (`TaxonOverlay`
-is a `@UIScope` singleton needing distinct bean instances per simultaneous tab) applies to the
-`*Overlay` classes, not to these two `@Scope("prototype")` handlers, which by construction get a
-fresh instance per lookup regardless of parameterization — so ADR-065's exception doesn't actually
-cover this case. Real risk already realized per ADR-065/066's own "fixed in one copy, not the
-sibling" bug history. Needs a design decision (shared prototype-scoped base class vs. extending
-ADR-065's stated exception to cover handlers too) before it can be sized as a mechanical fix — not
-picked up as part of improvement-132's Batch E since every other batch there was a same-file
-mechanical edit and this one isn't.
-
-### 9. `scripts/architecture/DECISIONS.md`: ADR-003 and ADR-024 are UI/layout churn that shouldn't have been separate ADRs (found 2026-08-07)
-
-`scripts/architecture/DECISIONS.md` (1556 lines / 21 ADRs) documents `architecture-map.html`'s own
+`docs/architecture/scripts/DECISIONS.md` (1556 lines / 21 ADRs) documents `architecture-map.html`'s own
 generator (`generate-architecture-model.sh`, 2955 lines) — already the direct motivation for
 `improvement-145`'s on-demand ADR extraction. Auditing all 21 entries against
 `.claude/commands/decision.md`'s worthiness gate (tightened in the same conversation to explicitly
@@ -165,35 +126,6 @@ same conversation this was found in). Needs its own explicit go-ahead and a deci
 (delete outright vs. fold into a neighboring ADR's Consequences vs. mark `Status: Superseded`)
 before touching it.
 
-### 10. `spi_call_flow_examples_json()`'s 3 hand-typed narrative call traces have drifted stale after this session's Hook-relocation/orchestrator-extraction work (found during improvement-149, 2026-08-11)
-
-`scripts/architecture/generate-architecture-model.sh`'s `spi_call_flow_examples_json()` — 3
-hand-typed narrative call traces "carried over verbatim from the retired 02-spi-map.md", the only
-part of the SPI Map screen with no mechanical/live source — have gone stale in all 3 entries after
-this same session's Hook-relocation and marketplace-orchestrator-extraction work:
-
-- **"Create Advertisement with Audit"** cites `org.ost.marketplace.spi.AuditDomainHookImpl.on(CREATED,
-  ...)`. Wrong on two counts: `AuditDomainHookImpl` moved to `org.ost.orchestrator.spi` this
-  session (no longer in `marketplace-app`), and its real methods are `resolveNames`/
-  `findExisting`/`resolveDisplayName`/`castIfKnown` — there is no `.on(CREATED, ...)` method at
-  all. The step before it (`AdvertisementService.save()` calling `DefaultAuditPort.captureCreation()`
-  directly) is also wrong — that composition now happens in `marketplace-orchestrator`'s
-  `AdvertisementSaveService`, not inside the starter's own `AdvertisementService`.
-- **"Upload Media to Advertisement"** cites `AdvertisementService.enrichWithMediaSummary()` — no
-  longer exists; the real enrichment step is `marketplace-orchestrator`'s
-  `AdvertisementDisplayEnrichmentService`.
-- **"Enrich Audit Activity"** cites `AuditActivityFieldsHook.fields()` and
-  `org.ost.marketplace.spi.AdvertisementActivityFieldsHookImpl` — both deleted from the codebase
-  entirely this same session (the whole `AuditActivityFieldsHook` interface and its four per-domain
-  implementations were removed, see `platform-commons/DECISIONS.md` ADR-029's third refinement).
-
-Not fixed inline when found (during the Bounded Contexts payload-column fix, see
-`scripts/architecture/DECISIONS.md` ADR-029's latest refinement) — rewriting all 3 accurately
-needs its own scoped pass, re-verifying each full call chain end to end from scratch (class names,
-method names, and the real current owning module for each step), which is bigger than the payload
-fix that surfaced it. No design decision needed here, just careful re-tracing — a mechanical fix
-once picked up.
-
 ### 11. `TaxonManagementView`/`CityManagementView` render the "Add" button unconditionally even when `taxon-spring-boot-starter` is absent (found during improvement-147 review, 2026-08-08)
 
 `refresh()` in both views constructs and adds the "Add category"/"Add city" button unconditionally,
@@ -212,23 +144,6 @@ gap, not a documented one. Needs a decision: guard the button behind `isAvailabl
 make `TaxonCatalogService.create()`/`.update()` themselves degrade gracefully (larger, changes what
 "create with no taxon starter" means to callers) — not sized here.
 
-### 12. `scripts/sonar/run.sh` / `scripts/build-and-test/run.sh` headers don't explain their own docker-cp/tar workaround (found while running `infra-doc-standards` over `scripts/` root, 2026-08-20)
-
-`playwright/run.sh`'s own header already explains why it uses `docker cp` instead of a volume
-mount ("volume mounts don't work when the caller is itself a container") — but
-`scripts/sonar/run.sh`'s structured header says nothing about this (checked directly, no mention
-in `Input`/`Outputs`/`Uses`), and `scripts/build-and-test/run.sh`'s explanation exists only as a
-body comment further down the file, not in its structured header. Surfaced while applying
-`infra-doc-standards` to the root `scripts/` directory: the root `scripts/README.md` used to carry
-a "Docker socket constraint" section aggregating this fact across all three scripts, removed as a
-duplication violation once the skill's "one fact, one canonical home" rule was strengthened this
-same session to explicitly cover shared-constraint content — but removing it exposed that 2 of the
-3 referenced files never had this reason in their own header to begin with. Not fixed inline: both
-files live in different directories (`scripts/sonar/`, `scripts/build-and-test/`), outside this
-run's invoked-directory scope (`scripts/` root only). Fix is small and mechanical once picked up:
-add one sentence to each file's `Input`/`Outputs` field explaining the docker-cp/tar-pipe reason,
-matching `playwright/run.sh`'s existing pattern.
-
 ### 13. Repo-wide prose references to old per-module `<module>/CLAUDE.md` paths went stale after path-scoped migration (found during improvement-168 Phase 2.2, 2026-08-25)
 
 All 13 module `CLAUDE.md` files moved to `.claude/rules/<module>.md` — root `CLAUDE.md`'s own
@@ -243,35 +158,7 @@ pointers, not broken functionality. `backlog/tasks/`/`backlog/completed/tasks/`/
 (append-only history / point-in-time records, not current-state documentation). Not fixed inline
 during improvement-168 since it wasn't part of that issue's approved plan (root `CLAUDE.md`'s
 own pointers + the generator script only). Mechanical fix once picked up: grep+replace
-`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files. Two more stale links, found 2026-10-22 and not listed above, sit in `.claude/rules/platform-commons.md` (`marketplace-orchestrator/CLAUDE.md`) and `.claude/rules/user-spring-boot-starter.md` (`marketplace-app/CLAUDE.md`).
-
-### 14. `ADR-010`/`ADR-011` near-verbatim duplicate across `audit-spring-boot-starter/DECISIONS.md` and `platform-commons/DECISIONS.md` (found during improvement-168 follow-up, 2026-08-25)
-
-Both entries — `audit-spring-boot-starter/DECISIONS.md` ADR-010 and `platform-commons/DECISIONS.md`
-ADR-011, both titled "Audit decoupled from attachment via AuditActivityEnrichHook" — describe the
-same decision with near-identical Context/Decision/Consequences text (the `Consequences` sentence
-"Audit starter must never import from `attachment.*` packages" appears verbatim in both). Each
-entry's own `Status:` line already cross-references the other, added after **this exact pair
-already drifted out of sync once** (2026-07-16 correction note, both entries: "the two entries had
-drifted to describe different, both-inaccurate mechanisms with no cross-reference between them") —
-the cross-reference was added as a partial fix at the time, but the full duplicated body text was
-never consolidated.
-
-Checked whether this is a systemic pattern before filing: scanned all 172 ADR titles across all 17
-`DECISIONS.md` files for exact duplicates — **this is the only match found.** Not a systemic
-problem worth a full audit (a full semantic near-duplicate sweep across 172 ADRs would be real,
-non-trivial effort for a demonstrated base rate of roughly 1-in-172); this single pair is worth
-fixing on its own since it already has a proven drift-risk track record, not because duplication
-across `DECISIONS.md` files turned out to be widespread.
-
-Fix once picked up: pick one canonical home (likely `platform-commons/DECISIONS.md`, since the SPI
-interface itself — `AuditActivityEnrichHook` — lives in `platform-commons`, matching this repo's
-own "SPI decisions live where the interface lives" pattern elsewhere in these files), keep the full
-Context/Decision/Consequences there, and shrink the other entry to a one-line pointer (`**Status:**
-Accepted — see platform-commons/DECISIONS.md ADR-011 for the full decision` style, no restated
-body) — mirroring how `doc-standards`' "one fact, one canonical home" already treats every other
-kind of cross-file fact in this repo. Regenerate `.claude/nav/adr-index.md` in the same change (per
-`.claude/rules.md`'s standing rule).
+`<module>/CLAUDE.md` → `.claude/rules/<module>.md` across the ~8 listed files. Two more stale links, found 2026-10-22 and not listed above, sit in `.claude/rules/platform-commons.md` (`marketplace-orchestrator/CLAUDE.md`) and `.claude/rules/user-spring-boot-starter.md` (`marketplace-app/CLAUDE.md`). Re-measured 2026-11-11: the real scope is more than twenty current-state files, not about 8 -- also `.claude/rules.md` (`scripts/CLAUDE.md`, `playwright/CLAUDE.md`, neither exists), several `.claude/rules/*.md`, `INFRASTRUCTURE.md`, `scripts/*/run.sh`, `integration-tests` sources, `AuthorizationService.java`, and generated files (`adr-index.md`, `architecture-map.html`, `architecture-model.json`) that must be fixed at their source. Not a plain search-and-replace: each place needs the right replacement target decided, so it needs its own plan.
 
 ### 15. Apply improvement-170's "always header" policy to real `pom.xml`/Liquibase/Java files, repo-wide (found during improvement-170, 2026-08-25)
 
@@ -279,9 +166,7 @@ kind of cross-file fact in this repo. Regenerate `.claude/nav/adr-index.md` in t
 Liquibase master changelog + change file, and every Java class to always carry a header/Javadoc —
 no "self-explanatory, skip it" exception for any of them. The rule was written into the skill but
 never applied to the real files: the 11 real `pom.xml` files, the real Liquibase master changelogs,
-and Java classes across the repo currently don't comply. One specific known violation, found during
-improvement-170's own research but not fixed: `attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentCleanupService.java`
-carries a 5-line Javadoc block citing an issue number ("improvement-049 item 4").
+and Java classes across the repo currently don't comply.
 
 Not fixed inline: this is a repo-wide sweep (11 `pom.xml` files + Liquibase changelogs + Java
 classes across every module), far bigger than improvement-170's own scope (which only designed the
@@ -329,34 +214,6 @@ fix — the narrow fix actually shipped for the immediate bug was `RadioButtonGr
 (keep `SUPPORT` in the item list — disabled, not hidden — when it's already the actor's current
 value, so the field stays representable without granting the actor a way to freshly select it).
 
-### 18. Four `.claude/rules/*.md` files still point at the deprecated README "Key classes" table (found during improvement-183 item 11 repo-wide rollout, 2026-09-09)
-
-`.claude/rules/advertisement-spring-boot-starter.md`, `audit-spring-boot-starter.md`,
-`user-spring-boot-starter.md`, and `attachment-spring-boot-starter.md` each still direct readers to
-their module's README "Key classes" table for the class list — that table no longer exists once
-`module-readme-standards`' current shape (`What it provides`/`Data flow`/`Dependencies`) was applied
-to all 4 modules during item 11's repo-wide pass. Mechanical fix (update each pointer to name the
-current section instead), deferred only because it touches 4 files outside that item's approved
-Java/pom.xml/README-only scope.
-
-### 19. Two Liquibase changelogs missing their mandatory file-level header (found during improvement-183 item 11, 2026-09-09)
-
-`taxon-spring-boot-starter/db/taxon-changelog/master.xml` and
-`audit-spring-boot-starter/db/audit-changelog/audit-changelog-master.xml` (plus that module's
-`changes/01-audit-schema.xml`) lack the `<!-- Description: ... -->` header `module-doc-standards`
-requires on every master changelog and change file. Deferred only because Liquibase changelogs were
-outside item 11's approved scope (Java/pom.xml/README.md only), not because the header shape for a
-change file is settled — `module-doc-standards` itself flags the change-file header shape as "not
-yet designed."
-
-### 20. `attachment-spring-boot-starter/pom.xml` declares two dependencies with zero real references (found during improvement-183 item 11, 2026-09-09)
-
-`query-lib` and `jackson-datatype-jsr310` are both declared as dependencies in this module's
-`pom.xml` but neither is imported or used anywhere in `attachment-spring-boot-starter/src`. Likely
-dead — needs a grep-confirmed removal pass (same shape as `query-lib/pom.xml`'s own 3-dependency
-cleanup earlier this session), deferred only because it wasn't part of item 11's approved
-Java/pom.xml-comment/README scope (this is a dependency-removal, not a comment fix).
-
 ### 21. Trimmed rationale in `attachment-spring-boot-starter` has no `DECISIONS.md` entry to route to (found during improvement-183 item 11, 2026-09-09)
 
 Two inline comments were trimmed during item 11's Javadoc/comment pass per the repo's ticket-number
@@ -368,39 +225,15 @@ actually goes" table says belongs in that module's `DECISIONS.md` — which does
 either yet. Needs a `/record-decision` pass to actually preserve the rationale, not just a one-line
 pointer with nothing on the other end.
 
-### 22. `04-provider-profile-flow.spec.js` has 34 `waitForTimeout(300)` calls, violating this project's own "no waitForTimeout" rule (found during improvement-195, 2026-09-18)
+### 23. (done 2026-11-13) `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
 
-`playwright/e2e/04-provider-profile-flow.spec.js` calls `page.waitForTimeout(300)` 34 times —
-confirmed by direct grep — a real, repo-wide violation of `.claude/rules.md`'s standing rule
-against `waitForTimeout` in Playwright specs. `improvement-195`'s own Related section had
-incorrectly claimed this was "already tracked" by `improvement-063`; checked directly, `063` never
-mentioned this file or this pattern at all (it was about an unrelated async-init "ready signal"
-concern, since closed as invalid) — this violation was never actually tracked anywhere, in any
-task or in this bucket, until now.
-
-Not fixed inline: 34 call sites, each presumably guarding a different UI-settling condition (a
-combo-box repaint, a debounced field, an overlay transition) — replacing them with real Playwright
-waits (`toBeVisible()`, `waitForSelector`, locator auto-waiting, network-idle, etc.) requires
-inspecting what each site is actually waiting for individually, not a blind global
-find-and-replace. Needs sizing (one pass vs. incremental) once picked up.
-
-### 23. `taxonFilter.filter(Set::isEmpty).isPresent()` duplicated within each service's own `getFiltered`/`count` (found via an external review prompt re-checking `improvement-195` Phase 9, 2026-09-22)
-
-`AdvertisementService` and `ProviderProfileService` each repeat the same one-line guard —
-`if (taxonFilter.filter(Set::isEmpty).isPresent()) { return List.of(); }` /
-`return 0;` — once in `getFiltered` and once in `count` (confirmed directly against current
-source: 4 copies total, 2 per service). Distinct from the cross-module `resolveCategoryAndCityFilter`
-duplication Phase 9 already extracted (that one spanned two starters; this one is same-class,
-2-line, single-method-body scale) — deferred rather than fixed inline because it's small enough
-that abstracting it (a shared helper, a wrapper type) could plausibly add more indirection than it
-removes; needs a real judgment call on whether extraction is worth it before touching either
-service, not a reflexive DRY pass.
+Resolved by the category/city predicate change: `AdvertisementService` and `ProviderProfileService` no longer hold an empty-set guard in `getFiltered` or `count`, because the restriction is appended to the statement in SQL.
 
 ### 24. `integration-tests`: no global HikariCP pool-size cap across `@SpringBootTest` contexts risks Postgres `max_connections` exhaustion (found during improvement-199 Checkpoint 1, 2026-09-24)
 
 Every distinct `@SpringBootTest(classes = {...})` signature in `integration-tests` gets its own
-cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, no
-override anywhere in the repo); Spring's `DefaultContextCache` keeps every distinct context alive
+cached Spring `ApplicationContext` with its own HikariCP pool (default `maximum-pool-size=10`, overridden to 2
+only on a few test classes); Spring's `DefaultContextCache` keeps every distinct context alive
 for the rest of the `mvn test` run (default cache size 32, well above the ~18 distinct signatures
 today), so their connection pools accumulate rather than being released between test classes.
 Confirmed directly: adding `contact-spring-boot-starter`'s two new test classes (one more distinct
@@ -409,9 +242,7 @@ unrelated, pre-existing `ProviderProfileRepositoryTest` with `FATAL: sorry, too 
 already`. Scoped fix applied to the new contact tests only (`spring.datasource.hikari.maximum-pool-size=2`
 via `@TestPropertySource`, since they don't need concurrency) — the systemic gap (no cap for any
 of the other ~18 contexts) remains and can recur the next time a new starter's own repository test
-is added. Needs a design decision before sizing: a lower default pool size across the whole
-`RepositoryTestAutoConfig` allow-list vs. a per-context opt-in like the one used here vs. raising
-the Testcontainers Postgres image's own `max_connections`.
+is added. The Testcontainers Postgres container now starts with `max_connections=300`, which covers today's ~18 contexts; a global default pool size across the `RepositoryTestAutoConfig` allow-list is still undecided.
 
 ### 25. No existing mechanism for entity-existence-based orphan cleanup, needed by `improvement-200` Phase 5 (found 2026-10-05)
 
@@ -533,12 +364,6 @@ is made on how that should look. Entries 6 and 7 are the same kind of duplicatio
 a `Clock` bean in the feedback starter so a Level 3 test can age a record, or a Level 1 service test
 with a record whose `created_at` is older than the window. It needs a design decision before sizing.
 
-### 33. `marketplace-mcp` declares `org.jetbrains:annotations`, which nothing in the module uses (found during improvement-232, 2026-11-03)
-
-`marketplace-mcp/pom.xml` lists the dependency but no class in the module imports from
-`org.jetbrains.annotations`. It may still arrive through another dependency, so removing it needs a
-build of the reactor and a check of what else breaks; low risk, no behavior change expected.
-
 ### 34. The MCP endpoint path `/mcp` is written in `McpSecurityConfig` and again in `application.yml` (found during improvement-232, 2026-11-03)
 
 `McpSecurityConfig` matches the literal `/mcp` for its stateless security chain, while the path of the
@@ -552,3 +377,99 @@ It needs a decision: read the configured path in the security config, or documen
 pointer-only `DECISIONS.md` of the modules without their own decisions lists `ADR-NNN` rows by design
 (they are generated, never hand-edited). Either the generator changes what it prints or the rule names
 an exception for generated pointer files; the owner has to decide which.
+
+### 36. A confirmed feedback violation is documented as permanent, but approve moves it back to visible (found during improvement-235, 2026-11-06)
+
+The `FeedbackPort` Javadoc for `confirmFeedbackViolation`/`confirmCommentViolation` and the feedback
+starter's rules file say a confirmed violation stays censored forever. `FeedbackService.approveFeedback`
+and `approveComment` accept `HIDDEN` and `CONFIRMED_HIDDEN` as source states and set `NEW`, and the
+moderation view always offers the approve button. Either the code is right and the wording changes, or
+the wording is right and `CONFIRMED_HIDDEN` leaves the approve source states (a behaviour change). It is
+a moderation rule, so the owner has to decide which.
+
+### 37. Multi-line comments in integration-tests need their rationale moved to a canonical home before trimming (found during improvement-235, 2026-11-06)
+
+`TestDataCleaner` (class, `cleanTables`, `cleanAll`), the level 2 tests `FeedbackAccessServiceTest` and
+`FeedbackCommentWriteServiceTest` (class and nested stub config Javadoc) and four comments in
+`integration-tests/pom.xml` are multi-line blocks, one of them naming a ticket and one naming
+packages that no longer exist. The comment rule wants one line or none, and the facts they carry
+(why cleanup skips missing tables, why the stub `UiLabelHook` exists, why the pom lists the starters)
+must first get a home in the module rules file or the README, then the comments shrink to one line.
+
+### 38. The REST API limits only key issuing and writes, not reads (found during improvement-235, 2026-11-06)
+
+`BasicLoginRateLimitFilter` guards `POST /api/api-keys` and `ApiWriteRateLimitFilter` guards writes;
+`GET` list endpoints, which accept filters and page numbers that reach PostgreSQL, have no limit. It
+needs a policy decision first (per key, per address, which endpoints, what numbers) before any code.
+
+### 39. One unexplained failure of a Level 3 promotion scenario in a full integration run (found during improvement-235, 2026-11-06)
+
+`PromotedProviderProfileScenarioTest.list_sortWithoutPromoted_mergesThePromotedIntoTheOrdinaryOrder`
+once failed in a full run (`$[0].id` expected the newer profile, got the older one) and passed alone
+and in two later full runs. Nothing explains the swap: both profiles are created over a second apart
+and the query orders by `created_at DESC, id DESC`. If it fails again, capture the SQL and both
+`created_at` values before touching the test.
+
+### 40. Reviews a deleted user wrote on other profiles stay behind (found during improvement-239, 2026-11-06)
+
+`UserDeleteService` cascades the user's own advertisements, provider profile and API keys, then
+soft-deletes the account; the retention purge removes the row later. `feedback.author_id` and
+`feedback_comment.author_id` have no foreign key, so the reviews and replies the user wrote on other
+profiles stay, and their author shows with the "deleted" mark like any historical actor. Removing them
+is a product decision (privacy of the author's text against the stability of other profiles' ratings)
+and a larger change: each affected profile needs its aggregate recounted and its promotion refreshed,
+and the cascade needs a feedback delete by author next to the one by owning entity. Decide first
+whether they go on deletion, on purge, or stay.
+
+### 41. A review written while its profile is being deleted can stay behind (found during improvement-246, 2026-11-09)
+
+`FeedbackRepository.deleteByEntity` runs as one statement with one snapshot and there is no foreign key to the profile, so a review inserted by another transaction after that snapshot stays, with a recomputed aggregate row, and no profile. Not checked: whether `FeedbackWriteService` re-checks that the profile exists inside its own transaction. A test with two parallel transactions decides it; a lock on the profile row is the fix if it is real. Severity Low.
+
+### 44. Existing databases keep what the changelogs no longer create (found during improvement-246, 2026-11-09)
+
+The changelogs are edited in place with `validCheckSum ANY`, so a database created before an edit keeps removed columns and indexes (`promotion_placement.valid_from` and `valid_until`, `taxon_assignment.assigned_by`, the removed indexes) and does not get a restored one (`idx_advertisement_title`). The code works on both shapes. Before the first release with a database that cannot be reset, write a baseline changelog. The unique constraints on `feedback.content_id` and `feedback_comment.content_id` follow the same rule: only a database created from the current changelog has them, an existing one needs a reset.
+
+### 45. Promotion lookups read every placement of the entity type (found during improvement-246, 2026-11-09)
+
+`PromotionCatalogService.promotedPlacements` loads all placements of the type for each list page and for each single-profile detail; with the "promoted only" filter both the page and the count read them. The size follows the number of profiles that pass the top-rated rule. Not measured; fetch placements for the page's ids only if the table grows.
+
+### 46. Smaller leftovers of the debt investigation (found during improvement-246, 2026-11-09)
+
+- The four standards skills repeat a shared procedure (about 560 tokens when two load together); one shared procedure referenced by both would remove it, at the cost of skills that are no longer self-contained.
+- `scripts/ci/run.sh` has three `--no-*` skip flags that could be one mechanism, and two Maven cache volumes (`ci-m2-cache`, `ci-maven-cache`) whose redundancy was not checked.
+- The ADR index cannot drop its 14 superseded rows: the architecture map builds its decision list from the same file.
+- Still in the always-loaded `.claude/rules.md`: the Scripts section and 12 warning-sign rules that have a file trigger; moving them is not worth it while a rule file is not loaded on a `Write`.
+- Not run: whether the compiler plugin ignores `source/target` once `release` is set (`mvn -X compile`), and `mvn dependency:analyze` for undeclared dependencies.
+
+### 47. The first attempt of the e2e setup test still fails now and then, and the retry hides it (found while closing entry 14/42/43, 2026-11-12)
+
+In full CI runs the first attempt of `adminEn signs up` (`playwright/e2e/global.setup.js`) sometimes fails at its first click: the `Sign Up` button is not there within the 10 s action timeout; the retry passes, so the run is green with "1 flaky". The run history shows it since at least 30 Oct, and in about half of the runs. Not reproducible by hand: 9 of 9 first attempts passed on a cold app with an empty database, idle, with 4 busy cores (load average 7), and under memory, disk and CPU pressure together. Excluded by measurement: bundle size, service worker, tracing, cold JVM, empty database, the Basic-auth probe, the external font. A trace of a failed attempt shows the page still in its loading state while the first UIDL request has no answer, and no error in the application log. Next step if it matters: sample CPU, memory and disk of the containers during the first two minutes of the e2e stage, so the next failure comes with data. An earlier investigation of this was confounded by a broken theme stylesheet (fixed).
+
+### 48. Two accuracy leftovers of a review: the feedback table remarks and the audit index comment (found while closing improvement-254, 2026-11-13)
+
+- The remarks in `feedback-spring-boot-starter/src/main/resources/db/feedback-changelog/changes/01-feedback-schema.xml` say a `feedback_content` row belongs to exactly one entry or reply and that "exactly one" holds for both `content_id` columns; the schema only has a `UNIQUE` constraint inside each table, and the service creates one content row per entry or reply (no path reuses one). Rewrite the three remarks to "unique within this table" plus that the service creates one content row per owner, and the matching sentence in `.claude/rules/feedback-spring-boot-starter.md` ("Schema"). No trigger, no schema change; the base changeset is edited in place.
+- The comment of `idx_audit_created_at` in `audit-spring-boot-starter/src/main/resources/db/audit-changelog/changes/01-audit-schema.xml` credits the index with the timeline's newest-first order; the timeline query sorts the result of a window-function CTE and no plan was recorded. Measure with `EXPLAIN (ANALYZE, BUFFERS)` for `deleteOlderThan` and `findTimeline` on a few thousand seeded rows; then the comment names only the purge, or the index goes, or the comment stays.
+- Why deferred: neither changes behaviour; judged not critical.
+
+## Operational notes
+- token_cost_review: n/a
+- token_cost_research: n/a
+- token_cost_verification: n/a
+- review_signal_ratio: n/a (no review ran; a deep review was judged not needed for a diff of two tests and two constraints)
+- context_loading_task_type: n/a
+- context_loading_consulted: n/a
+- context_loading_matched: n/a
+- flows_situation: n/a
+- flows_chosen: n/a
+- flows_matched: n/a
+- haiku_decomposition_used: yes
+- haiku_decomposition_dispatch_count: 1
+- haiku_decomposition_rework_needed: 0 / 1
+- adrs_referenced: none
+
+### Agent calls
+- two exact file edits (schema constraints, .dockerignore) | subagent_type=general-purpose (haiku) | tokens=68994 | tool_uses=7 | duration_s=35 | mode=background | batch=solo
+
+### Script/command runs
+- scripts/build-and-test.sh --no-unit --integration | duration_s=480 | mode=background | result=pass
+- scripts/build-and-test.sh --no-unit --integration-test FeedbackRepositoryTest | duration_s=168 | mode=background | result=pass

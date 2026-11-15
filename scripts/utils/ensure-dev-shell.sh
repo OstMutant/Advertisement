@@ -20,13 +20,17 @@
 # Env: DEV_SHELL_CONTAINER (default "dev-shell"), DEV_SHELL_IMAGE (default "ci-runner"),
 #   DEV_SHELL_IDLE_SECONDS (default 3600 -- how long since the last ensure_dev_shell call before
 #   the container self-terminates).
-# Uses: docker
+# Uses: docker, scripts/utils/project-label.sh, scripts/utils/docker-pull-retry.sh
+#   (docker_pull_missing_bases)
 # Input: scripts/ci/Dockerfile (only read if the ci-runner image doesn't exist yet).
-# Outputs: a running container named $DEV_SHELL_CONTAINER (auto-removed by Docker once idle), a
-#   docker volume "dev-shell-m2-cache" (persists across container restarts, not removed by idle
-#   cleanup -- only the container itself is disposable).
+# Outputs: a running container named $DEV_SHELL_CONTAINER with the project label (auto-removed by
+#   Docker once idle), a docker volume "dev-shell-m2-cache" (persists across container restarts,
+#   not removed by idle cleanup -- only the container itself is disposable).
 # Returns: (via ensure_dev_shell) 0 once the container is confirmed running; 1 on an image-build
-#   or container-start failure, printing the real docker error to stderr.
+#   or container-start failure, printing the real docker error to stderr, or when the started
+#   container does not answer within 30 s.
+
+source "$(dirname "${BASH_SOURCE[0]}")/project-label.sh"
 
 ensure_dev_shell() {
   local container="${DEV_SHELL_CONTAINER:-dev-shell}"
@@ -34,6 +38,7 @@ ensure_dev_shell() {
   local idle_seconds="${DEV_SHELL_IDLE_SECONDS:-3600}"
   local root
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  source "$root/scripts/utils/docker-pull-retry.sh"
 
   if [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "true" ]; then
     docker exec "$container" touch /tmp/.dev-shell-last-used
@@ -42,6 +47,7 @@ ensure_dev_shell() {
 
   if ! docker image inspect "$image" >/dev/null 2>&1; then
     echo "=== Building $image image (shared by ci-runner and dev-shell) ===" >&2
+    docker_pull_missing_bases "$root/scripts/ci/Dockerfile"
     if ! docker build -f "$root/scripts/ci/Dockerfile" -t "$image" "$root"; then
       echo "ERROR: failed to build $image image for dev-shell" >&2
       return 1
@@ -54,6 +60,7 @@ ensure_dev_shell() {
   docker rm -f "$container" >/dev/null 2>&1
   # --entrypoint skips ci-runner's own entrypoint (would start a second, colliding Dagu server); the watchdog below is this container's own main process, self-exiting past the idle threshold so --rm removes it.
   if ! docker run -d --rm --name "$container" \
+    --label "$PROJECT_LABEL" \
     --network host \
     --entrypoint sh \
     -v /var/run/docker.sock:/var/run/docker.sock \

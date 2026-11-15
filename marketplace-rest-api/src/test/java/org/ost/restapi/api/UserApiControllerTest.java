@@ -160,7 +160,7 @@ class UserApiControllerTest {
     void list_privilegedActor_delegatesToServiceAndSetsTotalCountHeader() throws Exception {
         UserDto user = new UserDto(1L, "Alice", "alice@example.com", Role.USER, null, null, 0L);
         UserFilterDto filter = UserFilterDto.empty();
-        when(userProfileService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.unsorted()))).thenReturn(List.of(user));
+        when(userProfileService.getFiltered(eq(filter), eq(0), eq(20), eq(Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt", "id")))).thenReturn(List.of(user));
         when(userProfileService.count(eq(filter))).thenReturn(1);
 
         mockMvc.perform(get("/api/users"))

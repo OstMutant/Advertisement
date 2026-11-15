@@ -1,0 +1,81 @@
+Pager usage is off.
+CREATE TABLE
+INSERT 0 10
+CREATE TABLE
+INSERT 0 3
+--- 1a. fragment with an UNQUALIFIED consumer column "id": resolves outward to adv.id while tax_as has no id column (3 rows)
+ count 
+-------
+     3
+(1 row)
+
+ALTER TABLE
+--- 1b. same statement after the provider adds its own id column: "id" is now captured by the inner table, result changes silently
+ count 
+-------
+    10
+(1 row)
+
+--- 2. consumer alias equals the provider internal alias: ta.id now means tax_as.id (inner scope wins), silently wrong
+ count 
+-------
+    10
+(1 row)
+
+--- 2b. provider aliases start with an underscore, consumer aliases must start with a letter: no capture possible (3 rows)
+ count 
+-------
+     3
+(1 row)
+
+--- 3. fragment placed outside the scope of its alias (count wrapper): loud error, not a wrong answer
+ERROR:  missing FROM-clause entry for table "a"
+LINE 1: ...XISTS (SELECT 1 FROM tax_as _ta WHERE _ta.entity_id = a.id);
+                                                                 ^
+--- 3b. same wrapper with the column reference rebuilt for the wrapper alias: works (3 rows)
+ count 
+-------
+     3
+(1 row)
+
+--- 4. a fragment containing OR appended without parentheses changes precedence: consumer filter id > 8 is lost (expect 0, gets 3)
+ count 
+-------
+     3
+(1 row)
+
+--- 4b. same fragment wrapped in parentheses by the consumer (expect 0)
+ count 
+-------
+     0
+(1 row)
+
+--- 5. same fragment in both branches of a UNION, one alias per branch (expect 3)
+ count 
+-------
+     3
+(1 row)
+
+--- 6. composite key: the consumer row is itself an EntityRef (entity_type column + entity_id column), as in audit_log or attachment
+CREATE TABLE
+INSERT 0 3
+  entity_type  | entity_id 
+---------------+-----------
+ ADVERTISEMENT |         1
+(1 row)
+
+--- 7. fragment in ORDER BY (the shape a promotion pin would need): valid SQL, rows with the taxon first
+ id 
+----
+  3
+  2
+  1
+ 10
+  9
+(5 rows)
+
+--- 8. provider table missing (module removed but a stale fragment still sent): statement fails loudly
+DROP TABLE
+ERROR:  relation "tax_as" does not exist
+LINE 1: ...T count(*) FROM adv a WHERE EXISTS (SELECT 1 FROM tax_as _ta...
+                                                             ^

@@ -137,6 +137,10 @@ public class FeedbackService {
                 .orElseGet(() -> new FeedbackAggregateDto(entityType, entityId, 0, 0));
     }
 
+    public Set<Long> findEntityIdsWithRatingAtLeast(@NonNull EntityType entityType, double minAverage, int minReviews) {
+        return repository.findEntityIdsWithRatingAtLeast(entityType, minAverage, minReviews);
+    }
+
     public Optional<FeedbackDto> findFeedbackById(@NonNull Long feedbackId) {
         return repository.findViewById(feedbackId).map(FeedbackService::toDto);
     }
@@ -287,6 +291,11 @@ public class FeedbackService {
         repository.deleteCommentHard(commentId, existing.contentId());
     }
 
+    @Transactional
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        repository.deleteByEntity(entityType, entityId);
+    }
+
     @Transactional(readOnly = true)
     public List<FeedbackDto> findHiddenFeedback(@NonNull Pageable pageable) {
         return toDtoPage(repository.findHiddenFeedback(pageable), FeedbackService::toDto);
@@ -324,10 +333,12 @@ public class FeedbackService {
         return (int) repository.countModerationQueue(filter, authorIdsFilter.orElse(null));
     }
 
-    /** Mirrors {@code AdvertisementService.resolveTaxonFilter}'s Optional semantics: empty Optional means "no filter requested" (unrestricted), a present-but-possibly-empty Set means "filter requested, these are the matches". Pages through all matches rather than capping at one page, so a broad name search never silently drops genuine matches. */
+    /** Empty Optional means no author restriction (blank name); a present Set holds every author id matching the name, paged through so a broad search drops none, and is empty when no user starter is present. */
     private Optional<Set<Long>> resolveAuthorIdsFilter(String authorName) {
         if (authorName == null || authorName.isBlank()) return Optional.empty();
-        return userPortFactory.findIfAvailable().map(p -> resolveAllMatchingAuthorIds(p, authorName));
+        return Optional.of(userPortFactory.findIfAvailable()
+                .map(p -> resolveAllMatchingAuthorIds(p, authorName))
+                .orElseGet(Set::of));
     }
 
     private static Set<Long> resolveAllMatchingAuthorIds(UserPort userPort, String authorName) {

@@ -2,8 +2,8 @@
 
 **Type:** improvement
 **Module:** marketplace-app/src/main/frontend/themes/my-app/**, marketplace-app UI views/components
-**Priority:** medium-high
-**When:** independent, no blockers — informed by improvement-188's already-answered theme question
+**Priority:** moved to the very bottom of the backlog 2026-11-04 at the user's request (was medium-high); parked, not to be touched for now
+**When:** parked; when picked up, first answer the open design questions of [improvement-129](improvement-129-marketplace-feed-modernization.md) (improvement-188's theme question is already answered)
 
 ## Current state
 A second external directive ("UI/UX MODERNIZATION — ADVERTISEMENT — v2") was submitted, proposing

@@ -147,10 +147,13 @@ separator here, unlike the `#`/`//` comments elsewhere in this skill:
   file under changes/. -->
 ```
 
-**Change files** under `changes/*.xml` also always carry a header — each one is a genuine per-file
-fact (what specific schema change this file represents), fully contained within that one file,
-distinct from `remarks=`'s per-column/table altitude. **Not yet designed:** the exact header shape
-for a change file is still open — flag before writing one, don't invent a field structure inline.
+**Change files** under `changes/*.xml` also always carry a header: an XML comment right after the XML
+declaration and before the `<databaseChangeLog>` opening tag, with one `Description:` line stating
+what schema change this file makes (which tables, columns or indexes it creates or alters). It is a
+genuine per-file fact, fully contained within that one file, distinct from `remarks=`'s
+per-column/table altitude, and never repeats a `remarks=`. Same constraints as the master header: no
+`--` and no `<...>` tag inside the comment, because the architecture map's changelog reader is a
+plain-text parser that would read a tag inside a comment as part of the schema.
 
 ## No-FK reference columns — mechanically required `References <table>(<column>), no FK` marker
 
@@ -188,11 +191,14 @@ References <tableA>(<column>) or <tableB>(<column>) [or <tableC>(<column>) ...] 
 Verify the real target list against actual code (e.g. every `AuditableSnapshot` implementation's
 own `EntityType`, every `*Port`/`*LookupService` call site for that domain) — never guess or
 leave a target out because it seems unlikely; an incomplete list silently drops that edge from
-the live diagram the same way a missing marker does. Only a relationship that isn't expressible
-as a column-to-column reference at all (e.g. two sibling tables that both separately reference
-the same owning entity, with no direct link between the two tables themselves) stays in the
-small hand-preserved list inside `db_erd_conceptual_relationships_json()`, with a comment there
-explaining why it can't be a marker.
+the live diagram the same way a missing marker does. A relationship that isn't expressible as a
+column-to-column reference at all (e.g. two sibling tables that both separately reference the
+same owning entity, with no direct link between the two tables themselves) is not drawn: the
+diagram shows only what a real foreign key or a column's marker declares, no hand-typed list.
+
+Before closing a task that changes a changelog, check every column named like a reference
+(`entity_id`, `author_id`, `actor_id`, `created_by`, `*_actor_id`, `*_taxon_id`) that has no foreign
+key: it carries the marker. The generator fails on such a column without one.
 
 ## Where comment rationale that got trimmed actually goes
 
@@ -213,6 +219,7 @@ home, per the same "reference, don't restate" pattern as everywhere else:
 - [ ] If it's a `*.spi` interface, does its Javadoc immediately precede the `interface` declaration with no stray blank line/comment breaking that adjacency? (see "SPI interface Javadoc" above — a missing or malformed block silently blanks that interface's purpose in the SPI Map)
 - [ ] If it's a `pom.xml` comment, is the dependency/version genuinely non-obvious — or is this restating what the artifact id or the module's own `README.md` `Dependencies` section already says?
 - [ ] If it's a Liquibase `<column>`/`<createTable>`, does it carry a real `remarks=` attribute? (per root `CLAUDE.md`)
+- [ ] If it's a Liquibase change file, does it open with the `Description:` header comment after the XML declaration, true of what the file changes and free of `--` and tags?
 - [ ] If that column deliberately references another table's row with no real FK, does its `remarks=` carry the literal `References <table>(<column>), no FK` marker, with the real target table named? (see "No-FK reference columns" above — a missing marker silently drops the relationship from the live ERD diagram)
 - [ ] Could this fact be answered by reading the module's own `README.md` instead — if so, it doesn't belong here at all (see `module-readme-standards`)
 

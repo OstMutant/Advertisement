@@ -20,13 +20,17 @@
  *   - "anonymous visitor browses the public Providers catalog": four own profiles (SHOP, SUPPORT,
  *     MASTER, SHOP), own-category scope, kind/category/city filters, Updated/Created sort cycles,
  *     date-range filters.
+ *   - "anonymous visitor sees promoted profiles inside the Providers list": no badge before the fifth review,
+ *     promoted profiles first with a badge after it, Promoted only, the Promotion sort turned off.
  *   - "administrator edits other users' provider profiles from the catalog": card Edit button,
  *     overlay Edit button, the administrator's own review and its edit, no reply trigger for a non-owner.
  *   - "provider owner writes, edits and deletes the single reply to a review".
  *   - "non-privileged non-owner sees no Edit button": someone else's card and overlay, own card.
  *   - "user opens a provider deep link": overlay, field order, contact reveal, anonymous feedback
  *     panel, share button, sitemap.xml, crawler meta tags, card click and browser Back.
- *   - "user deletes their own provider profile from the public catalog".
+ *   - "user deletes their own provider profile from the public catalog": confirm dialog, only the own
+ *     card removed from the scoped catalog, empty AccountOverlay state, its flagged review and reply
+ *     removed from the moderation queue with it.
  *   - "moderator reports and moderates a review and a reply": report popup, merged queue, profile
  *     link, approve restores both.
  *   - "moderator works a 7-item moderation queue": filters, pagination, confirm violation and the
@@ -55,7 +59,7 @@ const { runNavigateToUsersTabFlow, runOpenUserEditViaListFlow, runOpenUserViewDi
 const { confirmDeleteDialog } = require('./_flows/delete.flow');
 const { openCardOverlay } = require('./_flows/advertisement.flow');
 const { runOpenFilterPanelFlow, runFillTitleFilterFlow, runApplyFilterFlow } = require('./_flows/advertisement-filter.flow');
-const { verifyDateRangeFilters, openQueryPanel, applyFilter, clearFilter, fillText, fillRole, goToNextPage, goToPrevPage, goToFirstPage, goToLastPage } = require('./_flows/filter.flow');
+const { verifyDateRangeFilters, openQueryPanel, applyFilter, clearFilter, fillText, fillRole, goToNextPage, goToPrevPage, goToFirstPage, goToLastPage, assertSortStatusLine } = require('./_flows/filter.flow');
 const { changePageSizes, getPageSizes, pageSizeField } = require('./_flows/settings.flow');
 const { selectInMultiSelectComboBox } = require('./_flows/category.flow');
 const { issueApiKeyViaApi, postViaApi, createProviderProfileViaApi, seedTaxonsViaApi } = require('./_flows/seed.flow');
@@ -689,11 +693,12 @@ test.describe('Provider Profile flow', () => {
 
     await page.goto('/');
     await openProvidersTab(page);
+    await assertSortStatusLine(page, '↕️ Sort: Promotion (Descending), Updated (Descending), Created (Descending)');
     await openCatalogQuery(page);
     const bothCategories = [vehicles, electronics];
     await applyCatalogFilter(page, { categories: bothCategories });
 
-    const container = page.locator('.provider-profile-container');
+    const container = page.getByTestId('provider-profile-container');
     const cards = providerProfileCard(container);
     await expect(cards).toHaveCount(4, { timeout: 10000 });
     await expect(container.locator('.provider-profile-kind-badge--shop')).toHaveCount(2);
@@ -853,6 +858,76 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
+  test('anonymous visitor sees promoted profiles inside the Providers list — no badge and the plain order before the fifth review, after it the top-rated profiles lead with a badge, Promoted only keeps just them, turning the Promotion sort off merges them back', async ({ page, request, createUser, adminKey, unique }) => {
+    test.setTimeout(240_000);
+    const category = await createCategory(request, adminKey, unique, 'Promo');
+    const rated = await createOwnerWithProfile(request, createUser, profileBody({
+      kind: 'MASTER', about: 'Master with the top rating.', categories: [category],
+    }), { name: unique('Rated') });
+    const few = await createOwnerWithProfile(request, createUser, profileBody({
+      kind: 'MASTER', about: 'Master with too few reviews.', categories: [category],
+    }), { name: unique('Few') });
+    const alsoRated = await createOwnerWithProfile(request, createUser, profileBody({
+      kind: 'MASTER', about: 'Second master with the top rating.', categories: [category],
+    }), { name: unique('AlsoRated') });
+    for (let i = 0; i < 3; i++) await reviewViaApi(request, await createUser(), few.profileId, 5, 'Great work.');
+    for (let i = 0; i < 4; i++) await reviewViaApi(request, await createUser(), rated.profileId, 5, 'Great work.');
+
+    const container = page.getByTestId('provider-profile-container');
+    const titles = container.getByTestId('provider-profile-card-title');
+    const badges = container.getByTestId('provider-profile-promotion-badge');
+    const promotionIcon = page.locator('.provider-profile-query-block .query-inline-row')
+      .filter({ has: page.locator('.query-inline-label-sort', { hasText: 'Promotion' }) })
+      .locator('.sort-icon');
+
+    await page.goto('/');
+    await openProvidersTab(page);
+    await applyCatalogFilter(page, { categories: [category] });
+
+    await test.step('before the fifth review nothing is promoted — no badge, the newest profile first', async () => {
+      await expect(providerProfileCard(container)).toHaveCount(3, { timeout: 10000 });
+      await expect(badges).toHaveCount(0);
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(few.owner.name), named(rated.owner.name)]);
+    });
+
+    await reviewViaApi(request, await createUser(), rated.profileId, 4, 'Good work.');
+    for (let i = 0; i < 5; i++) await reviewViaApi(request, await createUser(), alsoRated.profileId, 5, 'Great work.');
+    await page.reload();
+    await openProvidersTab(page);
+    await applyCatalogFilter(page, { categories: [category] });
+
+    await test.step('after it the two top-rated profiles lead, each with a badge, the other profile follows without one', async () => {
+      await expect(providerProfileCard(container)).toHaveCount(3, { timeout: 10000 });
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(rated.owner.name), named(few.owner.name)]);
+      await expect(badges).toHaveCount(2);
+      await expect(badges.first()).toHaveText('Top rated');
+      await expect(providerProfileCard(container).nth(2).getByTestId('provider-profile-promotion-badge')).toHaveCount(0);
+      await expect(badges.first()).not.toHaveAttribute('title', /.+/);
+      await screenshot(page, 'providers-promoted-first-with-badge');
+    });
+
+    await test.step('Promoted only keeps just the promoted profiles', async () => {
+      await openCatalogQuery(page);
+      await page.getByRole('checkbox', { name: 'Promoted only' }).check();
+      await applyFilter(page, CATALOG_BLOCK);
+      await expect(providerProfileCard(container)).toHaveCount(2, { timeout: 10000 });
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(rated.owner.name)]);
+      await screenshot(page, 'providers-promoted-only');
+      await page.getByRole('checkbox', { name: 'Promoted only' }).uncheck();
+      await applyFilter(page, CATALOG_BLOCK);
+      await expect(providerProfileCard(container)).toHaveCount(3, { timeout: 10000 });
+    });
+
+    await test.step('turning the Promotion sort off merges the promoted profiles back into the ordinary order', async () => {
+      await expect(promotionIcon).toHaveAttribute('aria-label', 'Descending');
+      await promotionIcon.click();
+      await expect(promotionIcon).toHaveAttribute('aria-label', 'No sorting');
+      await applyFilter(page, CATALOG_BLOCK);
+      await expect(titles).toHaveText([named(alsoRated.owner.name), named(few.owner.name), named(rated.owner.name)], { timeout: 10000 });
+      await expect(badges).toHaveCount(2);
+    });
+  });
+
   test('administrator edits other users\' provider profiles from the catalog — card Edit button opens this same overlay in Edit mode (no unrelated Name/Settings tabs), overlay Edit button does the same, the administrator leaves a review and edits it in place, a non-owner sees no reply trigger', async ({ pageAs, adminAccount, createUser, adminKey, request, unique }) => {
     test.setTimeout(180_000);
     const category = await createCategory(request, adminKey, unique, 'Vehicles');
@@ -958,7 +1033,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('provider owner writes, edits and deletes the single reply to a review — a second attempt shows no trigger, the composer is gone once a reply exists, deleting it brings the trigger back', async ({ pageAs, createUser, adminKey, request, unique }) => {
+  test('provider owner writes, edits and deletes the single reply to a review — the owner sees no add-feedback form on their own profile, a second attempt shows no trigger, the composer is gone once a reply exists, deleting it brings the trigger back', async ({ pageAs, createUser, adminKey, request, unique }) => {
     const category = await createCategory(request, adminKey, unique, 'Vehicles');
     const city = await createCity(request, adminKey, unique, 'Lviv');
     const master = await createOwnerWithProfile(request, createUser, profileBody({
@@ -974,6 +1049,11 @@ test.describe('Provider Profile flow', () => {
 
     const feedbackPanel = feedbackPanelIn(ownOverlay);
     const replyPanel = feedbackPanel.locator('.feedback-reply-panel').first();
+
+    // The owner cannot review their own profile -- no add-feedback trigger or form.
+    await expect(feedbackPanel.locator('.feedback-entry').first()).toBeVisible({ timeout: 5000 });
+    await assertAbsent(expect, feedbackPanel.getByRole('button', { name: 'Add feedback' }));
+    await assertAbsent(expect, feedbackPanel.locator('.feedback-form'));
 
     await replyPanel.getByRole('button', { name: 'Reply', exact: true }).click();
     const replyField = replyPanel.getByTestId('feedback-reply-field-text').locator('textarea');
@@ -1143,7 +1223,7 @@ test.describe('Provider Profile flow', () => {
     });
   });
 
-  test('user deletes their own provider profile from the public catalog — confirm dialog, only the own card removed from the scoped catalog, empty AccountOverlay state', async ({ pageAs, createUser, adminKey, request, unique }) => {
+  test('user deletes their own provider profile from the public catalog — confirm dialog, only the own card removed from the scoped catalog, empty AccountOverlay state, its flagged review and reply removed from the moderation queue with it', async ({ pageAs, createUser, adminKey, request, unique }) => {
     const category = await createCategory(request, adminKey, unique, 'Electronics');
     const city = await createCity(request, adminKey, unique, 'Kyiv');
     const own = await createOwnerWithProfile(request, createUser, profileBody({
@@ -1152,6 +1232,17 @@ test.describe('Provider Profile flow', () => {
     await createOwnerWithProfile(request, createUser, profileBody({
       kind: 'SHOP', about: 'Another retail shop for electronics.', categories: [category], city,
     }));
+    const reason = unique('Cascade');
+    const reviewer = await createUser();
+    const { feedbackId } = await reviewViaApi(request, reviewer, own.profileId, 4, 'Review removed together with its profile.');
+    await replyViaApi(request, own.key, feedbackId, 'Reply removed together with its profile.');
+    const reporter = await createUser();
+    const reporterKey = await issueApiKeyViaApi(request, reporter);
+    await flagViaApi(request, reporterKey, `/api/feedback/${feedbackId}/flags`, `${reason}: flagged review`);
+    await flagViaApi(request, reporterKey, `/api/feedback/${feedbackId}/reply/flags`, `${reason}: flagged reply`);
+    const queueBefore = await request.get('/api/moderation/queue', { headers: bearer(adminKey), params: { reasonText: reason } });
+    expect(queueBefore.ok()).toBeTruthy();
+    expect((await queueBefore.json()).filter(entry => entry.profileId === own.profileId)).toHaveLength(2);
     const page = await pageAs(own.owner);
     await openProvidersTab(page);
     await applyCatalogFilter(page, { categories: [category] });
@@ -1177,6 +1268,12 @@ test.describe('Provider Profile flow', () => {
     await openProviderProfileTab(page);
     await expect(emptyProfileText(page)).toBeVisible({ timeout: 5000 });
     await runCloseSettingsFlow(page);
+
+    await test.step('the profile\'s flagged review and reply left the moderation queue with it', async () => {
+      const queueAfter = await request.get('/api/moderation/queue', { headers: bearer(adminKey), params: { reasonText: reason } });
+      expect(queueAfter.ok()).toBeTruthy();
+      expect(await queueAfter.json()).toHaveLength(0);
+    });
   });
 
   test('moderator reports and moderates a review and a reply on a provider\'s profile — report-with-reason popup, merged moderation queue lists both with a working profile link, approve restores both', async ({ pageAs, moderatorAccount, createUser, adminKey, request, unique }) => {
@@ -1217,6 +1314,7 @@ test.describe('Provider Profile flow', () => {
 
     await page.getByRole('tab', { name: /moderation/i }).click();
     await scopeModerationQueue(page, `${tag}:`);
+    await assertSortStatusLine(page, '↕️ Sort: Reported (Descending)');
     const list = page.locator('.moderation-list');
     const feedbackCard = moderationCard(list).filter({ hasText: 'Reportable feedback text.' });
     const replyCard = moderationCard(list).filter({ hasText: 'Reportable reply text.' });
@@ -1358,6 +1456,7 @@ test.describe('Provider Profile flow', () => {
     await page.getByRole('tab', { name: /moderation/i }).click();
     const list = page.locator('.moderation-list');
     await scopeModerationQueue(page, `${tag}:`);
+    await assertSortStatusLine(page, '↕️ Sort: Reported (Descending)');
     await expect(moderationCard(list)).toHaveCount(7, { timeout: 8000 });
     for (const text of otherReviewerTexts) {
       await expect(moderationCard(list).filter({ hasText: text })).toBeVisible({ timeout: 5000 });

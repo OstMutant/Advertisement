@@ -53,8 +53,8 @@ bash /app/playwright/run.sh --lint
 
 See [`run.sh`](run.sh)'s own header for what this mode does, and
 [`eslint.config.js`](eslint.config.js)'s own header for which rules it enforces. `package.json`
-declares the `eslint`/`eslint-plugin-playwright` devDependencies this mode installs inside
-`pw-runner` — it has no header of its own since JSON has no comment syntax.
+declares the `eslint`, `eslint-plugin-playwright`, `@eslint/js` and `globals` devDependencies this mode
+installs inside `pw-runner` (the last two serve the architecture-map page lint) — it has no header of its own since JSON has no comment syntax.
 
 ## Test accounts
 

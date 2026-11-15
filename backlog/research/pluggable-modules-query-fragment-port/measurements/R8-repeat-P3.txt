@@ -1,0 +1,432 @@
+Pager usage is off.
+Output format is unaligned.
+P3-clustered-created-at|1|##### S1 cat5 (31k)|
+P3-clustered-created-at|1|A.lookup: 31575 ids, 10.1 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 17.928 ms  Execution Time: 2.451 ms
+P3-clustered-created-at|1|A.count|Planning Time: 17.629 ms  Execution Time: 174.611 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.475 ms  Execution Time: 3.703 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.304 ms  Execution Time: 237.933 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.141 ms  Execution Time: 179.100 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.120 ms  Execution Time: 173.596 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.702 ms  Execution Time: 2.359 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.559 ms  Execution Time: 204.013 ms
+P3-clustered-created-at|1|##### S1a cat50 (6.3k)|
+P3-clustered-created-at|1|A.lookup: 6301 ids, 2.5 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 2.997 ms  Execution Time: 1.428 ms
+P3-clustered-created-at|1|A.count|Planning Time: 2.898 ms  Execution Time: 38.711 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.531 ms  Execution Time: 51.742 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.405 ms  Execution Time: 30.027 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.148 ms  Execution Time: 22.261 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.146 ms  Execution Time: 19.748 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.591 ms  Execution Time: 48.293 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.426 ms  Execution Time: 30.585 ms
+P3-clustered-created-at|1|##### S1b cat2 (66k)|
+P3-clustered-created-at|1|A.lookup: 65799 ids, 19.0 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 37.809 ms  Execution Time: 6.013 ms
+P3-clustered-created-at|1|A.count|Planning Time: 40.416 ms  Execution Time: 246.510 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.402 ms  Execution Time: 1.937 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.250 ms  Execution Time: 224.937 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.153 ms  Execution Time: 353.682 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.236 ms  Execution Time: 341.110 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.611 ms  Execution Time: 1.901 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.321 ms  Execution Time: 236.106 ms
+P3-clustered-created-at|1|##### S2 rare cat150 (3k)|
+P3-clustered-created-at|1|A.lookup: 3007 ids, 1.4 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 0.919 ms  Execution Time: 3.727 ms
+P3-clustered-created-at|1|A.count|Planning Time: 0.875 ms  Execution Time: 21.586 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.424 ms  Execution Time: 84.731 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.312 ms  Execution Time: 14.022 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.142 ms  Execution Time: 11.469 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.168 ms  Execution Time: 10.435 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.673 ms  Execution Time: 65.998 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.440 ms  Execution Time: 13.993 ms
+P3-clustered-created-at|1|##### S3 cat1 (241k)|
+P3-clustered-created-at|1|A.lookup: 241170 ids, 93.0 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 150.856 ms  Execution Time: 34.181 ms
+P3-clustered-created-at|1|A.count|Planning Time: 154.766 ms  Execution Time: 415.418 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.555 ms  Execution Time: 0.725 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.322 ms  Execution Time: 369.923 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.192 ms  Execution Time: 1275.283 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.129 ms  Execution Time: 1189.329 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.580 ms  Execution Time: 0.702 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.278 ms  Execution Time: 367.976 ms
+P3-clustered-created-at|1|##### S4 cat5 AND city201|
+P3-clustered-created-at|1|A.lookup: 3130 ids, 69.0 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 1.082 ms  Execution Time: 2.413 ms
+P3-clustered-created-at|1|A.count|Planning Time: 1.660 ms  Execution Time: 24.581 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.943 ms  Execution Time: 42.583 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.610 ms  Execution Time: 85.503 ms
+P3-clustered-created-at|1|B.page|Planning Time: 2.067 ms  Execution Time: 33.612 ms
+P3-clustered-created-at|1|B.count|Planning Time: 1.085 ms  Execution Time: 72.291 ms
+P3-clustered-created-at|1|##### S5 cat5 OFFSET 1000|
+P3-clustered-created-at|1|A.lookup: 31575 ids, 8.8 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 18.134 ms  Execution Time: 14.408 ms
+P3-clustered-created-at|1|A.count|Planning Time: 17.394 ms  Execution Time: 161.649 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.410 ms  Execution Time: 76.830 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.303 ms  Execution Time: 193.648 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.452 ms  Execution Time: 176.491 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.131 ms  Execution Time: 162.898 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.843 ms  Execution Time: 77.645 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.466 ms  Execution Time: 191.678 ms
+P3-clustered-created-at|1|##### S6 rare cat150 AND city250|
+P3-clustered-created-at|1|A.lookup: 16 ids, 6.8 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 0.102 ms  Execution Time: 0.228 ms
+P3-clustered-created-at|1|A.count|Planning Time: 0.071 ms  Execution Time: 0.093 ms
+P3-clustered-created-at|1|F.page|Planning Time: 1.096 ms  Execution Time: 4.534 ms
+P3-clustered-created-at|1|F.count|Planning Time: 1.018 ms  Execution Time: 4.699 ms
+P3-clustered-created-at|1|B.page|Planning Time: 1.901 ms  Execution Time: 4.098 ms
+P3-clustered-created-at|1|B.count|Planning Time: 1.211 ms  Execution Time: 4.561 ms
+P3-clustered-created-at|1|##### S7 three cats 5,50,150|
+P3-clustered-created-at|1|A.lookup: 40754 ids, 16.3 ms|
+P3-clustered-created-at|1|A.page|Planning Time: 22.777 ms  Execution Time: 2.747 ms
+P3-clustered-created-at|1|A.count|Planning Time: 22.265 ms  Execution Time: 177.203 ms
+P3-clustered-created-at|1|F.page|Planning Time: 0.494 ms  Execution Time: 6.447 ms
+P3-clustered-created-at|1|F.count|Planning Time: 0.318 ms  Execution Time: 210.839 ms
+P3-clustered-created-at|1|G.page|Planning Time: 0.150 ms  Execution Time: 249.168 ms
+P3-clustered-created-at|1|G.count|Planning Time: 0.131 ms  Execution Time: 236.687 ms
+P3-clustered-created-at|1|B.page|Planning Time: 0.607 ms  Execution Time: 5.003 ms
+P3-clustered-created-at|1|B.count|Planning Time: 0.422 ms  Execution Time: 262.852 ms
+P3-clustered-created-at|2|##### S1 cat5 (31k)|
+P3-clustered-created-at|2|A.lookup: 31575 ids, 11.3 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 17.037 ms  Execution Time: 2.919 ms
+P3-clustered-created-at|2|A.count|Planning Time: 17.132 ms  Execution Time: 173.561 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.452 ms  Execution Time: 3.034 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.347 ms  Execution Time: 218.627 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.152 ms  Execution Time: 185.528 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.128 ms  Execution Time: 176.130 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.629 ms  Execution Time: 2.709 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.410 ms  Execution Time: 216.310 ms
+P3-clustered-created-at|2|##### S1a cat50 (6.3k)|
+P3-clustered-created-at|2|A.lookup: 6301 ids, 2.7 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 2.894 ms  Execution Time: 1.448 ms
+P3-clustered-created-at|2|A.count|Planning Time: 2.928 ms  Execution Time: 41.028 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.483 ms  Execution Time: 53.728 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.301 ms  Execution Time: 30.039 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.143 ms  Execution Time: 25.077 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.124 ms  Execution Time: 20.996 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.502 ms  Execution Time: 47.941 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.399 ms  Execution Time: 30.462 ms
+P3-clustered-created-at|2|##### S1b cat2 (66k)|
+P3-clustered-created-at|2|A.lookup: 65799 ids, 19.6 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 38.999 ms  Execution Time: 5.434 ms
+P3-clustered-created-at|2|A.count|Planning Time: 37.147 ms  Execution Time: 199.427 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.426 ms  Execution Time: 2.082 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.266 ms  Execution Time: 229.783 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.297 ms  Execution Time: 347.334 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.127 ms  Execution Time: 351.206 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.624 ms  Execution Time: 2.473 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.360 ms  Execution Time: 234.521 ms
+P3-clustered-created-at|2|##### S2 rare cat150 (3k)|
+P3-clustered-created-at|2|A.lookup: 3007 ids, 1.3 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 1.019 ms  Execution Time: 3.624 ms
+P3-clustered-created-at|2|A.count|Planning Time: 0.923 ms  Execution Time: 22.263 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.452 ms  Execution Time: 85.433 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.293 ms  Execution Time: 13.705 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.142 ms  Execution Time: 11.155 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.121 ms  Execution Time: 10.783 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.492 ms  Execution Time: 75.505 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.353 ms  Execution Time: 13.744 ms
+P3-clustered-created-at|2|##### S3 cat1 (241k)|
+P3-clustered-created-at|2|A.lookup: 241170 ids, 92.3 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 138.814 ms  Execution Time: 40.148 ms
+P3-clustered-created-at|2|A.count|Planning Time: 140.948 ms  Execution Time: 369.973 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.407 ms  Execution Time: 0.743 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.238 ms  Execution Time: 332.419 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.147 ms  Execution Time: 1226.905 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.129 ms  Execution Time: 1150.602 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.564 ms  Execution Time: 0.758 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.294 ms  Execution Time: 379.472 ms
+P3-clustered-created-at|2|##### S4 cat5 AND city201|
+P3-clustered-created-at|2|A.lookup: 3130 ids, 88.2 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 1.601 ms  Execution Time: 3.669 ms
+P3-clustered-created-at|2|A.count|Planning Time: 1.125 ms  Execution Time: 26.308 ms
+P3-clustered-created-at|2|F.page|Planning Time: 1.077 ms  Execution Time: 50.771 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.656 ms  Execution Time: 90.417 ms
+P3-clustered-created-at|2|B.page|Planning Time: 1.895 ms  Execution Time: 28.888 ms
+P3-clustered-created-at|2|B.count|Planning Time: 1.023 ms  Execution Time: 70.686 ms
+P3-clustered-created-at|2|##### S5 cat5 OFFSET 1000|
+P3-clustered-created-at|2|A.lookup: 31575 ids, 9.0 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 17.061 ms  Execution Time: 12.793 ms
+P3-clustered-created-at|2|A.count|Planning Time: 17.728 ms  Execution Time: 157.203 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.450 ms  Execution Time: 88.470 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.298 ms  Execution Time: 193.105 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.159 ms  Execution Time: 182.068 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.128 ms  Execution Time: 160.810 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.599 ms  Execution Time: 71.634 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.365 ms  Execution Time: 193.056 ms
+P3-clustered-created-at|2|##### S6 rare cat150 AND city250|
+P3-clustered-created-at|2|A.lookup: 16 ids, 6.4 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 0.087 ms  Execution Time: 0.215 ms
+P3-clustered-created-at|2|A.count|Planning Time: 0.066 ms  Execution Time: 0.104 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.955 ms  Execution Time: 4.520 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.572 ms  Execution Time: 5.070 ms
+P3-clustered-created-at|2|B.page|Planning Time: 1.770 ms  Execution Time: 4.200 ms
+P3-clustered-created-at|2|B.count|Planning Time: 1.043 ms  Execution Time: 4.747 ms
+P3-clustered-created-at|2|##### S7 three cats 5,50,150|
+P3-clustered-created-at|2|A.lookup: 40754 ids, 15.6 ms|
+P3-clustered-created-at|2|A.page|Planning Time: 23.113 ms  Execution Time: 2.636 ms
+P3-clustered-created-at|2|A.count|Planning Time: 22.334 ms  Execution Time: 171.437 ms
+P3-clustered-created-at|2|F.page|Planning Time: 0.409 ms  Execution Time: 5.555 ms
+P3-clustered-created-at|2|F.count|Planning Time: 0.288 ms  Execution Time: 192.052 ms
+P3-clustered-created-at|2|G.page|Planning Time: 0.158 ms  Execution Time: 235.766 ms
+P3-clustered-created-at|2|G.count|Planning Time: 0.130 ms  Execution Time: 218.051 ms
+P3-clustered-created-at|2|B.page|Planning Time: 0.527 ms  Execution Time: 4.443 ms
+P3-clustered-created-at|2|B.count|Planning Time: 0.335 ms  Execution Time: 242.025 ms
+P3-clustered-created-at|3|##### S1 cat5 (31k)|
+P3-clustered-created-at|3|A.lookup: 31575 ids, 9.9 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 17.364 ms  Execution Time: 2.495 ms
+P3-clustered-created-at|3|A.count|Planning Time: 17.090 ms  Execution Time: 161.030 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.432 ms  Execution Time: 3.269 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.271 ms  Execution Time: 196.911 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.148 ms  Execution Time: 183.664 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.125 ms  Execution Time: 167.153 ms
+P3-clustered-created-at|3|B.page|Planning Time: 0.530 ms  Execution Time: 2.596 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.380 ms  Execution Time: 193.656 ms
+P3-clustered-created-at|3|##### S1a cat50 (6.3k)|
+P3-clustered-created-at|3|A.lookup: 6301 ids, 2.7 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 3.009 ms  Execution Time: 1.379 ms
+P3-clustered-created-at|3|A.count|Planning Time: 2.733 ms  Execution Time: 39.625 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.416 ms  Execution Time: 48.045 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.295 ms  Execution Time: 29.030 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.145 ms  Execution Time: 22.450 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.123 ms  Execution Time: 19.215 ms
+P3-clustered-created-at|3|B.page|Planning Time: 0.627 ms  Execution Time: 39.567 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.350 ms  Execution Time: 28.334 ms
+P3-clustered-created-at|3|##### S1b cat2 (66k)|
+P3-clustered-created-at|3|A.lookup: 65799 ids, 19.2 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 39.334 ms  Execution Time: 4.641 ms
+P3-clustered-created-at|3|A.count|Planning Time: 36.850 ms  Execution Time: 203.037 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.436 ms  Execution Time: 2.086 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.260 ms  Execution Time: 231.315 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.148 ms  Execution Time: 371.271 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.162 ms  Execution Time: 401.233 ms
+P3-clustered-created-at|3|B.page|Planning Time: 0.733 ms  Execution Time: 2.837 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.373 ms  Execution Time: 352.707 ms
+P3-clustered-created-at|3|##### S2 rare cat150 (3k)|
+P3-clustered-created-at|3|A.lookup: 3007 ids, 1.3 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 0.959 ms  Execution Time: 3.586 ms
+P3-clustered-created-at|3|A.count|Planning Time: 0.895 ms  Execution Time: 23.229 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.401 ms  Execution Time: 100.090 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.373 ms  Execution Time: 14.013 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.145 ms  Execution Time: 11.531 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.249 ms  Execution Time: 10.363 ms
+P3-clustered-created-at|3|B.page|Planning Time: 0.507 ms  Execution Time: 80.938 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.387 ms  Execution Time: 13.813 ms
+P3-clustered-created-at|3|##### S3 cat1 (241k)|
+P3-clustered-created-at|3|A.lookup: 241170 ids, 98.4 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 141.622 ms  Execution Time: 25.069 ms
+P3-clustered-created-at|3|A.count|Planning Time: 140.172 ms  Execution Time: 372.913 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.407 ms  Execution Time: 0.695 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.235 ms  Execution Time: 331.403 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.148 ms  Execution Time: 1232.704 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.193 ms  Execution Time: 1275.768 ms
+P3-clustered-created-at|3|B.page|Planning Time: 0.567 ms  Execution Time: 0.740 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.408 ms  Execution Time: 371.038 ms
+P3-clustered-created-at|3|##### S4 cat5 AND city201|
+P3-clustered-created-at|3|A.lookup: 3130 ids, 70.5 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 1.094 ms  Execution Time: 2.806 ms
+P3-clustered-created-at|3|A.count|Planning Time: 0.963 ms  Execution Time: 26.907 ms
+P3-clustered-created-at|3|F.page|Planning Time: 1.024 ms  Execution Time: 45.177 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.853 ms  Execution Time: 85.652 ms
+P3-clustered-created-at|3|B.page|Planning Time: 1.863 ms  Execution Time: 35.267 ms
+P3-clustered-created-at|3|B.count|Planning Time: 1.061 ms  Execution Time: 80.074 ms
+P3-clustered-created-at|3|##### S5 cat5 OFFSET 1000|
+P3-clustered-created-at|3|A.lookup: 31575 ids, 9.9 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 17.539 ms  Execution Time: 13.811 ms
+P3-clustered-created-at|3|A.count|Planning Time: 17.290 ms  Execution Time: 173.046 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.533 ms  Execution Time: 86.818 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.302 ms  Execution Time: 276.584 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.249 ms  Execution Time: 193.724 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.207 ms  Execution Time: 171.818 ms
+P3-clustered-created-at|3|B.page|Planning Time: 0.718 ms  Execution Time: 80.637 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.519 ms  Execution Time: 230.671 ms
+P3-clustered-created-at|3|##### S6 rare cat150 AND city250|
+P3-clustered-created-at|3|A.lookup: 16 ids, 7.4 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 0.112 ms  Execution Time: 0.235 ms
+P3-clustered-created-at|3|A.count|Planning Time: 0.080 ms  Execution Time: 0.146 ms
+P3-clustered-created-at|3|F.page|Planning Time: 1.192 ms  Execution Time: 4.750 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.666 ms  Execution Time: 4.720 ms
+P3-clustered-created-at|3|B.page|Planning Time: 1.976 ms  Execution Time: 4.491 ms
+P3-clustered-created-at|3|B.count|Planning Time: 1.058 ms  Execution Time: 4.995 ms
+P3-clustered-created-at|3|##### S7 three cats 5,50,150|
+P3-clustered-created-at|3|A.lookup: 40754 ids, 15.3 ms|
+P3-clustered-created-at|3|A.page|Planning Time: 36.944 ms  Execution Time: 3.212 ms
+P3-clustered-created-at|3|A.count|Planning Time: 23.599 ms  Execution Time: 205.140 ms
+P3-clustered-created-at|3|F.page|Planning Time: 0.615 ms  Execution Time: 5.973 ms
+P3-clustered-created-at|3|F.count|Planning Time: 0.294 ms  Execution Time: 216.830 ms
+P3-clustered-created-at|3|G.page|Planning Time: 0.161 ms  Execution Time: 232.921 ms
+P3-clustered-created-at|3|G.count|Planning Time: 0.131 ms  Execution Time: 250.692 ms
+P3-clustered-created-at|3|B.page|Planning Time: 1.254 ms  Execution Time: 6.548 ms
+P3-clustered-created-at|3|B.count|Planning Time: 0.564 ms  Execution Time: 307.792 ms
+P3-clustered-created-at|4|##### S1 cat5 (31k)|
+P3-clustered-created-at|4|A.lookup: 31575 ids, 10.7 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 24.737 ms  Execution Time: 3.170 ms
+P3-clustered-created-at|4|A.count|Planning Time: 20.540 ms  Execution Time: 216.668 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.391 ms  Execution Time: 4.972 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.290 ms  Execution Time: 214.883 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.152 ms  Execution Time: 226.436 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.121 ms  Execution Time: 165.823 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.536 ms  Execution Time: 2.466 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.376 ms  Execution Time: 197.709 ms
+P3-clustered-created-at|4|##### S1a cat50 (6.3k)|
+P3-clustered-created-at|4|A.lookup: 6301 ids, 2.7 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 2.812 ms  Execution Time: 1.415 ms
+P3-clustered-created-at|4|A.count|Planning Time: 2.893 ms  Execution Time: 38.802 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.436 ms  Execution Time: 57.241 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.297 ms  Execution Time: 28.871 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.146 ms  Execution Time: 21.444 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.123 ms  Execution Time: 19.544 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.490 ms  Execution Time: 43.908 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.373 ms  Execution Time: 28.361 ms
+P3-clustered-created-at|4|##### S1b cat2 (66k)|
+P3-clustered-created-at|4|A.lookup: 65799 ids, 19.6 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 40.033 ms  Execution Time: 5.437 ms
+P3-clustered-created-at|4|A.count|Planning Time: 36.848 ms  Execution Time: 195.830 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.667 ms  Execution Time: 2.716 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.283 ms  Execution Time: 208.688 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.176 ms  Execution Time: 550.237 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.193 ms  Execution Time: 365.343 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.598 ms  Execution Time: 2.081 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.342 ms  Execution Time: 236.693 ms
+P3-clustered-created-at|4|##### S2 rare cat150 (3k)|
+P3-clustered-created-at|4|A.lookup: 3007 ids, 1.3 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 0.967 ms  Execution Time: 3.800 ms
+P3-clustered-created-at|4|A.count|Planning Time: 2.211 ms  Execution Time: 21.919 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.405 ms  Execution Time: 90.043 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.298 ms  Execution Time: 13.767 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.144 ms  Execution Time: 10.941 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.121 ms  Execution Time: 10.325 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.562 ms  Execution Time: 69.086 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.359 ms  Execution Time: 14.618 ms
+P3-clustered-created-at|4|##### S3 cat1 (241k)|
+P3-clustered-created-at|4|A.lookup: 241170 ids, 94.8 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 150.462 ms  Execution Time: 25.260 ms
+P3-clustered-created-at|4|A.count|Planning Time: 142.786 ms  Execution Time: 399.333 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.407 ms  Execution Time: 0.633 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.216 ms  Execution Time: 315.029 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.145 ms  Execution Time: 1223.144 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.224 ms  Execution Time: 1171.147 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.658 ms  Execution Time: 0.827 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.505 ms  Execution Time: 321.144 ms
+P3-clustered-created-at|4|##### S4 cat5 AND city201|
+P3-clustered-created-at|4|A.lookup: 3130 ids, 68.8 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 1.044 ms  Execution Time: 2.460 ms
+P3-clustered-created-at|4|A.count|Planning Time: 0.946 ms  Execution Time: 24.242 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.987 ms  Execution Time: 46.327 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.930 ms  Execution Time: 85.679 ms
+P3-clustered-created-at|4|B.page|Planning Time: 1.860 ms  Execution Time: 29.687 ms
+P3-clustered-created-at|4|B.count|Planning Time: 1.160 ms  Execution Time: 68.502 ms
+P3-clustered-created-at|4|##### S5 cat5 OFFSET 1000|
+P3-clustered-created-at|4|A.lookup: 31575 ids, 8.7 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 17.570 ms  Execution Time: 14.017 ms
+P3-clustered-created-at|4|A.count|Planning Time: 18.103 ms  Execution Time: 171.222 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.395 ms  Execution Time: 81.459 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.292 ms  Execution Time: 195.770 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.153 ms  Execution Time: 175.759 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.124 ms  Execution Time: 160.448 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.649 ms  Execution Time: 64.542 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.381 ms  Execution Time: 182.990 ms
+P3-clustered-created-at|4|##### S6 rare cat150 AND city250|
+P3-clustered-created-at|4|A.lookup: 16 ids, 6.8 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 0.135 ms  Execution Time: 0.214 ms
+P3-clustered-created-at|4|A.count|Planning Time: 0.050 ms  Execution Time: 0.087 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.878 ms  Execution Time: 4.349 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.586 ms  Execution Time: 4.307 ms
+P3-clustered-created-at|4|B.page|Planning Time: 1.888 ms  Execution Time: 4.378 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.975 ms  Execution Time: 4.628 ms
+P3-clustered-created-at|4|##### S7 three cats 5,50,150|
+P3-clustered-created-at|4|A.lookup: 40754 ids, 14.7 ms|
+P3-clustered-created-at|4|A.page|Planning Time: 22.384 ms  Execution Time: 3.338 ms
+P3-clustered-created-at|4|A.count|Planning Time: 23.604 ms  Execution Time: 177.477 ms
+P3-clustered-created-at|4|F.page|Planning Time: 0.393 ms  Execution Time: 5.960 ms
+P3-clustered-created-at|4|F.count|Planning Time: 0.286 ms  Execution Time: 203.159 ms
+P3-clustered-created-at|4|G.page|Planning Time: 0.150 ms  Execution Time: 230.503 ms
+P3-clustered-created-at|4|G.count|Planning Time: 0.129 ms  Execution Time: 219.099 ms
+P3-clustered-created-at|4|B.page|Planning Time: 0.635 ms  Execution Time: 5.057 ms
+P3-clustered-created-at|4|B.count|Planning Time: 0.387 ms  Execution Time: 241.479 ms
+P3-clustered-created-at|5|##### S1 cat5 (31k)|
+P3-clustered-created-at|5|A.lookup: 31575 ids, 9.9 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 18.515 ms  Execution Time: 2.339 ms
+P3-clustered-created-at|5|A.count|Planning Time: 17.802 ms  Execution Time: 169.211 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.404 ms  Execution Time: 3.179 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.323 ms  Execution Time: 177.044 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.174 ms  Execution Time: 180.672 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.133 ms  Execution Time: 174.912 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.695 ms  Execution Time: 2.424 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.330 ms  Execution Time: 197.462 ms
+P3-clustered-created-at|5|##### S1a cat50 (6.3k)|
+P3-clustered-created-at|5|A.lookup: 6301 ids, 2.8 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 2.759 ms  Execution Time: 1.477 ms
+P3-clustered-created-at|5|A.count|Planning Time: 2.854 ms  Execution Time: 39.510 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.435 ms  Execution Time: 50.659 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.296 ms  Execution Time: 29.452 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.148 ms  Execution Time: 22.005 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.121 ms  Execution Time: 20.203 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.488 ms  Execution Time: 39.852 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.342 ms  Execution Time: 29.476 ms
+P3-clustered-created-at|5|##### S1b cat2 (66k)|
+P3-clustered-created-at|5|A.lookup: 65799 ids, 19.5 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 36.774 ms  Execution Time: 5.368 ms
+P3-clustered-created-at|5|A.count|Planning Time: 38.528 ms  Execution Time: 204.986 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.413 ms  Execution Time: 1.951 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.398 ms  Execution Time: 219.269 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.273 ms  Execution Time: 357.516 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.128 ms  Execution Time: 333.568 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.524 ms  Execution Time: 1.892 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.317 ms  Execution Time: 225.413 ms
+P3-clustered-created-at|5|##### S2 rare cat150 (3k)|
+P3-clustered-created-at|5|A.lookup: 3007 ids, 1.3 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 0.931 ms  Execution Time: 3.562 ms
+P3-clustered-created-at|5|A.count|Planning Time: 0.869 ms  Execution Time: 21.661 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.416 ms  Execution Time: 89.626 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.292 ms  Execution Time: 14.000 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.238 ms  Execution Time: 11.072 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.124 ms  Execution Time: 10.929 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.492 ms  Execution Time: 66.784 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.397 ms  Execution Time: 14.928 ms
+P3-clustered-created-at|5|##### S3 cat1 (241k)|
+P3-clustered-created-at|5|A.lookup: 241170 ids, 100.0 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 136.014 ms  Execution Time: 26.501 ms
+P3-clustered-created-at|5|A.count|Planning Time: 137.413 ms  Execution Time: 407.024 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.395 ms  Execution Time: 0.738 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.238 ms  Execution Time: 348.911 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.147 ms  Execution Time: 1226.520 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.141 ms  Execution Time: 1156.460 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.630 ms  Execution Time: 0.872 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.571 ms  Execution Time: 338.543 ms
+P3-clustered-created-at|5|##### S4 cat5 AND city201|
+P3-clustered-created-at|5|A.lookup: 3130 ids, 71.3 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 1.163 ms  Execution Time: 2.420 ms
+P3-clustered-created-at|5|A.count|Planning Time: 1.079 ms  Execution Time: 24.715 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.990 ms  Execution Time: 50.289 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.618 ms  Execution Time: 83.068 ms
+P3-clustered-created-at|5|B.page|Planning Time: 2.070 ms  Execution Time: 31.082 ms
+P3-clustered-created-at|5|B.count|Planning Time: 1.345 ms  Execution Time: 80.571 ms
+P3-clustered-created-at|5|##### S5 cat5 OFFSET 1000|
+P3-clustered-created-at|5|A.lookup: 31575 ids, 8.7 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 17.372 ms  Execution Time: 13.309 ms
+P3-clustered-created-at|5|A.count|Planning Time: 16.859 ms  Execution Time: 170.910 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.451 ms  Execution Time: 74.745 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.295 ms  Execution Time: 189.303 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.148 ms  Execution Time: 175.856 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.133 ms  Execution Time: 161.073 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.584 ms  Execution Time: 73.864 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.386 ms  Execution Time: 192.981 ms
+P3-clustered-created-at|5|##### S6 rare cat150 AND city250|
+P3-clustered-created-at|5|A.lookup: 16 ids, 6.0 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 0.105 ms  Execution Time: 0.214 ms
+P3-clustered-created-at|5|A.count|Planning Time: 0.046 ms  Execution Time: 0.079 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.951 ms  Execution Time: 4.863 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.597 ms  Execution Time: 4.281 ms
+P3-clustered-created-at|5|B.page|Planning Time: 1.950 ms  Execution Time: 4.422 ms
+P3-clustered-created-at|5|B.count|Planning Time: 1.164 ms  Execution Time: 4.678 ms
+P3-clustered-created-at|5|##### S7 three cats 5,50,150|
+P3-clustered-created-at|5|A.lookup: 40754 ids, 16.7 ms|
+P3-clustered-created-at|5|A.page|Planning Time: 22.287 ms  Execution Time: 2.645 ms
+P3-clustered-created-at|5|A.count|Planning Time: 22.363 ms  Execution Time: 177.600 ms
+P3-clustered-created-at|5|F.page|Planning Time: 0.408 ms  Execution Time: 6.711 ms
+P3-clustered-created-at|5|F.count|Planning Time: 0.289 ms  Execution Time: 199.634 ms
+P3-clustered-created-at|5|G.page|Planning Time: 0.227 ms  Execution Time: 229.833 ms
+P3-clustered-created-at|5|G.count|Planning Time: 0.133 ms  Execution Time: 214.404 ms
+P3-clustered-created-at|5|B.page|Planning Time: 0.555 ms  Execution Time: 4.057 ms
+P3-clustered-created-at|5|B.count|Planning Time: 0.332 ms  Execution Time: 241.250 ms

@@ -34,12 +34,14 @@ import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
-/** Public catalog listing of provider profiles -- visible to any visitor, no create/edit affordance here (that lives in {@code AccountOverlay}'s own Provider Profile tab). */
+/** Public catalog listing of provider profiles -- visible to any visitor; owners and privileged users get Edit and Delete on the cards. */
 @Slf4j
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 public class ProvidersView extends VerticalLayout {
+
+    private static final String DATA_TESTID = "data-testid";
 
     private final transient ProviderProfileReadService              providerProfileReadService;
     private final transient ProviderProfileDisplayEnrichmentService enrichmentService;
@@ -85,7 +87,7 @@ public class ProvidersView extends VerticalLayout {
         refresh();
     }
 
-    // MainView calls this on every tab select -- tabs only toggle visibility, never re-fetch on their own.
+    // Reloads the list from the current filter, sort and page.
     public void refreshOnTabSelect() {
         refresh();
     }
@@ -97,9 +99,7 @@ public class ProvidersView extends VerticalLayout {
         return openProfileOverlay(pending.providerId(), () -> {});
     }
 
-    /** Opens the given provider profile's view overlay directly (not via a deep-link URL) -- shared by
-     *  {@link #openPendingDeepLinkIfAny} and by other views (e.g. ModerationView) that need to open a
-     *  profile overlay from within an already-running session, with their own {@code onClose} behavior. */
+    /** Opens the given provider profile's view overlay directly, not via a deep-link URL; the caller's {@code onClose} runs when it closes. */
     public boolean openProfileOverlay(@NonNull Long providerId, @NonNull Runnable onClose) {
         return providerProfileReadService.findById(providerId)
                 .map(this::enrichSingle)
@@ -121,6 +121,7 @@ public class ProvidersView extends VerticalLayout {
         container.setJustifyContentMode(JustifyContentMode.START);
         container.setAlignItems(Alignment.STRETCH);
         container.addClassName("provider-profile-container");
+        container.getElement().setAttribute(DATA_TESTID, "provider-profile-container");
         return container;
     }
 
@@ -162,6 +163,7 @@ public class ProvidersView extends VerticalLayout {
             queryStatusBar.update();
         }
     }
+
 
     private List<ProviderProfileDto> enrich(List<ProviderProfileDto> profiles) {
         profiles = enrichmentService.enrichWithCategoriesAndCity(profiles, localeProvider.getCurrentLocale());

@@ -12,6 +12,7 @@ import org.ost.contact.config.ContactAutoConfiguration;
 import org.ost.feedback.config.FeedbackAutoConfiguration;
 import org.ost.orchestrator.config.OrchestratorAutoConfiguration;
 import org.ost.provider.config.ProviderProfileAutoConfiguration;
+import org.ost.promotion.config.PromotionAutoConfiguration;
 import org.ost.restapi.config.RestApiAutoConfiguration;
 import org.ost.taxon.config.TaxonAutoConfiguration;
 import org.ost.user.config.UserAutoConfiguration;
@@ -30,6 +31,7 @@ import org.springframework.boot.test.context.SpringBootTest;
         ProviderProfileAutoConfiguration.class,
         ContactAutoConfiguration.class,
         FeedbackAutoConfiguration.class,
+        PromotionAutoConfiguration.class,
         OrchestratorAutoConfiguration.class,
         RestApiAutoConfiguration.class,
         RestApiTestSupport.class,

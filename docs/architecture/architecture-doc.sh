@@ -28,7 +28,7 @@
 # Uses: bash, docker, tar, scripts/Dockerfile's own arch-doc-tools image (built once, rebuilt only
 #   when the Dockerfile itself changes or --rebuild-image is passed -- same staleness check
 #   scripts/build-and-test/run.sh's own image build already uses), scripts/screenshot-architecture-map.sh
-#   (own separate Playwright container).
+#   (own separate Playwright container), scripts/utils/docker-pull-retry.sh's docker_pull_missing_bases.
 # Env: None.
 # Input: repo source (every Java module, Liquibase changelog, ADR, backlog file the generator
 #   scans).
@@ -46,6 +46,7 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 NO_SCREENSHOT=false
 REBUILD_IMAGE=false
 for arg in "$@"; do
@@ -72,15 +73,18 @@ POINTER_MODULES=(user-spring-boot-starter advertisement-spring-boot-starter prov
 # itself hasn't changed), defeating the point of picking up newer base-image/package versions. ──
 if $REBUILD_IMAGE; then
   echo "Rebuilding $GEN_IMAGE image (--rebuild-image, ignoring Docker layer cache)..."
+  docker_pull_missing_bases "$DOCKERFILE"
   docker build --no-cache -f "$DOCKERFILE" -t "$GEN_IMAGE" "$ROOT" >/dev/null
 elif ! docker image inspect "$GEN_IMAGE" >/dev/null 2>&1; then
   echo "Building $GEN_IMAGE image..."
+  docker_pull_missing_bases "$DOCKERFILE"
   docker build -f "$DOCKERFILE" -t "$GEN_IMAGE" "$ROOT" >/dev/null
 else
   IMAGE_CREATED_EPOCH=$(date -d "$(docker image inspect -f '{{.Created}}' "$GEN_IMAGE")" +%s)
   DOCKERFILE_EPOCH=$(date -r "$DOCKERFILE" +%s)
   if [ "$DOCKERFILE_EPOCH" -gt "$IMAGE_CREATED_EPOCH" ]; then
     echo "Dockerfile changed since last build -- rebuilding $GEN_IMAGE image..."
+    docker_pull_missing_bases "$DOCKERFILE"
     docker build -f "$DOCKERFILE" -t "$GEN_IMAGE" "$ROOT" >/dev/null
   else
     echo "$GEN_IMAGE image is up to date -- skipping rebuild."

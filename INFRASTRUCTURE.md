@@ -150,6 +150,11 @@ To reset application data without restarting anything: `bash scripts/reset.sh` /
 `scripts\reset.bat` (truncates all tables via `scripts/deploy-and-run/reset.sh`, ~1s, doesn't touch
 SeaweedFS volumes).
 
+To bring the Docker host to a clean state before a full run: `bash scripts/docker-clean.sh` /
+`scripts\docker-clean.bat` removes the project containers only; the volume and cache scopes are
+opt-in flags, and `--dry-run --all` prints what each would remove without removing anything. The
+working session's own container is never touched.
+
 ---
 
 ## Environment Variables

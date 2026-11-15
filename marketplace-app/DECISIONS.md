@@ -785,6 +785,8 @@ conflicts with the "explicit over implicit" architecture principle.
 ## ADR-003: Inline SQL repository style — no descriptor layer
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** A prior `SqlEntityDescriptor` / `SqlCommand` descriptor layer required jumping to
 constants classes to read any query.
 
@@ -794,6 +796,9 @@ otherwise. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants.
 - `MapSqlParameterSource` constructed inline per method.
 - Dynamic SQL assembled with `.formatted()`, never `+` concatenation.
 - `SqlFilterBuilder.build(params, filter, prefix)` — prefix is part of the call.
+- No `WHERE 1=1`: `WHERE` is written only when at least one condition exists; the prefix passed to
+  `SqlFilterBuilder.build` is `" WHERE "` or `" AND "`, and several optional conditions are collected
+  in a list and joined with `" AND "`.
 - `OrderByBuilder.build(sort, map)` returns `" ORDER BY ..."` with leading space.
 
 **Consequences:** The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`,
@@ -1574,6 +1579,7 @@ correlate.
 ## ADR-033: Optional-port UI components use `ComponentFactory<Port>`, never `@ConditionalOnBean` on the component class
 
 **Status:** Accepted
+**Applied:** 1
 
 **Context:** `AttachmentGalleryService`, `AttachmentGallery`, and `AuditActivityPanel` inject
 `AttachmentPort`/`AuditPort` directly as hard constructor parameters. In a genuinely optional
@@ -1643,6 +1649,8 @@ optional singleton services/ports"):
 ## ADR-034: No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention
 
 **Status:** Accepted
+
+**Applied:** 2
 
 **Also affects:** advertisement-spring-boot-starter
 
@@ -1783,7 +1791,7 @@ same real decoupling benefit.
 
 ## ADR-036: `AdvertisementRepository.buildIdClause()` binds a plain array, not a `Set`, for the category-filter id list
 
-**Status:** Accepted
+**Status:** Superseded by ADR-006 (taxon-spring-boot-starter)
 
 **Context:** `AdvertisementService.resolveCategoryFilter()` calls
 `TaxonPort.findEntityIdsWithAnyTaxon()` to get the set of advertisement ids matching the selected
@@ -2189,6 +2197,10 @@ all member enums' keys as a hard requirement.
 (described below as living in `marketplace-app`) all later relocated to `marketplace-orchestrator`
 (see ADR-073 and `marketplace-orchestrator/CLAUDE.md`); this decision's reasoning still applies to
 those classes in their new location.
+
+**Verified:** 2026-11-07
+
+**Applied:** 1
 
 **Context:** `UserService.delete()` was a hard `DELETE`, the only hard-delete lifecycle mutation in the system
 and the only one with no audit capture. User picked Option A: soft-delete, aligning with

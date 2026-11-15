@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+/** Query bar for the advertisements list -- title/created/updated/category/city/listing-type filter rows, the category and city ones only when the taxon starter is installed. */
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
@@ -76,21 +77,23 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
                 AdvertisementSortMeta.UPDATED_AT,
                 AdvertisementFilterMeta.UPDATED_AT_START, AdvertisementFilterMeta.UPDATED_AT_END);
 
-        // Categories row
-        MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
-        categoriesField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES));
-        categoriesField.setItemLabelGenerator(TaxonDto::getName);
-        categoriesField.getElement().setAttribute("data-testid", "advertisement-filter-categories");
-        categoriesField.setItems(taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()));
-        filterRow(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES), categoriesField, AdvertisementFilterMeta.CATEGORY_IDS);
+        if (taxonCatalogService.isAvailable()) {
+            // Categories row
+            MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
+            categoriesField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES));
+            categoriesField.setItemLabelGenerator(TaxonDto::getName);
+            categoriesField.getElement().setAttribute("data-testid", "advertisement-filter-categories");
+            categoriesField.setItems(taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()));
+            filterRow(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES), categoriesField, AdvertisementFilterMeta.CATEGORY_IDS);
 
-        // City row
-        ComboBox<TaxonDto> cityField = new ComboBox<>();
-        cityField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CITY));
-        cityField.setItemLabelGenerator(TaxonDto::getName);
-        cityField.setClearButtonVisible(true);
-        cityField.setItems(taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale()));
-        filterRow(i18nService.get(ADVERTISEMENT_FILTER_CITY), cityField, AdvertisementFilterMeta.CITY_TAXON_ID);
+            // City row
+            ComboBox<TaxonDto> cityField = new ComboBox<>();
+            cityField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CITY));
+            cityField.setItemLabelGenerator(TaxonDto::getName);
+            cityField.setClearButtonVisible(true);
+            cityField.setItems(taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale()));
+            filterRow(i18nService.get(ADVERTISEMENT_FILTER_CITY), cityField, AdvertisementFilterMeta.CITY_TAXON_ID);
+        }
 
         // Listing type row
         MultiSelectComboBox<AdKind> adKindField = new MultiSelectComboBox<>();

@@ -125,6 +125,33 @@ class AdvertisementPaginationScenarioTest extends AbstractRestApiScenarioTest {
     }
 
     @Test
+    void categoryAndCityTogether_returnsOnlyTheEntitiesWithBoth() throws Exception {
+        RegisteredUser admin = createSeller();
+        long categoryX = createCategory(admin, "Plumbing");
+        long categoryY = createCategory(admin, "Electrical");
+        long categoryUnused = createCategory(admin, "Roofing");
+        long cityA = createCity(admin, "Kyiv");
+        long cityB = createCity(admin, "Lviv");
+
+        createAd(admin, "X in A first", "OFFER", categoryX, cityA);
+        createAd(admin, "X in A second", "OFFER", categoryX, cityA);
+        createAd(admin, "X in B", "OFFER", categoryX, cityB);
+        createAd(admin, "Y in A", "OFFER", categoryY, cityA);
+
+        mockMvc.perform(get("/api/advertisements")
+                        .param("categoryIds", String.valueOf(categoryX)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"))
+                .andExpect(jsonPath("$[*].title", org.hamcrest.Matchers.containsInAnyOrder("X in A first", "X in A second")));
+
+        mockMvc.perform(get("/api/advertisements")
+                        .param("categoryIds", String.valueOf(categoryUnused)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "0"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void combinedFilters_applyAsAnd() throws Exception {
         RegisteredUser seller = createSeller();
         createAd(seller, "Plumbing offer", "OFFER", null, null);
@@ -251,5 +278,56 @@ class AdvertisementPaginationScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return JsonScenarioUtils.extractId(response);
+    }
+
+    private java.util.List<String> collectField(String url, String field, String apiKey, String sort, String extraParam, String extraValue, int pages) throws Exception {
+        java.util.List<String> collected = new java.util.ArrayList<>();
+        for (int page = 0; page < pages; page++) {
+            var request = get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).param("page", String.valueOf(page));
+            if (sort != null) request = request.param("sort", sort);
+            if (extraParam != null) request = request.param(extraParam, extraValue);
+            String response = mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            java.util.List<Object> values = com.jayway.jsonpath.JsonPath.parse(response).read("$[*]." + field);
+            values.forEach(v -> collected.add(String.valueOf(v)));
+        }
+        return collected;
+    }
+
+    @Test
+    void noSortParam_pagesInUiDefaultOrderWithoutRepeatOrGap() throws Exception {
+        RegisteredUser user = createSeller();
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + user.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"adsPageSize":10,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":20}"""))
+                .andExpect(status().isOk());
+        java.util.List<String> expected = new java.util.ArrayList<>();
+        for (int i = 1; i <= 25; i++) {
+            createAd(user, "Ad %02d".formatted(i), "OFFER", null, null);
+            expected.add(0, "Ad %02d".formatted(i));
+        }
+
+        java.util.List<String> titles = collectField("/api/advertisements", "title", user.rawApiKey(), null, null, null, 3);
+
+        org.assertj.core.api.Assertions.assertThat(titles).containsExactlyElementsOf(expected);
+    }
+
+    @Test
+    void sortByNonUniqueTitle_pagesWithoutRepeatOrGap() throws Exception {
+        RegisteredUser user = createSeller();
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + user.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"adsPageSize":10,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":20}"""))
+                .andExpect(status().isOk());
+        for (int i = 1; i <= 25; i++) {
+            createAd(user, "Same title", "OFFER", null, null);
+        }
+
+        java.util.List<String> ids = collectField("/api/advertisements", "id", user.rawApiKey(), "title,asc", null, null, 3);
+
+        org.assertj.core.api.Assertions.assertThat(ids).hasSize(25).doesNotHaveDuplicates();
     }
 }

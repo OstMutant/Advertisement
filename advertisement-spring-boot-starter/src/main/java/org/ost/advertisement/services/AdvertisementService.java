@@ -11,6 +11,7 @@ import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.sanitizer.HtmlSanitizer;
 import org.springframework.data.domain.PageRequest;
@@ -36,24 +37,16 @@ public class AdvertisementService {
     // ── Query & filter ───────────────────────────────────────────────────────
 
     public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
-        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
-        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
-            return List.of();
-        }
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), resolveTaxonPredicate(filter).orElse(null));
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
-        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
-        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
-            return 0;
-        }
-        return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
+        return repository.countByFilter(filter, resolveTaxonPredicate(filter).orElse(null)).intValue();
     }
 
-    private Optional<Set<Long>> resolveTaxonFilter(AdvertisementFilterDto filter) {
+    private Optional<SqlPredicate> resolveTaxonPredicate(AdvertisementFilterDto filter) {
         return taxonPortFactory.findIfAvailable()
-                .flatMap(p -> p.resolveCategoryAndCityFilter(EntityType.ADVERTISEMENT, filter.getCategoryIds(), filter.getCityTaxonId()));
+                .flatMap(p -> p.categoryAndCityPredicate(EntityType.ADVERTISEMENT, AdvertisementRepository.ID, filter.getCategoryIds(), filter.getCityTaxonId()));
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────

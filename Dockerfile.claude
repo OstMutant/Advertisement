@@ -9,15 +9,16 @@
 #   scripts/claude.bat (which passes a fresh CLAUDE_CODE_REFRESH on --update), rarely invoked
 #   directly.
 # Uses: ${BASE_IMAGE} base image, apt (curl/git/maven/postgresql-client/docker.io),
-#   Node.js ${NODE_MAJOR} + npm (@anthropic-ai/claude-code).
+#   Node.js ${NODE_MAJOR} + npm (@anthropic-ai/claude-code), scripts/utils/ensure-docker-plugins.sh
+#   (docker buildx and compose plugins).
 # Env: ARG BASE_IMAGE (default eclipse-temurin:25-jdk-jammy), ARG NODE_MAJOR (default 24 -- must
 #   satisfy the claude-code package's engines.node), ARG CLAUDE_CODE_VERSION (default latest),
 #   ARG CLAUDE_CODE_REFRESH (default 0 -- change it to force a fresh Claude Code install).
 #   Account-specific auth config is mounted at `docker run` time by scripts/claude.bat, not read
 #   from a build-time ENV.
-# Input: None -- installs tools only, does not COPY repo source.
-# Outputs: an interactive container image with the `claude` CLI as its entrypoint, working
-#   directory /app (repo mounted here at `docker run` time).
+# Input: scripts/utils/ensure-docker-plugins.sh -- the only repo file copied in.
+# Outputs: an interactive container image with the `claude` CLI as its entrypoint, the docker
+#   plugins installed, working directory /app (repo mounted here at `docker run` time).
 # Returns: N/A -- entrypoint is an interactive CLI, not a build/test command with its own exit code.
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,10 @@ RUN apt-get update && apt-get install -y curl git maven postgresql-client docker
     && curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Docker buildx and compose plugins for the project scripts.
+COPY scripts/utils/ensure-docker-plugins.sh /tmp/ensure-docker-plugins.sh
+RUN bash /tmp/ensure-docker-plugins.sh && rm /tmp/ensure-docker-plugins.sh
 
 # Changing CLAUDE_CODE_REFRESH forces a fresh Claude Code install on --update.
 ARG CLAUDE_CODE_VERSION=latest

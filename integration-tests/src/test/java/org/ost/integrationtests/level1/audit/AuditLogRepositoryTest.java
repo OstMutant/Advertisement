@@ -278,4 +278,13 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(rows).extracting(AuditLogProjection::id).containsExactlyInAnyOrder(rowActor10, rowActor20);
         assertThat(auditLogRepository.countTimeline(filter)).isEqualTo(2);
     }
+
+    @Test
+    void countTimeline_emptyFilter_countsAllRows() {
+        Instant t = Instant.parse("2026-01-01T00:00:00Z");
+        insertRow(EntityType.USER, 3L, t, 10L);
+        insertRow(EntityType.USER, 4L, t.plusSeconds(1), 20L);
+
+        assertThat(auditLogRepository.countTimeline(AuditTimelineFilterDto.empty())).isEqualTo(2);
+    }
 }

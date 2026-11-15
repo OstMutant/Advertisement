@@ -2,9 +2,77 @@
 
 ---
 
+## ADR-036: `TaxonPort` exposes a typed SQL predicate; the default-method allowance stays for calls to the interface's own methods
+
+**Status:** Accepted
+
+**Applied:** 1
+
+**Also affects:** taxon-spring-boot-starter, advertisement-spring-boot-starter, provider-profile-spring-boot-starter
+
+**Context:** The earlier decision allowed one default method with composed logic on `TaxonPort` (`resolveCategoryAndCityFilter`) as a named exception to "no business logic in platform-commons"; no other Port had one then, and `ProviderProfilePort` has since used the same allowance for two convenience overloads that call its own fuller methods. The method existed to combine id sets in memory; the id-set flow is replaced by a predicate built by Taxon (see the Taxon decision on the category and city filter).
+
+**Decision:** `findEntityIdsWithAnyTaxon`, `resolveCategoryAndCityFilter` and its private helper are removed; `TaxonPort` declares `categoryAndCityPredicate(...)` returning `Optional<SqlPredicate>`. `SqlColumn` (`alias + "." + column`) and `SqlPredicate` (text, bound parameters, `asAndClause()`) live in `core.model` as plain value objects: shared by three modules, no Spring or JDBC import, derivations only of their own fields, constructor invariants that fail fast. No governance exception is needed for them. The default-method allowance itself stays, as the one standing rule: a `default` method on a `*Port` interface may compose logic only when every operation is a call to that same interface's own other abstract methods — no external service calls, no injected state, no side effects; it does not extend to a default method that calls a different Port or service, holds state, or has side effects.
+
+**Rejected alternatives:** placing the types in `query-lib` (makes `platform-commons` depend on its JDBC starter) or in a new library (a first internal dependency of `platform-commons` for no gain).
+
+---
+
+## ADR-035: Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer
+
+**Status:** Accepted
+
+**Applied:** 2
+
+**Also affects:** marketplace-orchestrator, marketplace-app, marketplace-rest-api, marketplace-mcp, feedback-spring-boot-starter, provider-profile-spring-boot-starter, promotion-spring-boot-starter
+
+**Context:** Searchers should see a few standout provider profiles first, for a reason that can
+change over time: a rating rule now, a purchase later. Three mechanisms were compared: (m1) evaluate
+the rule on every read, (m2) a job that rebuilds one table from scratch, (m3) a table of placements
+with one writer per reason. The reason must be pluggable without touching the domain tables, and a
+promoted entry must be clearly marked and stay in the one list the caller filters and sorts.
+
+**Decision:** Mechanism m3. A new `promotion-spring-boot-starter` owns table `promotion_placement`
+(`entity_type`, `entity_id`, `reason`, `valid_from`, `valid_until`), keyed by `EntityRef` plus a
+`PromotionReason` value, with no FK, like `audit_log` and `contact_info`. It is reached only through
+`PromotionPlacementPort` in `platform-commons`. Each reason has exactly one writer. The first,
+`TOP_RATED`, is a rule in `marketplace-orchestrator` that reads the rating through `FeedbackPort`
+(average at least 4.8 from at least 5 visible reviews, both settings) and keeps only its own
+reason's rows. Every reason is one `PromotionRule` bean and any process reports a change with one
+explicit call to `PromotionRefreshService`, so the placement follows a review change immediately;
+a deletion removes the entity's placements in the same transaction, and a recount at start-up
+heals anything missed. Promoted entries have no block of their own: a list of the
+entity type carries a badge on each promoted entry (the reason for everyone, the details for
+privileged users), one filter "promoted only" over every reason and one sort "promoted", on by
+default, which puts promoted entries first, a paid reason above an earned one, and then the caller's
+own order. Changing the sort merges them into the ordinary list, and the list total changes only when
+the filter is on. The orchestrator turns the filter and the sort into a scope handed to the owning
+domain's port, so the domain starter never learns that promotion exists; UI, REST and MCP behave the
+same. The first version covers provider profiles only; the table is generic over entity type, so advertisements can be added
+later without a schema change.
+
+**Rejected alternatives:** the rule evaluated on every read (a rating query per list request, and no
+place for a purchase reason); a job-rebuilt table shared by all reasons (a rebuild would erase a paid
+grant); a hidden rank boost inside the list (unlabelled, and the caller cannot change it); a separate
+strip above the list (looks foreign beside a vertical list and needs an endpoint and a tool of its
+own); interleaved slots in the list (annoys searchers, unstable paging); a column on
+`provider_profile`/`advertisement` (couples two starters to an optional feature).
+
+**Consequences:** a purchase adds a `PromotionReason` value, a label, a single-grant port method (the
+payment module as its only writer, audited), ranked above the earned reason, with the badge wording
+settled against the advertising law; nothing else changes, since it uses the same filter, sort and
+badge. The starter is optional like every other: with it absent, nothing is promoted and the list is
+unchanged.
+
+**Update:** `promotion_placement` has no `valid_from` or `valid_until` columns and a placement has no period: a reason's writer adds the row while the entry is promoted and removes it when it stops, as every other table reads a state from a fact and not from a comparison with the clock. A purchase will end through its own expiry cleanup in the payment module, and the badge carries the reason alone, with no end date for any caller.
+
+---
+
 ## ADR-034: `feedback-spring-boot-starter` reuses `EntityRef` and stays self-contained — no Hook, no columns on `provider_profile`/`advertisement`
 
 **Status:** Accepted
+
+**Applied:** 1
 
 **Context:** F-06 (reviews & ratings) needed a rating+text feedback entry attachable to either a
 `PROVIDER_PROFILE` or an `ADVERTISEMENT`. An earlier draft of the design denormalized the
@@ -34,7 +102,8 @@ aggregate table.
 **Consequences:** `feedback-spring-boot-starter` is fully independent — it can be added or removed
 from the classpath without any other starter's schema or code changing. A future reviewable entity
 type (e.g. adding feedback to a new domain) only needs a new `EntityType` value and no schema
-change to this starter at all.
+change to this starter at all. The promotion rule for provider profiles is the first reader of the
+aggregate beyond the entity's own page; it reads it through `FeedbackPort`, as this decision allows.
 
 ---
 
@@ -57,7 +126,9 @@ third time.
 
 ## ADR-032: `TaxonPort.resolveCategoryAndCityFilter` as a default method — a narrow, bounded exception to "no business logic in platform-commons"
 
-**Status:** Accepted
+**Status:** Superseded by ADR-036
+
+**Applied:** 2
 
 **Also affects:** advertisement-spring-boot-starter, provider-profile-spring-boot-starter
 
@@ -282,6 +353,8 @@ must be pure Java with no Spring context dependency.
 
 ## ADR-006: ComponentFactory<T> — typed wrapper over ObjectProvider<T>
 **Status:** Accepted
+**Applied:** 1
+**Verified:** 2026-11-11
 
 **Context:** Optional starter dependencies in marketplace-app need typed, ergonomic access
 without unchecked casts. Raw `ObjectProvider<T>` doesn't know about the `Configurable<T, P>`
@@ -301,6 +374,13 @@ compile time, only at runtime once the dependent starter is actually absent from
 **Consequences:**
 - All optional starter components in marketplace-app use `ComponentFactory<T>` injection; direct
   `ObjectProvider<T>` fields are not used for this purpose.
+- The "every consuming config class" rule above is enforced: an architecture test requires a `@Bean`
+  `ComponentFactory<T>` in the same module for every `ComponentFactory<T>` field the orchestrator or a starter
+  holds, and a level-2 integration test starts the application's beans once per optional starter without it.
+- `get()` on a factory whose component is not installed throws `OptionalComponentUnavailableException`, which carries the
+  missing type, instead of Spring's own missing-bean exception, so a caller can answer "not available here" without reading
+  the message text; several candidates stay Spring's exception, since that is a wiring fault. The REST adapter answers 503 for it, and a level-2 test calls every REST operation with each optional
+  starter left out and accepts no other server fault.
 - Rejected: singleton factory with `<T> T get(Class<T> type)` — pushes a type token to every call
   site, requires an unchecked cast, unsound at compile time.
 - Rejected: a single generic `InjectionPoint`-resolved factory bean — one explicit `@Bean` per
@@ -673,6 +753,8 @@ findings, grouped together since both touch this module's own naming/package rul
 ## ADR-026: One starter, multiple `*Port` interfaces — `UserPort` split into 4
 
 **Status:** Accepted
+
+**Applied:** 1
 
 **Also affects:** user-spring-boot-starter
 

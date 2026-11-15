@@ -63,3 +63,6 @@ Partial unique index: `uidx_taxon_type_code ON taxon (type, code) WHERE code IS 
   port-level `findByIds()` can resolve their real name for audit-diff rendering instead of a bare
   id. Any *new* caller of `findByIds()`/`indexById()` must pass its own `activeOnly` filtering
   intent explicitly — see `.claude/nav/adr-index.md`.
+- The text `TaxonAssignmentRepository.categoryAndCityPredicate` builds runs inside other modules'
+  statements: its aliases (`_tac`, `_tay`) and parameters (`_taxon*`) follow the `SqlPredicate` naming
+  rule, and a change to `taxon_assignment` must keep it valid (pinned by `TaxonCategoryAndCityPredicateTest`).

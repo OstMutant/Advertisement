@@ -128,6 +128,34 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
     }
 
     @Test
+    void categoryAndCityTogether_returnsOnlyTheEntitiesWithBoth() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        long categoryX = createCategory(admin, "Plumbing");
+        long categoryY = createCategory(admin, "Electrical");
+        long categoryUnused = createCategory(admin, "Roofing");
+        long cityA = createCity(admin, "Kyiv");
+        long cityB = createCity(admin, "Lviv");
+
+        CreatedProvider firstBoth = createProvider("XInAFirst", "MASTER", categoryX, cityA);
+        CreatedProvider secondBoth = createProvider("XInASecond", "MASTER", categoryX, cityA);
+        createProvider("XInB", "MASTER", categoryX, cityB);
+        createProvider("YInA", "MASTER", categoryY, cityA);
+
+        mockMvc.perform(get("/api/provider-profiles")
+                        .param("categoryIds", String.valueOf(categoryX)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"))
+                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.containsInAnyOrder(
+                        (int) firstBoth.id(), (int) secondBoth.id())));
+
+        mockMvc.perform(get("/api/provider-profiles")
+                        .param("categoryIds", String.valueOf(categoryUnused)).param("cityTaxonId", String.valueOf(cityA)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "0"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void combinedFilters_applyAsAnd() throws Exception {
         RegisteredUser admin = registerUserAndIssueApiKey("Admin");
         long cityId = createCity(admin, "Lviv");
@@ -175,9 +203,9 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
                         .contentType(MediaType.APPLICATION_JSON).content(updateBody))
                 .andExpect(status().isOk());
 
-        // Direct before/after check that the update itself bumped updated_at -- independent of the sort assertion below.
+        // Direct before/after check that the update itself rewrote updated_at -- different, not later, because the clock can step back.
         Map<Long, Instant> updatedAtById = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", ids);
-        org.assertj.core.api.Assertions.assertThat(updatedAtById.get(first.id())).isAfter(firstUpdatedAtBefore);
+        org.assertj.core.api.Assertions.assertThat(updatedAtById.get(first.id())).isNotEqualTo(firstUpdatedAtBefore);
 
         List<String> expectedUpdatedDesc = ids.stream().sorted(Comparator.comparing(updatedAtById::get).reversed())
                 .map(aboutById::get).toList();
@@ -227,5 +255,48 @@ class ProviderProfilePaginationScenarioTest extends AbstractRestApiScenarioTest 
         java.util.List<String> expected = new java.util.ArrayList<>();
         for (int i = 1; i <= 12; i++) expected.add("About Provider%02d".formatted(i));
         org.assertj.core.api.Assertions.assertThat(collected).containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    private java.util.List<String> collectField(String url, String field, String apiKey, String sort, String extraParam, String extraValue, int pages) throws Exception {
+        java.util.List<String> collected = new java.util.ArrayList<>();
+        for (int page = 0; page < pages; page++) {
+            var request = get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).param("page", String.valueOf(page));
+            if (sort != null) request = request.param("sort", sort);
+            if (extraParam != null) request = request.param(extraParam, extraValue);
+            String response = mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            java.util.List<Object> values = com.jayway.jsonpath.JsonPath.parse(response).read("$[*]." + field);
+            values.forEach(v -> collected.add(String.valueOf(v)));
+        }
+        return collected;
+    }
+
+    private RegisteredUser readerWithPageSize5() throws Exception {
+        RegisteredUser reader = registerUserAndIssueApiKey("Reader");
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + reader.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"providerProfilesPageSize":5}"""))
+                .andExpect(status().isOk());
+        return reader;
+    }
+
+    @Test
+    void noSortParam_pagesInUiDefaultOrderWithoutRepeatOrGap() throws Exception {
+        RegisteredUser reader = readerWithPageSize5();
+        Map<Long, String> aboutById = new java.util.LinkedHashMap<>();
+        for (int i = 1; i <= 12; i++) {
+            CreatedProvider created = createProvider("Provider%02d".formatted(i), "MASTER", null, null);
+            aboutById.put(created.id(), "About Provider%02d".formatted(i));
+        }
+        Map<Long, Instant> updatedAtById = TimestampObservations.read(jdbcClient, "provider_profile", "updated_at", List.copyOf(aboutById.keySet()));
+        // The default order is promoted first, then updatedAt descending; none is promoted here, so the expectation follows the stored timestamps.
+        java.util.List<String> expected = aboutById.keySet().stream()
+                .sorted(Comparator.comparing(updatedAtById::get).reversed())
+                .map(aboutById::get).toList();
+
+        java.util.List<String> abouts = collectField("/api/provider-profiles", "about", reader.rawApiKey(), null, null, null, 3);
+
+        org.assertj.core.api.Assertions.assertThat(abouts).containsExactlyElementsOf(expected);
     }
 }

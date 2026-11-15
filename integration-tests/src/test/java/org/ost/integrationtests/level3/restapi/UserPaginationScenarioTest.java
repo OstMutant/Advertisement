@@ -217,4 +217,52 @@ class UserPaginationScenarioTest extends AbstractRestApiScenarioTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
     }
+
+    private java.util.List<String> collectField(String url, String field, String apiKey, String sort, String extraParam, String extraValue, int pages) throws Exception {
+        java.util.List<String> collected = new java.util.ArrayList<>();
+        for (int page = 0; page < pages; page++) {
+            var request = get(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).param("page", String.valueOf(page));
+            if (sort != null) request = request.param("sort", sort);
+            if (extraParam != null) request = request.param(extraParam, extraValue);
+            String response = mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            java.util.List<Object> values = com.jayway.jsonpath.JsonPath.parse(response).read("$[*]." + field);
+            values.forEach(v -> collected.add(String.valueOf(v)));
+        }
+        return collected;
+    }
+
+    private RegisteredUser adminWithPageSize10() throws Exception {
+        RegisteredUser admin = registerUserAndIssueApiKey("Admin");
+        mockMvc.perform(patch("/api/users/me/settings").header("If-Match", "\"0\"")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + admin.rawApiKey())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"adsPageSize":20,"usersPageSize":10,"timelinePageSize":20,"providerProfilesPageSize":20}"""))
+                .andExpect(status().isOk());
+        return admin;
+    }
+
+    @Test
+    void noSortParam_pagesWithoutRepeatOrGap() throws Exception {
+        RegisteredUser admin = adminWithPageSize10();
+        for (int i = 1; i <= 24; i++) {
+            registerNamed("Volume User %02d".formatted(i), "volume-user-" + i);
+        }
+
+        java.util.List<String> ids = collectField("/api/users", "id", admin.rawApiKey(), null, "name", "Volume", 3);
+
+        org.assertj.core.api.Assertions.assertThat(ids).hasSize(24).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void sortByNonUniqueRole_pagesWithoutRepeatOrGap() throws Exception {
+        RegisteredUser admin = adminWithPageSize10();
+        for (int i = 1; i <= 24; i++) {
+            registerNamed("Volume User %02d".formatted(i), "volume-user-" + i);
+        }
+
+        java.util.List<String> ids = collectField("/api/users", "id", admin.rawApiKey(), "role,asc", "name", "Volume", 3);
+
+        org.assertj.core.api.Assertions.assertThat(ids).hasSize(24).doesNotHaveDuplicates();
+    }
 }

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: creates the audit_log table with its indexes on the changed entity, the creation time and the actor. -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -40,6 +41,11 @@
 
         <createIndex indexName="idx_audit_changed_by" tableName="audit_log">
             <column name="actor_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- the purge by age (deleteOlderThan) and the timeline's newest-first order -->
+        <createIndex indexName="idx_audit_created_at" tableName="audit_log">
             <column name="created_at" descending="true"/>
         </createIndex>
 

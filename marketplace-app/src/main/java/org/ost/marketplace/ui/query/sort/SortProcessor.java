@@ -63,13 +63,10 @@ public class SortProcessor {
 
     public List<String> loopSortDescriptions(BiFunction<I18nKey, Direction, String> transformer) {
         List<String> result = new ArrayList<>();
-        for (Map.Entry<SortFieldMeta, SortIcon> entry : fieldsMap.entrySet()) {
-            SortFieldMeta meta = entry.getKey();
-            Direction direction = newSort.getDirection(meta.property());
-            if (direction != null) {
-                result.add(transformer.apply(meta.i18nKey(), direction));
-            }
-        }
+        newSort.getSort().forEach(order -> fieldsMap.keySet().stream()
+                .filter(meta -> meta.property().equals(order.getProperty()))
+                .findFirst()
+                .ifPresent(meta -> result.add(transformer.apply(meta.i18nKey(), order.getDirection()))));
         return result;
     }
 

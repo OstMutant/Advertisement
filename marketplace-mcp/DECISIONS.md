@@ -11,3 +11,4 @@ home file instead, then regenerate via `bash docs/architecture/scripts/generate-
 - [ADR-092 (marketplace-app)](../marketplace-app/DECISIONS.md) — The MCP server is a separate module with no project dependencies that wraps the REST API over HTTP
 - [ADR-080 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API list endpoints — filter/sort bind onto the existing domain DTOs, pagination uses RFC 8288 `Link` + `X-Total-Count` headers, never an envelope or Spring HATEOAS
 - [ADR-078 (marketplace-app)](../marketplace-app/DECISIONS.md) — External REST API authentication — long-lived bearer API-key, not OAuth2
+- [ADR-035 (platform-commons)](../platform-commons/DECISIONS.md) — Promotion placement is its own starter keyed by entity type, id and reason; each reason has one writer

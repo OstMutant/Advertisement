@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.promotion.model.PromotionReason;
 import org.ost.platform.providerprofile.model.ProviderKind;
 
 /** Single consolidated enum of all translation keys in the app for type-safe i18n access. */
@@ -166,6 +167,9 @@ public enum I18nKey {
     PROVIDERS_VIEW_NOTIFICATION_REFRESH_ERROR("providers.view.notification.refresh.error"),
     PROVIDERS_VIEW_NOTIFICATION_VALIDATION_FAILED("providers.view.notification.validation.failed"),
     PROVIDERS_VIEW_TOOLTIP_REFRESH_AVAILABLE("providers.view.tooltip.refresh.available"),
+    PROMOTION_REASON_TOP_RATED("promotion.reason.top_rated"),
+    PROVIDERS_SORT_PROMOTED("providers.sort.promoted"),
+    PROVIDERS_FILTER_PROMOTED_ONLY("providers.filter.promotedOnly"),
     PROVIDERS_SORT_CREATED_AT("providers.sort.createdAt"),
     PROVIDERS_SORT_UPDATED_AT("providers.sort.updatedAt"),
     PROVIDERS_FILTER_KIND("providers.filter.kind"),
@@ -623,6 +627,14 @@ public enum I18nKey {
             case SUPPORT -> PROVIDER_KIND_SUPPORT;
         };
     }
+
+    public static I18nKey forPromotionReason(PromotionReason reason) {
+        return switch (reason) {
+            case TOP_RATED -> PROMOTION_REASON_TOP_RATED;
+        };
+    }
+
+
 
     public static I18nKey forEntityType(EntityType entityType) {
         return switch (entityType) {

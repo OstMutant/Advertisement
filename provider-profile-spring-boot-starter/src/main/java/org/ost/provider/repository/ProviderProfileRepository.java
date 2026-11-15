@@ -4,8 +4,11 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.model.ProviderKind;
 import org.ost.platform.core.StaleWriteException;
+import org.ost.platform.core.model.SqlColumn;
+import org.ost.platform.core.model.SqlPredicate;
 import org.ost.provider.entity.ProviderProfile;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
@@ -20,6 +23,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -60,6 +64,8 @@ public class ProviderProfileRepository {
             FROM provider_profile pp
             """;
 
+    public static final SqlColumn ID = new SqlColumn("pp", "id");
+
     private final JdbcClient jdbcClient;
     private final ProviderProfileCrudRepository crud;
 
@@ -93,25 +99,52 @@ public class ProviderProfileRepository {
                     SortField.of(ProviderProfileDto.Fields.id, "pp.id")));
 
     public List<ProviderProfileDto> findByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull Pageable pageable,
-                                                  Set<Long> allowedIds) {
+                                                  @NonNull ProviderProfileScope scope, SqlPredicate taxonPredicate) {
         var params = new MapSqlParameterSource();
-        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_FIELDS);
-        String sql = (SELECT + "WHERE 1=1%s%s%s%s")
-                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
+        String orderBy = buildOrderBy(params, OrderByBuilder.build(pageable.getSort(), SORT_FIELDS), scope);
+        String sql = (SELECT + "%s%s%s")
+                .formatted(buildWhere(params, filter, scope, taxonPredicate), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(@NonNull ProviderProfileFilterDto filter, Set<Long> allowedIds) {
+    public Long countByFilter(@NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope, SqlPredicate taxonPredicate) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT COUNT(*) FROM provider_profile pp WHERE 1=1%s%s"
-                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "));
+        String sql = "SELECT COUNT(*) FROM provider_profile pp%s"
+                .formatted(buildWhere(params, filter, scope, taxonPredicate));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
-    private static String buildIdClause(MapSqlParameterSource params, Set<Long> ids) {
-        if (ids == null) return "";
-        params.addValue("allowedIds", ids.toArray(new Long[0]));
-        return " AND pp.id = ANY(:allowedIds)";
+    private static String buildOrderBy(MapSqlParameterSource params, String userOrderBy, ProviderProfileScope scope) {
+        List<String> clauses = new ArrayList<>();
+        List<Set<Long>> groups = scope.pinnedGroups();
+        if (!groups.isEmpty()) {
+            StringBuilder pinned = new StringBuilder("CASE");
+            for (int i = 0; i < groups.size(); i++) {
+                params.addValue("pinned" + i, groups.get(i).toArray(new Long[0]));
+                pinned.append(" WHEN pp.id = ANY(:pinned").append(i).append(") THEN ").append(i);
+            }
+            pinned.append(" ELSE ").append(scope.pinnedAfterRest() ? -1 : groups.size()).append(" END");
+            clauses.add(pinned.toString());
+        }
+        if (!userOrderBy.isEmpty()) clauses.add(userOrderBy.substring(" ORDER BY ".length()));
+        if (!userOrderBy.contains("pp.id")) clauses.add("pp.id DESC");
+        return " ORDER BY " + String.join(", ", clauses);
+    }
+
+    private static String buildWhere(MapSqlParameterSource params, ProviderProfileFilterDto filter, ProviderProfileScope scope,
+                                     SqlPredicate taxonPredicate) {
+        List<String> conditions = new ArrayList<>();
+        if (scope.onlyIds() != null) {
+            params.addValue("allowedIds", scope.onlyIds().toArray(new Long[0]));
+            conditions.add("pp.id = ANY(:allowedIds)");
+        }
+        if (taxonPredicate != null) {
+            params.addValues(taxonPredicate.params());
+            conditions.add("(" + taxonPredicate.sql() + ")");
+        }
+        String dynamic = FILTER.build(params, filter);
+        if (!dynamic.isBlank()) conditions.add(dynamic);
+        return conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
     }
 
     public void delete(@NonNull Long id, Long version) {

@@ -38,7 +38,8 @@
 #   --playwright "<args>"      forwarded verbatim to playwright.sh
 # Uses: bash, docker (alpine image, for the persistent run-all-tests-reports container),
 #   scripts/build-and-test.sh, scripts/deploy-and-run.sh, scripts/playwright.sh,
-#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block).
+#   scripts/utils/agentic-output.sh (emit_agentic_success_block/emit_agentic_error_block), scripts/utils/project-label.sh,
+#   scripts/utils/session-id.sh, scripts/utils/docker-pull-retry.sh (docker_pull_missing_retry).
 # Env: None directly -- flags forwarded to build-and-test.sh/deploy-and-run.sh/playwright.sh carry
 #   their own Env behavior, see those scripts' own headers.
 # Input: None beyond CLI flags.
@@ -69,7 +70,9 @@
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SECONDS=0
 source "$ROOT/scripts/utils/agentic-output.sh"
+source "$ROOT/scripts/utils/project-label.sh"
 source "$ROOT/scripts/utils/session-id.sh"
+source "$ROOT/scripts/utils/docker-pull-retry.sh"
 # Display-only from here on -- this script itself never writes to a host path anymore (see the
 # no-host-copy note further down); run-all-tests.bat's own native copy step is what actually
 # populates this directory, after this script returns.
@@ -119,7 +122,8 @@ PW_EXIT_FILE="/tmp/run-all-tests-pw-exit.$$"
 # that moved to run-all-tests.bat's own native step.
 REPORTS_CONTAINER="run-all-tests-reports"
 docker rm -f "$REPORTS_CONTAINER" >/dev/null 2>&1 || true
-docker run -d --name "$REPORTS_CONTAINER" -v test-reports:/reports alpine sleep 86400 >/dev/null
+docker_pull_missing_retry alpine
+docker run -d --name "$REPORTS_CONTAINER" --label "$PROJECT_LABEL" -v test-reports:/reports alpine sleep 86400 >/dev/null
 docker exec "$REPORTS_CONTAINER" sh -c "mkdir -p /reports/run-all-tests && rm -f /reports/run-all-tests/*.log /reports/run-all-tests/orchestrator.log"
 
 # This script's own top-level progress/result messages (unlike build-and-test.log/playwright.log,

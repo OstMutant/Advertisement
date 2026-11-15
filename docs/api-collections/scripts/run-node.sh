@@ -7,7 +7,8 @@
 # Usage: bash docs/api-collections/scripts/run-node.sh <script.mjs> [args...]
 #   <script.mjs>  file name relative to docs/api-collections/scripts
 #   [args...]     passed unchanged to the script
-# Uses: bash, tar, docker, the Node image named by NODE_IMAGE.
+# Uses: bash, tar, docker, the Node image named by NODE_IMAGE, scripts/utils/docker-pull-retry.sh's
+#   docker_pull_missing_retry.
 # Env: NODE_IMAGE -- Node image to run (default node:22-alpine).
 # Input: every file in docs/api-collections (copied into the container).
 # Outputs: the script's stdout and stderr; nothing is written to the host.
@@ -19,6 +20,7 @@ set -o pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 IMAGE="${NODE_IMAGE:-node:22-alpine}"
+source "$DIR/../../../scripts/utils/docker-pull-retry.sh"
 
 if [ "$#" -lt 1 ]; then
   echo "usage: bash docs/api-collections/scripts/run-node.sh <script.mjs> [args...]" >&2
@@ -32,6 +34,7 @@ if [ ! -f "$DIR/$SCRIPT" ]; then
   exit 2
 fi
 
+docker_pull_missing_retry "$IMAGE"
 tar -cf - -C "$ROOT" . | docker run --rm -i --network host "$IMAGE" \
   sh -c 'mkdir /work && tar -xf - -C /work && cd /work && s="scripts/$1" && shift && node "$s" "$@"' \
   sh "$SCRIPT" "$@"

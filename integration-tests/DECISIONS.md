@@ -5,6 +5,8 @@
 ## ADR-011: Level 3 scenario tests derive expected ordering from observed DB timestamps instead of pinning them
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** Level 3 scenario tests asserting sort/filter behavior over `created_at`/`updated_at`
 repeatedly failed under real host/container clock non-monotonicity (a later INSERT landing an
 earlier timestamp than an earlier one) — confirmed directly against live CI data, not assumed. An
@@ -21,7 +23,8 @@ derive the expected outcome from those observed values rather than from assumed 
 values tie (a tie makes a derived expected order ambiguous), and logs a warning when observed
 values come back out of insertion order (expected, not fatal — the point of deriving from
 observation is to be immune to this). Applied to `UserApiKeyAdvertisementScenarioTest`,
-`ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`, and
+`ProviderProfilePaginationScenarioTest.sortByEachField_bothDirections`,
+`ProviderProfilePaginationScenarioTest.noSortParam_pagesInUiDefaultOrderWithoutRepeatOrGap`, and
 `UserPaginationScenarioTest.filterByCreatedAtRange_returnsOnlyWithinBounds`.
 
 **Rejected alternative — pin timestamps via `UPDATE` after creation (the original fix):** works,

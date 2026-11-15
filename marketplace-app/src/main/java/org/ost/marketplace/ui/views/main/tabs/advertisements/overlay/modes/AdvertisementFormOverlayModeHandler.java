@@ -65,7 +65,7 @@ import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
-/** Advertisement edit form with title/description/category/city/media fields. */
+/** Advertisement edit form with title/description fields and, when their starters are installed, the category/city and media fields. */
 @Uses(Upload.class)
 @SpringComponent
 @Scope("prototype")
@@ -137,10 +137,11 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.addClassName("overlay__description-rich-editor");
         descriptionField.getElement().setAttribute(DATA_TESTID, "advertisement-overlay-field-description");
 
+        boolean taxonAvailable = taxonCatalogService.isAvailable();
         List<TaxonDto> availableCategories = taxonCatalogService.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale());
-        categoryComboBox = buildCategoryComboBox(availableCategories);
+        categoryComboBox = taxonAvailable ? buildCategoryComboBox(availableCategories) : null;
         List<TaxonDto> availableCities = taxonCatalogService.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale());
-        cityComboBox = buildCityComboBox(availableCities);
+        cityComboBox = taxonAvailable ? buildCityComboBox(availableCities) : null;
 
         adKindField = new RadioButtonGroup<>();
         adKindField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_AD_KIND));
@@ -257,8 +258,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         layout.setHeaderActions(headerActions);
     }
 
-    // A not-yet-saved ad has no id to resolve the fallback from -- during Create, the eventual
-    // owner is always the current actor, so read straight from their own provider profile instead.
+    // A not-yet-saved ad has no id to resolve the fallback from -- during Create, read the contact straight from the current actor's own provider profile.
     private Div buildContactPreviewBlockForCurrentActor() {
         if (!providerProfileSaveService.isAvailable()) return null;
         ContactInfoDto contact = providerProfileSaveService.findByActorId(access.getCurrentUserId())

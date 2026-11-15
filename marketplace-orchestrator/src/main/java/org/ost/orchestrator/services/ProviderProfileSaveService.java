@@ -22,9 +22,10 @@ import java.util.Set;
 /**
  * Application-level use case: save/delete a provider profile in one transaction, including its
  * category/city assignment, contact-info upsert, audit capture, and owner-or-privileged
- * authorization. 2 direct domain ports (ProviderProfile + Audit) plus the shared
- * {@link TaxonAssignmentWriteService}/{@link ContactAccessService} collaborators -- see
- * .claude/rules/marketplace-orchestrator.md's "≤2 domain *Port types per class" constraint.
+ * authorization; a delete also removes the profile's contact info and its reviews, replies and
+ * rating summary. 2 direct domain ports (ProviderProfile + Audit) plus the shared
+ * {@link TaxonAssignmentWriteService}/{@link ContactAccessService}/{@link FeedbackAccessService}
+ * collaborators -- see .claude/rules/marketplace-orchestrator.md's "≤2 domain *Port types per class" constraint.
  */
 @Slf4j
 @Service
@@ -36,10 +37,12 @@ public class ProviderProfileSaveService {
     private final ComponentFactory<AuditPort>             auditPortFactory;
     private final TaxonAssignmentWriteService              taxonAssignmentWriteService;
     private final ContactAccessService                     contactAccessService;
+    private final FeedbackAccessService                    feedbackAccessService;
     private final ProviderProfileDisplayEnrichmentService  displayEnrichmentService;
     private final CurrentLocaleService                     currentLocaleService;
     private final SitemapService                           sitemapService;
     private final AuthorizationService                     authorizationService;
+    private final PromotionRefreshService                  promotionRefreshService;
 
     public Long save(@NonNull ProviderProfileSaveDto dto, @NonNull Long targetUserId, @NonNull Long actorId) {
         Long savedId = tx.execute(status -> {
@@ -130,6 +133,8 @@ public class ProviderProfileSaveService {
             }
             providerProfilePortFactory.get().delete(id, version);
             contactAccessService.delete(EntityType.PROVIDER_PROFILE, id);
+            feedbackAccessService.deleteByEntity(EntityType.PROVIDER_PROFILE, id);
+            promotionRefreshService.entityRemoved(EntityType.PROVIDER_PROFILE, id);
             if (snapshot != null) {
                 auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
             }
@@ -149,7 +154,7 @@ public class ProviderProfileSaveService {
                 contact.map(ContactInfoDto::viber).orElse(null));
     }
 
-    /** Upserts contact_info as part of the same transaction, keyed fresh by (entityType, entityId) -- returns null (skips the write) when neither an existing row nor any new field value exists. */
+    /** Upserts contact_info as part of the same transaction, reusing the existing row's id and version -- returns null (skips the write) when neither an existing row nor any new field value exists. */
     private ContactInfoDto saveContact(@NonNull Long profileId, @NonNull ProviderProfileSaveDto dto) {
         Optional<ContactInfoDto> existing = contactAccessService.find(EntityType.PROVIDER_PROFILE, profileId);
         boolean anyFieldSet = dto.phone() != null || dto.telegram() != null || dto.viber() != null;

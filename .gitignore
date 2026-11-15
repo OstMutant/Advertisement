@@ -21,6 +21,7 @@
 /marketplace-rest-api/target/
 /marketplace-mcp/target/
 /feedback-spring-boot-starter/target/
+/promotion-spring-boot-starter/target/
 /contact-spring-boot-starter/target/
 
 # Vaadin frontend generated files

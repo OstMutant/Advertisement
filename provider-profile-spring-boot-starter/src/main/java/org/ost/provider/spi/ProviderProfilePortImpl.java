@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.providerprofile.dto.ProviderProfileDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileFilterDto;
 import org.ost.platform.providerprofile.dto.ProviderProfileSaveDto;
+import org.ost.platform.providerprofile.dto.ProviderProfileScope;
 import org.ost.platform.providerprofile.spi.ProviderProfilePort;
 import org.ost.provider.services.ProviderProfileService;
 import org.springframework.data.domain.Sort;
@@ -15,8 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-/** Pure delegation to {@link ProviderProfileService} -- no business logic of its own, per this
- *  project's {@code *PortImpl} convention. */
+/** Pure delegation to {@link ProviderProfileService} -- no business logic of its own. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -25,13 +25,13 @@ public class ProviderProfilePortImpl implements ProviderProfilePort {
     private final ProviderProfileService service;
 
     @Override
-    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return service.getFiltered(filter, page, size, sort);
+    public List<ProviderProfileDto> getFiltered(@NonNull ProviderProfileFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull ProviderProfileScope scope) {
+        return service.getFiltered(filter, page, size, sort, scope);
     }
 
     @Override
-    public int count(@NonNull ProviderProfileFilterDto filter) {
-        return service.count(filter);
+    public int count(@NonNull ProviderProfileFilterDto filter, @NonNull ProviderProfileScope scope) {
+        return service.count(filter, scope);
     }
 
     @Override

@@ -108,6 +108,7 @@ vars are required — the sandbox-only `--sandbox` workarounds (also documented 
 | `providerprofile/ProviderProfileSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `ProviderProfileSnapshotDto.diff()` — pure field-comparison logic — plus a Jackson polymorphic round-trip (de)serialization test, the first of any `AuditableSnapshot` subtype to have one |
 | `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
 | `user/UserPreferencesRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserPreferencesRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |
+| `level1/feedback/FeedbackRepositoryTest` | Testcontainers + `@SpringBootTest` | `FeedbackRepository`'s persistence, ordering and counts of feedback entries and replies, the rating aggregate, the moderation queue and the deletes by owning entity, and that one `feedback_content` row cannot be linked to two entries or two replies (`uq_feedback_content_id`, `uq_feedback_comment_content_id`) |
 
 ### `PostgresContainerSmokeTest`
 

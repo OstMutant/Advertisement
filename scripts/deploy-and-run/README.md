@@ -29,14 +29,18 @@ flowchart TD
     C --> D{--reset-only-db?}
     D -->|yes| D1[reset.sh --container DB_CONTAINER] --> E
     D -->|no| E{--from-scratch?}
-    E -->|no| E2{--with-tests?}
+    E -->|no| E3{--reuse-jar?}
+    E3 -->|yes| G
+    E3 -->|no| E2{--with-tests?}
     E2 -->|yes| E1a[build-and-test.sh --unit --integration] --> G
     E2 -->|no| E1b[build-and-test.sh --no-unit --no-integration] --> G
     E -->|yes| F2[build repo-root Dockerfile, full multi-stage, real tagged image] --> G
     G[start app container with MARKETPLACE_DEV_TOOLS_ENABLED=true when --dev-tools, wait for Started Application]
     G --> H{Liquibase checksum mismatch?}
     H -->|yes| H1[reset infra, restart app, retry once] --> I[app ready on APP_PORT]
-    H -->|no| I
+    H -->|no| H2{started in time?}
+    H2 -->|yes| I
+    H2 -->|no| Z[exit 1]
 ```
 
 See `run.sh`'s own header for the default-vs-`--from-scratch` behavior and

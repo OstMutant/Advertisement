@@ -26,6 +26,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -145,9 +146,7 @@ public class FeedbackRepository {
             JOIN feedback_content c ON c.id = fc.content_id
             """;
 
-    // 'FEEDBACK' branch joins feedback_rating for its own rating; 'COMMENT' branch joins feedback
-    // (aliased ff) ONLY to resolve entity_id here in SQL -- this JOIN is the actual N+1 fix (previously
-    // one findFeedbackById() call per comment, from the orchestrator layer).
+    // 'COMMENT' branch joins feedback (aliased ff) only to resolve entity_id in SQL.
     private static final String MODERATION_QUEUE_CTE = """
             WITH moderation_queue AS (
                 SELECT 'FEEDBACK' AS item_type, f.id, f.entity_id, c.content_text, r.rating,
@@ -185,9 +184,7 @@ public class FeedbackRepository {
         @Override public String sqlExpression() { return "moderation_status"; }
     };
 
-    // Tiebreaker must be (item_type, id) together, never id alone -- id is NOT globally unique
-    // across this UNION ALL (feedback and feedback_comment each have their own independent
-    // sequence), unlike every other *SortMeta in this app which sorts a single real table.
+    // Tiebreaker is (item_type, id) together: id alone is not unique across the UNION ALL.
     private static final List<SortField> MODERATION_QUEUE_SORT_FIELDS = List.of(
             SortField.of(ModerationQueueItemDto.Fields.createdAt, "created_at", Sort.Direction.DESC,
                     SortField.of("itemType", "item_type"), SortField.of("rowId", "id")),
@@ -263,7 +260,7 @@ public class FeedbackRepository {
                 .update();
     }
 
-    /** Recomputes {@code avg_rating}/{@code review_count} from {@code feedback}/{@code feedback_rating} and upserts the one {@code feedback_aggregate} row -- caller runs this in the same transaction as the triggering feedback write. */
+    /** Recomputes {@code avg_rating}/{@code review_count} from the visible ({@code NEW}) entries of {@code feedback}/{@code feedback_rating} and upserts the one {@code feedback_aggregate} row. */
     public void upsertAggregate(@NonNull EntityType entityType, @NonNull Long entityId) {
         jdbcClient.sql("""
                         INSERT INTO feedback_aggregate (entity_type, entity_id, avg_rating, review_count, updated_at)
@@ -293,6 +290,20 @@ public class FeedbackRepository {
                         .addValue("entityId", entityId))
                 .query(AGGREGATE_ROW_MAPPER)
                 .optional();
+    }
+
+    public Set<Long> findEntityIdsWithRatingAtLeast(@NonNull EntityType entityType, double minAverage, int minReviews) {
+        return jdbcClient.sql("""
+                        SELECT entity_id
+                        FROM feedback_aggregate
+                        WHERE entity_type = :entityType AND avg_rating >= :minAverage AND review_count >= :minReviews
+                        """)
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("entityType", entityType.name())
+                        .addValue("minAverage", BigDecimal.valueOf(minAverage))
+                        .addValue("minReviews", minReviews))
+                .query(Long.class)
+                .set();
     }
 
     /** The single reply to one feedback entry, if any. */
@@ -395,6 +406,34 @@ public class FeedbackRepository {
                 .update();
         jdbcClient.sql("DELETE FROM feedback_content WHERE id = :contentId")
                 .paramSource(new MapSqlParameterSource().addValue("contentId", contentId))
+                .update();
+    }
+
+    /** Hard-deletes every feedback entry of one owning entity with its reply, rating and content rows, plus the entity's aggregate row -- no FK cascade configured. */
+    public void deleteByEntity(@NonNull EntityType entityType, @NonNull Long entityId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("entityType", entityType.name())
+                .addValue("entityId", entityId);
+        jdbcClient.sql("""
+                        WITH deleted_comments AS (
+                            DELETE FROM feedback_comment
+                            WHERE feedback_id IN (SELECT id FROM feedback WHERE entity_type = :entityType AND entity_id = :entityId)
+                            RETURNING content_id
+                        ), deleted_ratings AS (
+                            DELETE FROM feedback_rating
+                            WHERE feedback_id IN (SELECT id FROM feedback WHERE entity_type = :entityType AND entity_id = :entityId)
+                        ), deleted_feedback AS (
+                            DELETE FROM feedback
+                            WHERE entity_type = :entityType AND entity_id = :entityId
+                            RETURNING content_id
+                        )
+                        DELETE FROM feedback_content
+                        WHERE id IN (SELECT content_id FROM deleted_comments UNION SELECT content_id FROM deleted_feedback)
+                        """)
+                .paramSource(params)
+                .update();
+        jdbcClient.sql("DELETE FROM feedback_aggregate WHERE entity_type = :entityType AND entity_id = :entityId")
+                .paramSource(params)
                 .update();
     }
 

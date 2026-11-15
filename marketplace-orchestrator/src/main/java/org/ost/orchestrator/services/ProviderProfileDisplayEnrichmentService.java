@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 /**
  * Assembles the display-only fields of {@link ProviderProfileDto} (category/city names, actor
- * name/email) from the Taxon and User ports.
+ * name/email, the promotion badge) from the taxon, actor and promotion lookups.
  */
 @Service
 @RequiredArgsConstructor
@@ -24,6 +24,7 @@ public class ProviderProfileDisplayEnrichmentService {
 
     private final TaxonLookupService taxonLookupService;
     private final ActorLookupService actorLookupService;
+    private final PromotionCatalogService promotionCatalogService;
 
     // ── Categories & city ────────────────────────────────────────────────────
 
@@ -70,4 +71,11 @@ public class ProviderProfileDisplayEnrichmentService {
                 .actorEmail(user != null ? user.email() : null)
                 .build();
     }
+
+    // ── Promotion ────────────────────────────────────────────────────────────
+
+    public ProviderProfileDto enrichWithPromotion(@NonNull ProviderProfileDto profile) {
+        return promotionCatalogService.withPromotion(List.of(profile), promotionCatalogService.promotedPlacements()).get(0);
+    }
+
 }

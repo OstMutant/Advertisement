@@ -54,7 +54,8 @@ bash backlog/research/tools/scripts/remove-topic.sh <topic> --yes
 ```
 
 A topic is created, filled while the planner works, watched from outside with `show-status.sh`, and
-removed once its plans have been moved into the task file. `show-status.sh` reports a loop only when a
+removed once its plans have been moved into the task file, or, when the user decides not to file a task,
+after the user's explicit approval to delete it. `show-status.sh` reports a loop only when a
 repeat signal and the signal of no new sources fire together.
 
 ```mermaid

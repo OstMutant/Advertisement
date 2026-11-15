@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Description: creates the feedback, feedback_content, feedback_rating, feedback_comment and feedback_aggregate tables with their indexes. -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -10,7 +11,7 @@
 
         <!-- ── feedback_content ─────────────────────────────────────────────── -->
         <createTable tableName="feedback_content"
-                      remarks="Shared text+moderation+edit-tracking atom reused by both a top-level feedback entry (via feedback.content_id) and its single reply (via feedback_comment.content_id) -- factored out since the shape is identical for both.">
+                      remarks="Text+moderation+edit-tracking atom with the same shape for a top-level feedback entry (via feedback.content_id) and its single reply (via feedback_comment.content_id); each row belongs to exactly one of them, both columns are unique.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -30,21 +31,21 @@
 
         <!-- ── feedback ─────────────────────────────────────────────────────── -->
         <createTable tableName="feedback"
-                      remarks="A registered user's link row attaching one feedback_content+feedback_rating pair to an owning entity (PROVIDER_PROFILE or ADVERTISEMENT). No DB-level FK to provider_profile/advertisement, same entity_type+entity_id convention audit_log/contact_info already use -- resolved only via FeedbackPort, never a SQL join. At most one row per (author_id, entity_type, entity_id). Immutable after creation -- edits touch feedback_content/feedback_rating instead.">
+                      remarks="A registered user's link row attaching one feedback_content+feedback_rating pair to an owning entity (PROVIDER_PROFILE). No DB-level FK to provider_profile, same entity_type+entity_id convention audit_log/contact_info already use -- resolved only via FeedbackPort, never a SQL join. At most one row per (author_id, entity_type, entity_id). Immutable after creation -- edits touch feedback_content/feedback_rating instead.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="author_id" type="BIGINT" remarks="Author of the entry. References user_information(id), no FK">
                 <constraints nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point.">
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE), resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column.">
                 <constraints nullable="false"/>
             </column>
             <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">
                 <constraints nullable="false"/>
             </column>
-            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this entry's text+moderation+edit-tracking state">
-                <constraints nullable="false" foreignKeyName="fk_feedback_content" references="feedback_content(id)"/>
+            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this entry's text+moderation+edit-tracking state; unique, one content row belongs to exactly one entry">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_feedback_content_id" foreignKeyName="fk_feedback_content" references="feedback_content(id)"/>
             </column>
         </createTable>
 
@@ -82,8 +83,8 @@
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this reply's text+moderation+edit-tracking state">
-                <constraints nullable="false" foreignKeyName="fk_feedback_comment_content" references="feedback_content(id)"/>
+            <column name="content_id" type="BIGINT" remarks="FK to feedback_content -- this reply's text+moderation+edit-tracking state; unique, one content row belongs to exactly one reply">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_feedback_comment_content_id" foreignKeyName="fk_feedback_comment_content" references="feedback_content(id)"/>
             </column>
             <column name="author_id" type="BIGINT" remarks="Author of the reply. References user_information(id), no FK -- same convention as feedback.author_id">
                 <constraints nullable="false"/>
@@ -93,17 +94,13 @@
             </column>
         </createTable>
 
-        <createIndex indexName="idx_feedback_comment_feedback" tableName="feedback_comment">
-            <column name="feedback_id"/>
-        </createIndex>
-
         <!-- ── feedback_aggregate ───────────────────────────────────────────── -->
         <createTable tableName="feedback_aggregate"
-                      remarks="Denormalized avg_rating/review_count for one owning entity, recomputed transactionally on every feedback write -- lives entirely inside this starter, same self-contained shape as contact_info, never a column on provider_profile/advertisement.">
+                      remarks="Denormalized avg_rating/review_count for one owning entity, recomputed transactionally on every feedback write -- lives entirely inside this starter, same self-contained shape as contact_info, never a column on provider_profile.">
             <column name="id" type="BIGSERIAL" remarks="Auto-increment">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE). No FK -- resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column -- ADVERTISEMENT was a supported target when this schema was designed, enforced only by the application no longer offering an ADVERTISEMENT feedback entry point.">
+            <column name="entity_type" type="VARCHAR(30)" remarks="Owning entity type (EntityType: PROVIDER_PROFILE), resolved via FeedbackPort, not a join. No SQL-level CHECK constraint restricts this column.">
                 <constraints nullable="false"/>
             </column>
             <column name="entity_id" type="BIGINT" remarks="ID of the owning entity. References provider_profile(id), no FK">

@@ -6,8 +6,10 @@ any of them. No business logic lives here — only the shapes other modules agre
 
 ## What it provides
 
-- **`core.*`** — cross-cutting types shared by every module: `ComponentFactory` (top-level),
-  `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`, `SupportedLocales`), `core.config`
+- **`core.*`** — cross-cutting types shared by every module: `ComponentFactory` (top-level) and the
+  `OptionalComponentUnavailableException` it throws when an optional component is not installed,
+  `core.model` (`ActionType`, `ChangeEntry`, `EntityRef`, `EntityType`, `SqlColumn`, `SqlPredicate`,
+  `SupportedLocales`), `core.config`
   (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`).
 - **`audit.*`** — the audit subsystem's contracts: `audit.api` (`AuditableSnapshot`), `audit.dto`
   (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`,
@@ -15,7 +17,8 @@ any of them. No business logic lives here — only the shapes other modules agre
   `AuditActivityEnrichHook`).
 - **`attachment.*`** — `attachment.spi` (`AttachmentPort`, `AttachmentAuditPort`), `attachment.dto`
   (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model`
-  (`AttachmentMediaContentType`, `AttachmentAllowedContentTypes`).
+  (`AttachmentMediaContentType`, `AttachmentAllowedContentTypes`), `attachment.util`
+  (`YoutubeUtil`).
 - **`user.*`** — `user.spi` (`UserPort`/`UserAccountPort`/`UserAuthorizationPort`/
   `UserPreferencesPort` — one logical domain split across four narrow interfaces, plus
   `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`,
@@ -30,14 +33,15 @@ any of them. No business logic lives here — only the shapes other modules agre
   `TaxonSnapshotDto`), `taxon.model` (`TaxonType`).
 - **`providerprofile.*`** — `providerprofile.spi` (`ProviderProfilePort`), `providerprofile.dto`
   (`ProviderProfileDto`, `ProviderProfileSaveDto`, `ProviderProfileFilterDto`,
-  `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`).
+  `ProviderProfileScope`, `ProviderProfileSnapshotDto`), `providerprofile.model` (`ProviderKind`).
 
 ## Package structure
 
 Every domain package follows the same three-way split: `<domain>.spi` (interfaces a starter
 implements and `marketplace-orchestrator`/`marketplace-app` call through), `<domain>.dto`
 (request/response/snapshot records crossing module boundaries), `<domain>.model` (narrow domain
-enums). This split — not a single flat package per domain — is what lets a consumer depend on just
+enums); `audit.api` (marker interfaces) and `attachment.util` (a shared utility) are the two extra
+sub-packages. This split — not a single flat package per domain — is what lets a consumer depend on just
 the DTO shapes without pulling in SPI contracts it doesn't need, and is why `platform-commons`
 itself carries no Spring Boot starter dependency: it's pure contracts, auto-configured nowhere.
 
@@ -46,5 +50,7 @@ itself carries no Spring Boot starter dependency: it's pure contracts, auto-conf
 - None on any sibling `org.ost.*` module — this is the one module every starter,
   `marketplace-orchestrator`, and `marketplace-app` can safely depend on without risking a cycle.
 - Jackson (`jackson-annotations`/`jackson-databind`), `jakarta.validation-api`, Lombok (optional),
-  `spring-data-commons` — DTO serialization/validation/paging types only, never a Spring Boot
-  starter or autoconfiguration dependency, since this module is never itself autoconfigured.
+  `spring-data-commons` — DTO serialization/validation/paging types; Caffeine for
+  `FailureRateLimiter`; `spring-boot-autoconfigure` in `provided` scope, only for
+  `CleanupProperties`' `@ConfigurationProperties` binding. Never a Spring Boot starter dependency,
+  since this module is never itself autoconfigured.

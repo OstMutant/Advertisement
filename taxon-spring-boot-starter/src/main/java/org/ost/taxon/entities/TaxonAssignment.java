@@ -18,5 +18,4 @@ public class TaxonAssignment {
     Long    entityId;
     Long    taxonId;
     Instant assignedAt;
-    Long    assignedBy;
 }

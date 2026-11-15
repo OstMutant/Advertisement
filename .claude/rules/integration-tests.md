@@ -11,7 +11,7 @@ the actual test classes themselves.
 
 Java package root: `org.ost.integrationtests`
 
-**Level structure (2026-09-04), one top-level package per level so the package itself signals which layer a test exercises:**
+**Level structure, one top-level package per level so the package itself signals which layer a test exercises:**
 - **Level 1** — `org.ost.integrationtests.level1.<domain>` (e.g. `.advertisement`, `.user`) —
   repository tests against a single domain starter, the module's original and still primary
   purpose. See "What it owns" below for the shared scaffolding every Level 1 test uses.
@@ -19,6 +19,13 @@ Java package root: `org.ost.integrationtests`
   integration tests, composing multiple domain starters through a real use-case service instead of
   one starter's own repository. Scaffolded only once a concrete test needs it — not built ahead of
   need.
+  `OptionalStarterAbsenceTest` is the level 2 test of the start-up itself: it starts the orchestrator and the starters
+  once per optional starter with that starter's configuration left out (a filtered class loader is not used: it breaks
+  the proxies of the Spring Data repositories) and asserts the context starts and the ports of the missing starter report unavailable.
+  `level2.restapi.OptionalStarterRestAbsenceTest` does the same with the REST adapter and security in the context and calls
+  every REST operation: none may end in a server fault, and the operations that need the missing starter must answer 503.
+  `ProviderProfileDeleteTransactionTest` pins that deleting a provider profile is one all-or-nothing unit: a stale version or a failing
+  last step leaves the profile, its contact, its reviews, replies and rating summary in place.
 - **Level 3** — `org.ost.integrationtests.level3.restapi` — HTTP-level scenario tests against
   `marketplace-rest-api`'s controllers, real `MockMvc` bound to the real `WebApplicationContext`
   (`MockMvcBuilders.webAppContextSetup(...)`, real security filter chain included) driving real
@@ -36,13 +43,13 @@ rule protects.
 
 ---
 
-## Architecture decision: why this module exists (2026-07-14)
+## Architecture decision: why this module exists
 
 **Domain starters (`advertisement-spring-boot-starter`, `user-spring-boot-starter`, etc.) must
 stay 100% free of test code for this purpose — no `src/test/java` additions to them, ever, for
 Testcontainers repository tests or their fixtures.** All of it — the actual `*RepositoryTest`
 classes, and any shared fixture utility a test needs (e.g. `UserTestFixtures`, creating a test
-user row for FK-dependent inserts) — lives here instead, in one dedicated module.
+user row whose id fills a `NOT NULL` actor column) — lives here instead, in one dedicated module.
 
 **Why this doesn't violate "starters must not depend on each other"** (`.claude/rules.md`
 "Module Import Rules"): that rule governs production runtime composability — a starter must
@@ -55,18 +62,18 @@ a real Postgres. It can freely depend on `advertisement-spring-boot-starter`,
 without those starters ever becoming aware of each other or of this module.
 
 **Why not scatter tests into each starter's own `src/test/java` instead:** a repository test that
-needs a FK-satisfying user row (e.g. `AdvertisementRepository` — `advertisement.created_by` is
-`NOT NULL` with an FK to `user_information.id`) would otherwise force each starter needing this to
+needs a real user row (e.g. `AdvertisementRepository` — `advertisement.created_by` is `NOT NULL`
+and holds a real actor id, with no foreign key) would otherwise force each starter needing this to
 either (a) depend on `user-spring-boot-starter` itself (a real, if test-scoped, starter-to-starter
 coupling that ArchUnit/Enforcer would eventually need to special-case), or
 (b) reinvent its own fixture/stub logic independently, duplicating it across every starter that
-needs a test actor row (advertisement, and later audit/attachment/taxon in Batch 3). Centralizing
+needs a test actor row (advertisement, audit, attachment, taxon). Centralizing
 in `integration-tests` gives one canonical fixture, reused everywhere, with zero coupling leaking
 into any domain starter's own dependency graph.
 
 **Rejected alternative — a test-only stub schema instead of the real one:** an earlier draft of
 this design considered giving `advertisement-spring-boot-starter`'s test a hand-rolled minimal
-`user_information` stub table (just enough columns to satisfy the FK) instead of depending on
+`user_information` stub table (just enough columns for an actor row) instead of depending on
 `user-spring-boot-starter` at all. Rejected: a stub schema can silently drift from the real one
 (the same class of risk `POSTGRES_IMAGE` deliberately closes, see `SharedEnvConfig` below) and
 would mask real cross-module schema-compatibility regressions that a test against the real
@@ -86,9 +93,11 @@ would mask real cross-module schema-compatibility regressions that a test agains
   directory, so it resolves whether launched from the repo root, a module subdirectory, or an IDE
   test runner). `AbstractPostgresIntegrationTest` uses it to source `POSTGRES_IMAGE`, the single
   source of truth also read natively by `scripts/deploy-and-run/docker-compose.db.yml` — renaming the
-  Postgres version updates both consumers from one place, no drift possible. The repo-root `.env`
+  Postgres version updates both consumers from one place, no drift possible — and `PROJECT_LABEL`,
+  the label the container carries, which `scripts/docker-clean.sh` selects by (a test container left
+  behind by a crashed run is removed with the project's other containers). The repo-root `.env`
   is intentionally **committed** (not `.gitignore`d) and must only ever hold non-secret, dev-only
-  values (currently just `POSTGRES_IMAGE`) — any future addition to it must keep that invariant;
+  values — any future addition to it must keep that invariant;
   production secrets belong in CI/deploy-time environment variables, never in this file.
 - Per-starter `*RepositoryTest` classes (e.g. `level1/advertisement/AdvertisementRepositoryTest`)
   and plain unit tests for pure logic that would otherwise have no home (e.g. `diff()` on
@@ -99,12 +108,9 @@ would mask real cross-module schema-compatibility regressions that a test agains
 
 ---
 
-## Reusable test support (steps/blocks) (2026-07-14)
+## Reusable test support (steps/blocks)
 
-Extracted after `AdvertisementRepositoryTest` (Batch 1) proved the pattern — the same boilerplate
-was about to be re-typed verbatim in every future `*RepositoryTest` (Batch 3:
-`AuditLogRepositoryTest`, `TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest`). Mirrors the
-Playwright convention: extract to a shared file only once two or more consumers need the same
+Mirrors the Playwright convention: extract to a shared file only once two or more consumers need the same
 helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
@@ -125,6 +131,9 @@ helper, keep spec/test-specific logic local otherwise.
   `RepositoryTestSupport` doesn't provide) applies `@RepositoryTestAutoConfig` too, instead of
   redeclaring the allow-list — see `AttachmentRepositoryTest`/`AttachmentServiceTransactionTest`/
   `AttachmentSnapshotRepositoryTest`/`AuditLogRepositoryTest` for the pattern.
+- `org.ost.integrationtests.support.PromotionTestSupport` — a `@TestConfiguration` that wires the promotion
+  starter plus the orchestrator beans `FeedbackAccessService` depends on, for level-2 contexts that list
+  orchestrator beans one by one instead of loading `OrchestratorAutoConfiguration`.
 - `org.ost.integrationtests.support.TestDataCleaner.cleanAll(jdbcClient)` — deletes every row from
   every table this module currently knows about, across every domain, in one FK-safe order. Every
   `@SpringBootTest` reuses its cached ApplicationContext (and database) across all test methods in
@@ -132,12 +141,9 @@ helper, keep spec/test-specific logic local otherwise.
   `@BeforeEach` before creating fixture data. **Always use `cleanAll`, not the lower-level
   `cleanTables(jdbcClient, "table1", ...)` overload, in `*RepositoryTest` classes** — every
   `*RepositoryTest` shares one physical singleton container for the whole `mvn test` run (see
-  `.claude/nav/adr-index.md`), so a class that only cleans its own domain's tables can fail on a foreign-key violation left
-  behind by a *different* domain's test class that ran earlier (confirmed directly:
-  `AdvertisementRepositoryTest`'s last test method leaves an `advertisement` row referencing
-  `user_information`, which broke `UserRepositoryTest`'s narrower cleanup before `cleanAll`
-  existed). Add new tables to `cleanAll` (in FK-safe position) whenever a new domain's
-  `*RepositoryTest` is added.
+  `.claude/nav/adr-index.md`), so a class that only cleans its own domain's tables sees the rows a
+  *different* domain's test class left behind. Add new tables to `cleanAll` (in FK-safe position)
+  whenever a new domain's `*RepositoryTest` is added.
 - Both live under `src/main/java` (not `src/test/java`) so `*RepositoryTest` classes in
   `src/test/java` can import them without a test-jar dependency — same placement rationale as
   `AbstractPostgresIntegrationTest`/`UserTestFixtures`.
@@ -167,25 +173,24 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
 
 ## Key constraints
 
-- Requires a reachable Docker daemon at test time — see `scripts/CLAUDE.md` "Unit / Testcontainers
-  Tests" for the Docker-in-Docker constraint (never runs inside `deploy-and-run.sh`'s image build,
+- Requires a reachable Docker daemon at test time — see `.claude/rules/scripts.md` "Why `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED` are needed"
+  for the Docker-in-Docker constraint (never runs inside `deploy-and-run.sh`'s image build,
   only via a direct `mvn test`).
 - The Postgres image tag is sourced from the repo-root `.env` (`POSTGRES_IMAGE`), the same value
   `scripts/deploy-and-run/docker-compose.db.yml` reads natively — no hardcoded duplication, though the two
   are never the same running container (Testcontainers always starts its own ephemeral instance,
-  never reuses the persistent dev one). `deploy-and-run.sh`'s own `docker pull`/`docker run` for
-  Postgres still hardcode the tag separately — out of scope here.
+  never reuses the persistent dev one).
 - Data isolation across `*RepositoryTest` classes sharing the one physical container: each
   applies its own starter's real Liquibase changelog against the shared container/database:
   Postgres allows multiple independent tables per database, so distinct starters' schemas
   coexist without collision as long as table names don't clash (they don't, today).
-- `PostgresContainerSmokeTest` (Batch 0) proves only the container-starts +
+- `PostgresContainerSmokeTest` proves only the container-starts +
   changelog-applies mechanics, using the plain `liquibase.Liquibase` API directly — not
   `@SpringBootTest`, since it only needs the container and Liquibase, not a Spring context.
 - `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED` env vars: sandbox-only
   workarounds for this specific claude-dev environment's Docker networking limitations (dynamic
   Testcontainers ports aren't reachable here, only statically-published ones). Unset on a normal
-  developer machine — Testcontainers' defaults just work there. See `scripts/CLAUDE.md`.
+  developer machine — Testcontainers' defaults just work there. See `.claude/rules/scripts.md`.
 - **`run.sh` auto-detects staleness for every real dependency — no manual flag needed.**
   `integration-tests` depends on every `org.ost` module listed in its own `pom.xml`
   `<dependency>` entries (`platform-commons`, every domain starter, `marketplace-orchestrator`,

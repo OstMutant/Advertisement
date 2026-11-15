@@ -138,17 +138,20 @@ avoids that side effect entirely.
 
 **Status:** Accepted
 
+**Applied:** 1
+
 **Context:** `run.sh`'s server-container logic only acted when the API health check
 (`curl .../api/system/status`) failed — if the container was already running, `run.sh` never
 checked whether its image was current, and never explicitly handled "container doesn't exist" as
-its own case. The scanner container (`sonarsource/sonar-scanner-cli:latest`, a second
-Docker-pulled image this same script manages) had the same gap: it only got recreated on "missing
-or not running," never checked whether a newer `:latest` had been published, so it could drift
-stale indefinitely once created.
+its own case. The scanner container (`sonarsource/sonar-scanner-cli`, a second Docker-pulled image this same
+script manages) had the same gap: it only got recreated on "missing or not running," never checked
+whether its image differed from the one the container was created from, so a version change could
+go unnoticed indefinitely.
 
 **Decision:**
-- Server container: an unconditional `docker compose pull -q` followed by `docker compose up -d`
-  runs on every invocation. `pull` only downloads when the registry image digest differs from
+- Server container: `docker compose pull -q` (only when the image is absent locally or
+  `--pull-latest` is passed) followed by an unconditional `docker compose up -d` on every
+  invocation. `pull` only downloads when the registry image digest differs from
   what's cached locally — a near-instant no-op on every run where nothing changed upstream. `up -d`
   then covers all three real container states in one call: creates the container from scratch if
   it doesn't exist yet, recreates it in place if `pull` just fetched a newer image, or leaves an
@@ -162,13 +165,13 @@ stale indefinitely once created.
   followed by `up -d` to start fresh on the new image, then keeps polling. Accepted data loss:
   local scan history/dashboards only — a fresh baseline analysis re-establishes them within the
   same `run.sh` invocation.
-- Scanner container: since it isn't Compose-managed, there's no `up -d` reconciliation to lean on
-  — `docker pull -q` followed by comparing `docker image inspect -f '{{.Id}}'` (the freshly pulled
-  image) against `docker inspect -f '{{.Image}}'` (the running container's actual image id) decides
-  by hand whether a recreate is needed, recreating only on an actual mismatch (or a
-  missing/non-running container) rather than unconditionally every run.
-- Both freshness checks can leave a now-untagged image behind (the replaced `sonarqube:community`
-  or `sonar-scanner-cli:latest`) — `docker image prune -f` runs once after both checks, same
+- Scanner container: the image is pinned to an explicit version tag (`SCANNER_IMAGE` in `run.sh`),
+  bumped on purpose. It isn't Compose-managed, so there's no `up -d` reconciliation to lean on —
+  `docker pull -q` (only when the image is absent locally or `--pull-latest` is passed) followed by
+  comparing `docker image inspect -f '{{.Id}}'` (the local image) against `docker inspect -f '{{.Image}}'`
+  (the running container's actual image id) decides by hand whether a recreate is needed, recreating
+  only on an actual mismatch (or a missing/non-running container), so a version bump replaces the container. Both pulls retry up to three times (`scripts/utils/docker-pull-retry.sh`), so one transient Docker layer-extraction failure does not abort the run.
+- Both freshness checks can leave a now-untagged image behind (the replaced server or scanner image) — `docker image prune -f` runs once after both checks, same
   reasoning `deploy.sh` documents for its own post-build prune: only dangling (untagged) images are
   removed, by definition unreferenced by any tag/container, so this can never touch another
   stack's active image.

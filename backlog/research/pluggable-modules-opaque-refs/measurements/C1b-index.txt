@@ -1,0 +1,73 @@
+Pager usage is off.
+--- countByTaxonIds (usage counts) with the existing taxon_id index only
+DROP INDEX
+                                                                                QUERY PLAN                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=4.45..2234.46 rows=300 width=16) (actual time=47.568..247.087 rows=200 loops=1)
+   Group Key: taxon_assignment.taxon_id
+   InitPlan 1 (returns $0)
+     ->  Result  (cost=0.00..4.02 rows=200 width=8) (actual time=0.003..0.032 rows=200 loops=1)
+           ->  ProjectSet  (cost=0.00..1.02 rows=200 width=4) (actual time=0.002..0.015 rows=200 loops=1)
+                 ->  Result  (cost=0.00..0.01 rows=1 width=0) (actual time=0.000..0.000 rows=1 loops=1)
+   ->  Index Only Scan using idx_taxon_assignment_taxon_id on taxon_assignment  (cost=0.43..1803.63 rows=84763 width=8) (actual time=0.184..138.761 rows=1531265 loops=1)
+         Index Cond: (taxon_id = ANY ($0))
+         Heap Fetches: 0
+ Planning Time: 2.369 ms
+ Execution Time: 247.262 ms
+(11 rows)
+
+CREATE INDEX
+DROP INDEX
+VACUUM
+--- C1b: (taxon_id, entity_type, entity_id) replaces the taxon_id index
+                                                                             QUERY PLAN                                                                              
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=4.45..3966.46 rows=300 width=16) (actual time=49.624..415.073 rows=200 loops=1)
+   Group Key: taxon_assignment.taxon_id
+   InitPlan 1 (returns $0)
+     ->  Result  (cost=0.00..4.02 rows=200 width=8) (actual time=0.005..0.044 rows=200 loops=1)
+           ->  ProjectSet  (cost=0.00..1.02 rows=200 width=4) (actual time=0.003..0.021 rows=200 loops=1)
+                 ->  Result  (cost=0.00..0.01 rows=1 width=0) (actual time=0.000..0.001 rows=1 loops=1)
+   ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment  (cost=0.43..3535.63 rows=84763 width=8) (actual time=0.199..298.304 rows=1531265 loops=1)
+         Index Cond: (taxon_id = ANY ($0))
+         Heap Fetches: 0
+ Planning Time: 0.401 ms
+ Execution Time: 415.350 ms
+(11 rows)
+
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=1389.33..1681.70 rows=29237 width=8) (actual time=14.781..19.159 rows=31279 loops=1)
+   Group Key: entity_id
+   Batches: 1  Memory Usage: 3089kB
+   ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment  (cost=0.43..1315.45 rows=29551 width=8) (actual time=0.055..4.673 rows=31279 loops=1)
+         Index Cond: ((taxon_id = ANY ('{5}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+         Heap Fetches: 0
+ Planning Time: 0.167 ms
+ Execution Time: 21.808 ms
+(8 rows)
+
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=198.82..240.71 rows=4189 width=8) (actual time=1.693..2.143 rows=2893 loops=1)
+   Group Key: entity_id
+   Batches: 1  Memory Usage: 465kB
+   ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment  (cost=0.43..188.33 rows=4195 width=8) (actual time=0.065..0.734 rows=2893 loops=1)
+         Index Cond: ((taxon_id = ANY ('{150}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+         Heap Fetches: 0
+ Planning Time: 0.175 ms
+ Execution Time: 2.768 ms
+(8 rows)
+
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=1922.88..2324.73 rows=40185 width=8) (actual time=17.576..22.807 rows=40344 loops=1)
+   Group Key: entity_id
+   Batches: 1  Memory Usage: 3601kB
+   ->  Index Only Scan using idx_ta_taxon_type_entity on taxon_assignment  (cost=0.43..1820.93 rows=40782 width=8) (actual time=0.093..6.318 rows=40472 loops=1)
+         Index Cond: ((taxon_id = ANY ('{5,50,150}'::bigint[])) AND (entity_type = 'ADVERTISEMENT'::text))
+         Heap Fetches: 0
+ Planning Time: 0.115 ms
+ Execution Time: 26.688 ms
+(8 rows)
+

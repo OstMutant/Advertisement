@@ -44,7 +44,8 @@ Java package root: `org.ost.restapi`
   response records, `ErrorResponse`/`ValidationErrorResponse` — kept in their own package rather
   than nested, since the advice maps exceptions from every controller in this module, not owned by
   any single one. `TooManyAttemptsException` maps to 429, with `Retry-After` taken from the
-  exception's window when it carries one.
+  exception's window when it carries one; `OptionalComponentUnavailableException` (a write to a feature
+  whose starter is not installed) maps to 503.
 - `org.ost.restapi.api.concurrency` — `ETagUtil`, the sole conversion point between a resource's
   `version` and the HTTP `ETag`/`If-Match` header representation: `withVersion()` sets a response's
   `ETag` (skipped when the version is null), `parseIfMatch()` reads the expected version back off an

@@ -13,7 +13,7 @@
  * Outputs: exports openQueryPanel, applyFilter, clearFilter, waitForVaadin,
  *   clickSort, resetDefaultSorts, fillText, fillNumber, fillRole, fillCategory, fillCity,
  *   fillAdKind, setDateRange, getRow, getTotalCount, goToNextPage, goToPrevPage, goToFirstPage,
- *   goToLastPage, verifyPagination, verifyDateRangeFilters, verifySortColumn.
+ *   goToLastPage, verifyPagination, verifyDateRangeFilters, verifySortColumn, assertSortStatusLine.
  * Returns: N/A
  * ──────────────────────────────────────────────────────────────────────────── */
 const { expect } = require('@playwright/test');
@@ -125,6 +125,16 @@ async function resetDefaultSorts(page, blockSelector) {
   await applyFilter(page, blockSelector);
   await getRow(page, blockSelector, 'Created At').locator('.sort-icon').click();
   await applyFilter(page, blockSelector);
+}
+
+/**
+ * Asserts the visible query status bar's sort summary text equals the expected string.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} expected exact text of the sort summary line.
+ * @returns {Promise<void>}
+ */
+async function assertSortStatusLine(page, expected) {
+  await expect(page.locator('.query-status-bar:visible .query-status-bar-sort-info')).toHaveText(expected);
 }
 
 // ── field fill helpers ────────────────────────────────────────────────────────
@@ -545,4 +555,5 @@ module.exports = {
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
   verifyPagination, verifyDateRangeFilters, verifySortColumn, verifySortColumnChanges,
+  assertSortStatusLine,
 };

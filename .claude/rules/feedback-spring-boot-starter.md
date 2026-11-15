@@ -12,8 +12,8 @@ Java package root: `org.ost.feedback`
 
 ## What it owns
 
-- `Feedback` (the link row), `FeedbackContent` (shared text+moderation+edit-tracking atom reused by
-  both a feedback entry and its single reply), `FeedbackRating` (1:1 per feedback),
+- `Feedback` (the link row), `FeedbackContent` (text+moderation+edit-tracking atom with the same shape
+  for a feedback entry and its single reply, one row per owner), `FeedbackRating` (1:1 per feedback),
   `FeedbackComment` (the single reply), `FeedbackAggregate` (denormalized `avg_rating`/
   `review_count` per owning entity) entities
 - `FeedbackRepository` — bespoke `JdbcClient` queries across all 5 tables (view joins, moderation
@@ -33,8 +33,8 @@ Java package root: `org.ost.feedback`
 ## Schema
 
 Liquibase changelog: `db/feedback-changelog/feedback-changelog-master.xml`
-Tables: `feedback_content` (shared text+`moderation_status`+`moderation_reason`+edit-tracking atom,
-pointed at by both `feedback.content_id` and `feedback_comment.content_id`), `feedback` (at most one
+Tables: `feedback_content` (text+`moderation_status`+`moderation_reason`+edit-tracking atom, pointed
+at by exactly one `feedback.content_id` or `feedback_comment.content_id`, both unique), `feedback` (at most one
 row per `(author_id, entity_type, entity_id)`, enforced by the unique `idx_feedback_author_entity`
 index; immutable after creation — edits touch `feedback_content`/`feedback_rating` instead),
 `feedback_rating` (1:1 with `feedback`), `feedback_comment` (the single reply, at most one per
@@ -54,16 +54,16 @@ feedback write/flag/approve)
   generic, never a direct call into `provider-profile-spring-boot-starter`/
   `advertisement-spring-boot-starter`.
 - `FeedbackModerationStatus` has three values: `NEW` (visible by default), `HIDDEN` (pending
-  moderator review after a report), `CONFIRMED_HIDDEN` (a moderator's permanent confirmation of a
-  genuine violation — permanently excluded from the moderation queue, but still rendered as the
-  same censored placeholder as `HIDDEN`, per `isHidden()`).
+  moderator review after a report), `CONFIRMED_HIDDEN` (a moderator's confirmation of a genuine
+  violation — left out of the moderation queue's default view and still rendered as the same
+  censored placeholder as `HIDDEN`, per `isHidden()`; an approval can still restore it).
 - `FeedbackRepository.upsertAggregate` only counts `feedback_content.moderation_status = 'NEW'`
   rows — a hidden or confirmed-violation entry never inflates the public `avg_rating`/
   `review_count`; the aggregate is recomputed in the same transaction as every feedback write,
   flag, and approve.
 - No FK cascade between `feedback`/`feedback_rating`/`feedback_comment`/`feedback_content` — hard
-  deletes (`deleteCommentHard`, `deleteFeedbackHard`) issue each `DELETE` explicitly, in FK-safe
-  order.
+  deletes (`deleteCommentHard`, `deleteFeedbackHard`, and `deleteByEntity` for every entry of one
+  owning entity plus its `feedback_aggregate` row) issue each `DELETE` explicitly, in FK-safe order.
 - Who may write the single reply (only the reviewed provider-profile's owner) is **not** enforced
   in this starter — that authorization check lives in `marketplace-orchestrator`'s
   `FeedbackCommentWriteService`, since this starter must not depend on `ProviderProfilePort`. This

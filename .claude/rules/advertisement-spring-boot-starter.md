@@ -12,14 +12,17 @@ Java package root: `org.ost.advertisement`
 
 ## What it owns
 
-See `advertisement-spring-boot-starter/README.md`'s "Key classes" table for the class list and
-one-line roles — not restated here. One constraint worth stating locally since it's not just a
+The class list and one-line roles (entities, key services, contracts) are generated from the code:
+see the `advertisement-spring-boot-starter` node on the module page of
+[`architecture-map.html`](../../docs/architecture/architecture-map.html) and in
+[`architecture-model.json`](../../docs/architecture/data/architecture-model.json), not restated here.
+One constraint worth stating locally since it's not just a
 class role: `AdvertisementService` owns only advertisement-domain CRUD and query-time category/city
 filter resolution — it does not clear or write taxon assignments, does not enrich display fields
 (category/city names, author name/email, media summary), and does not cascade-clean attachments on
 delete. All of that cross-domain composition lives in `marketplace-orchestrator`'s
 `AdvertisementSaveService`/`AdvertisementDisplayEnrichmentService` — see
-`marketplace-orchestrator/CLAUDE.md`.
+`.claude/rules/marketplace-orchestrator.md`.
 
 **Autoconfiguration entry point:** `AdvertisementAutoConfiguration`
 
@@ -38,10 +41,10 @@ Tables: `advertisement`
 - `@EnableJdbcRepositories(basePackages = "org.ost.advertisement.repository")` declared in `AdvertisementAutoConfiguration`.
 - `AdvertisementPortImpl` is pure delegation — no business logic inside the port.
 - `AdvertisementService`'s only remaining cross-domain dependency is `ComponentFactory<TaxonPort>`,
-  used solely for query-time category/city filter resolution
-  (`resolveTaxonIdFilter()` → `TaxonPort.findEntityIdsWithAnyTaxon()`, translating a category-id
-  filter into an advertisement-id set before `SqlFilterBuilder` builds the `WHERE` clause) — not
-  for writing or clearing taxon assignments, and not for display enrichment.
+  used solely for query-time category/city filtering (`resolveTaxonPredicate()` →
+  `TaxonPort.categoryAndCityPredicate()`; `AdvertisementRepository` appends the predicate it returns
+  to the page and count statements) — not for writing or clearing taxon assignments, and not for
+  display enrichment.
 - Actor-reference columns on `advertisement` are named `created_by`/`updated_by`/`deleted_by` —
   no `_user_id` suffix — matching `taxon`'s convention (see `.claude/nav/adr-index.md`). Sort-by-author
   is not an exposed feature (`AdvertisementSortMeta` has no such option);

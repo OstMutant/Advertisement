@@ -1,0 +1,2 @@
+buildSearchIndex();
+render();

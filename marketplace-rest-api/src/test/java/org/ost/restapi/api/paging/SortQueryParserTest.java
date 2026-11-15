@@ -49,4 +49,23 @@ class SortQueryParserTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("secretField");
     }
+
+    private static final Sort DEFAULT = Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt");
+
+    @Test
+    void withDefault_noParam_usesDefaultEndingInId() {
+        assertThat(SortQueryParser.parse(null, ALLOWED, DEFAULT))
+                .isEqualTo(Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt", "id"));
+    }
+
+    @Test
+    void withDefault_explicitParam_winsAndEndsInId() {
+        assertThat(SortQueryParser.parse("title,asc", ALLOWED, DEFAULT))
+                .isEqualTo(Sort.by(Sort.Direction.ASC, "title").and(Sort.by(Sort.Direction.DESC, "id")));
+    }
+
+    @Test
+    void withDefault_idAlreadyPresent_isNotDuplicated() {
+        assertThat(SortQueryParser.parse("id,asc", Set.of("id"), DEFAULT)).isEqualTo(Sort.by(Sort.Direction.ASC, "id"));
+    }
 }

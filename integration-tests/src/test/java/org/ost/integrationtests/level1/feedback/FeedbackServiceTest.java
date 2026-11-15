@@ -18,6 +18,7 @@ import org.ost.platform.feedback.dto.FeedbackCommentDto;
 import org.ost.platform.feedback.dto.FeedbackCommentSaveDto;
 import org.ost.platform.feedback.dto.FeedbackDto;
 import org.ost.platform.feedback.dto.FeedbackSaveDto;
+import org.ost.platform.feedback.dto.ModerationQueueFilterDto;
 import org.ost.platform.feedback.model.FeedbackModerationStatus;
 import org.ost.platform.feedback.model.FeedbackNotFlaggableException;
 import org.ost.platform.feedback.model.FeedbackNotModeratableException;
@@ -25,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestPropertySource;
@@ -258,6 +260,26 @@ class FeedbackServiceTest extends AbstractPostgresIntegrationTest {
         List<FeedbackDto> hidden = feedbackService.findHiddenFeedback(PageRequest.of(0, 20));
         assertThat(hidden).hasSize(1);
         assertThat(hidden.get(0).id()).isEqualTo(feedback.id());
+    }
+
+    @Test
+    void moderationQueue_blankAuthorNameWithoutUserPort_staysUnfiltered() {
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), newEntityId(), 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), 2L, "Spam.");
+        ModerationQueueFilterDto filter = ModerationQueueFilterDto.builder().authorName(" ").build();
+
+        assertThat(feedbackService.findModerationQueue(filter, Sort.by("createdAt"), 0, 20)).hasSize(1);
+        assertThat(feedbackService.countModerationQueue(filter)).isEqualTo(1);
+    }
+
+    @Test
+    void moderationQueue_authorNameWithoutUserPort_returnsNothingForListAndCount() {
+        FeedbackDto feedback = feedbackService.save(newSaveDto(null, newAuthorId(), newEntityId(), 5, "Root feedback.", null));
+        feedbackService.flagFeedback(feedback.id(), 2L, "Spam.");
+        ModerationQueueFilterDto filter = ModerationQueueFilterDto.builder().authorName("anyone").build();
+
+        assertThat(feedbackService.findModerationQueue(filter, Sort.by("createdAt"), 0, 20)).isEmpty();
+        assertThat(feedbackService.countModerationQueue(filter)).isZero();
     }
 
     @Test

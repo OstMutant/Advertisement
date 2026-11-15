@@ -12,8 +12,11 @@ Java package root: `org.ost.user`
 
 ## What it owns
 
-See `user-spring-boot-starter/README.md`'s "Key classes" table for the class list and one-line
-roles — not restated here. `UserPreferences` is table-only (no entity —
+The class list and one-line roles (entities, key services, contracts) are generated from the code:
+see the `user-spring-boot-starter` node on the module page of
+[`architecture-map.html`](../../docs/architecture/architecture-map.html) and in
+[`architecture-model.json`](../../docs/architecture/data/architecture-model.json), not restated here.
+`UserPreferences` is table-only (no entity —
 `UserPreferencesRepository` uses raw `JdbcClient`); `UserSettingsChangedHook` implementations
 fire on settings change.
 
@@ -41,7 +44,7 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   starter-module-level port-split rationale.
 - `@EnableJdbcRepositories(basePackages = "org.ost.user.repository")` declared in `UserAutoConfiguration`.
 - First registered user is auto-promoted to `ADMIN` role — enforced in `UserService`.
-- `@PreAuthorize` must NOT be placed at class level on service beans — see marketplace-app/CLAUDE.md.
+- `@PreAuthorize` must NOT be placed at class level on service beans — see `.claude/rules/marketplace-app.md`.
 - `passwordEncoder()` bean in `UserAutoConfiguration` uses
   `PasswordEncoderFactories.createDelegatingPasswordEncoder()` (not a raw `BCryptPasswordEncoder`)
   so stored hashes carry an algorithm prefix (`{bcrypt}`) and future algorithm migration doesn't
@@ -56,7 +59,7 @@ codebase's actor-reference-column convention, e.g. `advertisement.created_by`)
   `UserRepository.updateProfile()`) goes through a second, narrower entity —
   `UserEditableFields` (`id`, `name`, `role`, `updatedAt`, `version` — no `email`/`passwordHash`,
   named for the restricted-column-set it represents, not "profile" — that word is reserved for
-  F-04's provider-profile concept) — mapped to the same `user_information` table via its own
+  the provider-profile concept) — mapped to the same `user_information` table via its own
   `UserEditableFieldsCrudRepository`. Spring Data JDBC's native `@Version` handling applies (throws
   `OptimisticLockingFailureException` on a version mismatch, same as `Advertisement`/`Taxon`,
   caught at the repository boundary and rethrown as `StaleWriteException`), and

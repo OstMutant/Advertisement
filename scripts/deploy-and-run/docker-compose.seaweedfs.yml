@@ -6,18 +6,20 @@
 #   --project-directory is required for the same reason as docker-compose.db.yml's own header --
 #   without it, the Env vars below silently resolve to empty strings.
 # Uses: chrislusf/seaweedfs image (all-in-one master+volume+filer+S3-gateway process).
-# Env: S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_PORT -- all read from the repo-root .env.
+# Env: PROJECT_LABEL, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_PORT -- all read from the repo-root .env.
 # Input: repo-root .env.
 # Outputs: advertisement-seaweedfs container (publishing S3_PORT -> 9000, 9333 -> 9333, named
 #   volume seaweedfs_data); a seaweedfs-init container that creates the S3_BUCKET bucket, then exits.
 # ────────────────────────────────────────────────────────────────────────────
 version: '3.8'
 
-x-seaweedfs-image: &seaweedfs_image chrislusf/seaweedfs:latest
+x-seaweedfs-image: &seaweedfs_image chrislusf/seaweedfs:4.53
 
 services:
   seaweedfs:
     container_name: advertisement-seaweedfs
+    labels:
+      - ${PROJECT_LABEL}
     image: *seaweedfs_image
     restart: unless-stopped
     environment:
@@ -44,6 +46,8 @@ services:
       retries: 5
 
   seaweedfs-init:
+    labels:
+      - ${PROJECT_LABEL}
     image: *seaweedfs_image
     depends_on:
       seaweedfs:

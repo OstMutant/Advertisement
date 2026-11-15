@@ -76,6 +76,8 @@ public class UserApiController {
             UserDto.Fields.id, UserDto.Fields.name, UserDto.Fields.email, UserDto.Fields.role,
             UserDto.Fields.createdAt, UserDto.Fields.updatedAt);
 
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, UserDto.Fields.updatedAt, UserDto.Fields.createdAt);
+
     private final UserProfileService userProfileService;
     private final AuthorizationService authorizationService;
     private final UserDeleteService userDeleteService;
@@ -98,14 +100,14 @@ public class UserApiController {
         return new UserCreatedResponse(user.id(), user.name(), user.email(), user.role());
     }
 
-    @Operation(operationId = "listUsers", summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings).")
+    @Operation(operationId = "listUsers", summary = "List/filter/sort users", description = "Admin/moderator only. size is not caller-supplied -- it comes from the caller's saved settings (PATCH /api/users/me/settings). Default order when sort is omitted: most recently changed first, then most recently created, then id.")
     @GetMapping
     @SecurityRequirement(name = "bearerKey")
     public ResponseEntity<List<UserDto>> list(@AuthenticationPrincipal Long actorId, @ModelAttribute @Valid UserFilterDto filter,
             @RequestParam(defaultValue = "0") int page, @RequestParam(required = false) String sort, HttpServletRequest httpRequest) {
         authorizationService.requireIsPrivileged(actorId);
         int size = userProfileService.resolveUsersPageSize(actorId);
-        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS);
+        Sort sortObj = SortQueryParser.parse(sort, SORTABLE_FIELDS, DEFAULT_SORT);
         List<UserDto> items = userProfileService.getFiltered(filter, page, size, sortObj);
         int total = userProfileService.count(filter);
         return PagedResponseBuilder.build(httpRequest, page, size, total, items);

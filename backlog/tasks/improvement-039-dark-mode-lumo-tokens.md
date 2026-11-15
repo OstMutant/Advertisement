@@ -4,7 +4,7 @@
 item 20.
 **Module:** `marketplace-app` theme CSS
 **Priority:** ⚪ under reconsideration — deprioritized to the very bottom of the backlog
-2026-09-16, per explicit user request, after a first real implementation attempt failed. **Before
+2026-09-16 and again placed in its lowest Nice to have row 2026-11-04, per explicit user request, after a first real implementation attempt failed. **Before
 picking this up again: decide whether this feature is actually wanted at all**, not just how to
 build it — the first attempt showed this needs meaningfully more effort than it looked like
 up front, and that cost/value trade-off hasn't been reassessed since.

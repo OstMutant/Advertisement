@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.feedback.config.FeedbackAutoConfiguration;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.UserTestFixtures;
+import org.ost.integrationtests.support.PromotionTestSupport;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.orchestrator.services.AccessDeniedException;
@@ -61,6 +62,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         ProviderProfileReadService.class,
         AuthorizationService.class,
         FeedbackAccessService.class,
+        PromotionTestSupport.class,
         FeedbackCommentWriteService.class,
         FeedbackCommentWriteServiceTest.StubUiLabelHookConfig.class
 })

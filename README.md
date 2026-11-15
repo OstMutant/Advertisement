@@ -6,7 +6,7 @@
 foundation underneath it (authorization model, SQL layer, testing strategy, backlog process) is
 stable and is the actual point of this project.
 
-**At a glance:** 7 bounded-context starters · 3 test layers, each with a distinct failure scope (unit /
+**At a glance:** 10 bounded-context starters · 3 test layers, each with a distinct failure scope (unit /
 Testcontainers / Playwright) · 200+ backlog items, each resolved with a dated, root-cause write-up
 — not a vague TODO list.
 
@@ -17,7 +17,7 @@ features — not a toy example, and not (yet) a finished product:
 - clear responsibility boundaries between layers, enforced at both the UI and service level
 
 **Skim it (5 min):** [If you have 5 minutes](#if-you-have-5-minutes) · [Module map](#module-layout)
-**Go deep:** [Architecture](#architectural-principles) · [Testing Strategy](#testing-strategy) · [Backlog](backlog/BACKLOG.md)
+**Go deep:** [Architecture](#architectural-principles) · [Testing Strategy](#testing-strategy) · [Backlog](backlog/BACKLOG.md) · [Architecture map](docs/architecture/architecture-map.html)
 
 ---
 
@@ -132,12 +132,14 @@ Playwright for full browser-driven end-to-end flows.
 flowchart LR
     QL[query-lib] --> STARTERS
     HSL[html-sanitizer-lib] --> STARTERS
-    PC[platform-commons] --> STARTERS[Domain starters]
+    PC[platform-commons] --> STARTERS
     STARTERS --> ORCH[marketplace-orchestrator]
     ORCH --> APP[marketplace-app]
     ORCH --> API[marketplace-rest-api]
+    API --> APP
+    MCP[marketplace-mcp] --> APP
 
-    subgraph STARTERS[" "]
+    subgraph STARTERS["Domain starters"]
         direction TB
         S1[audit-spring-boot-starter]
         S2[attachment-spring-boot-starter]
@@ -146,14 +148,20 @@ flowchart LR
         S5[taxon-spring-boot-starter]
         S6[provider-profile-spring-boot-starter]
         S7[apikey-spring-boot-starter]
+        S8[contact-spring-boot-starter]
+        S9[feedback-spring-boot-starter]
+        S10[promotion-spring-boot-starter]
     end
 ```
 
-`platform-commons`/`query-lib`/`html-sanitizer-lib` are the shared foundation every starter
+An arrow points from a module to the module that uses it. `platform-commons`/`query-lib`/`html-sanitizer-lib` are the shared foundation every starter
 depends on; each domain starter owns one bounded context; `marketplace-orchestrator` composes
-cross-domain use cases for both delivery channels — `marketplace-app` (Vaadin UI) and
-`marketplace-rest-api` (external REST API). `integration-tests` (Testcontainers repository tests,
-test-only, not shown above) depends on every starter without any of them depending on it back.
+cross-domain use cases for two delivery channels — `marketplace-app` (Vaadin UI) and
+`marketplace-rest-api` (external REST API). `marketplace-mcp` is a third adapter: an MCP server that
+lets AI agents use the REST API over HTTP with the caller's own API key, so it depends on no other
+project module; `marketplace-app` bundles it together with the REST API. `integration-tests`
+(Testcontainers repository tests, test-only, not shown above) depends on every starter without any of
+them depending on it back.
 
 `platform-commons` holds contracts only — `*Port`/`*Hook` interfaces, DTOs, domain enums, snapshot
 types — never business logic or a Spring bean (enforced by its own module convention, see
@@ -181,9 +189,13 @@ Per-module documentation:
 | taxon-spring-boot-starter | [README](taxon-spring-boot-starter/README.md) | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
 | provider-profile-spring-boot-starter | [README](provider-profile-spring-boot-starter/README.md) | [DECISIONS](provider-profile-spring-boot-starter/DECISIONS.md) |
 | apikey-spring-boot-starter | [README](apikey-spring-boot-starter/README.md) | [DECISIONS](apikey-spring-boot-starter/DECISIONS.md) |
+| contact-spring-boot-starter | [README](contact-spring-boot-starter/README.md) | [DECISIONS](contact-spring-boot-starter/DECISIONS.md) |
+| feedback-spring-boot-starter | [README](feedback-spring-boot-starter/README.md) | [DECISIONS](feedback-spring-boot-starter/DECISIONS.md) |
+| promotion-spring-boot-starter | [README](promotion-spring-boot-starter/README.md) | [DECISIONS](promotion-spring-boot-starter/DECISIONS.md) |
 | integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
 | marketplace-orchestrator | [README](marketplace-orchestrator/README.md) | [DECISIONS](marketplace-orchestrator/DECISIONS.md) |
 | marketplace-rest-api | [README](marketplace-rest-api/README.md) | [DECISIONS](marketplace-rest-api/DECISIONS.md) |
+| marketplace-mcp | [README](marketplace-mcp/README.md) | [DECISIONS](marketplace-mcp/DECISIONS.md) |
 | marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
 | playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
 | scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |

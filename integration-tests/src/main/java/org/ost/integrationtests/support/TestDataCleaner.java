@@ -76,6 +76,7 @@ public final class TestDataCleaner {
                 "advertisement",
                 "provider_profile",
                 "contact_view", "contact_info",
+                "promotion_placement",
                 "feedback_comment", "feedback_rating",
                 "feedback_aggregate", "feedback", "feedback_content",
                 "api_key",

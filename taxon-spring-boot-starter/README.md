@@ -39,6 +39,9 @@ coordinates two independent services and never touches a repository directly:
   `TaxonAssignmentService.replaceAssignments`, which diffs the new taxon id set against the current
   one (`TaxonAssignmentRepository.findAllByEntity`) and issues only the resulting `assign`/`unassign`
   calls.
+- **Category/city predicate:** `TaxonPort.categoryAndCityPredicate` → `DefaultTaxonPort` →
+  `TaxonAssignmentService` → `TaxonAssignmentRepository`, which builds the `EXISTS` text and its
+  parameters without running it; the consumer appends it to its own page and count statements.
 
 ## Schema
 
@@ -54,8 +57,7 @@ keyed by `EntityType` + entity id rather than a domain-specific FK). A partial u
 - `platform-commons` — `TaxonPort`/`TaxonDto`/`TaxonSnapshotDto`/
   `TaxonTranslationDto`/`TaxonType` (own SPI contract), plus `AuditPort`/`ComponentFactory`/
   `EntityType` (the shared audit/assignment contracts every domain starter uses).
-- `query-lib` — `SqlFilterBuilder`/`OrderByBuilder`/`PaginationSqlBuilder` for `TaxonRepository`'s
-  dynamic, paginated catalog queries.
+- `query-lib` — the dynamic filter, sort and pagination clauses of `TaxonRepository`'s catalog queries.
 - No dependency on any sibling starter — the generic `EntityType`-keyed assignment table is what
   lets `provider-profile-spring-boot-starter` reuse this starter's assignment mechanism without a
   direct starter-to-starter dependency (enforced by the shared `enforce-no-starter-to-starter-deps`
